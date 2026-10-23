@@ -90,7 +90,7 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Make builtins a fallback namespace](./202610231557-make-builtins-a-fallback-namespace.md) | Accepted |
 | 2026-10-23 | [Run programs on a worker thread with a 256 MB stack](./202610231558-run-programs-on-a-worker-thread-with-a-256-mb-stack.md) | Accepted |
 | 2026-10-23 | [Allow continuation lines to start with a binding](./202610231559-allow-continuation-lines-to-start-with-a-binding.md) | Accepted |
-| 2026-10-23 | [Name the output builtins `print` and `print-ln`](./202610231600-name-the-output-builtins-print-and-print-ln.md) | Accepted |
+| 2026-10-23 | [Name the output builtins `print` and `print-ln`](./202610231600-name-the-output-builtins-print-and-print-ln.md) | Superseded by [Rename `print-ln` to `print-line`](./202610231906-rename-print-ln-to-print-line.md) |
 | 2026-10-23 | [Return the input from `print-ln`](./202610231601-return-the-input-from-print-ln.md) | Accepted |
 | 2026-10-23 | [Print chars bare, like strings](./202610231602-print-chars-bare-like-strings.md) | Accepted |
 | 2026-10-23 | [Return `nothing` from searches that find nothing](./202610231603-return-nothing-from-searches-that-find-nothing.md) | Accepted |
@@ -106,3 +106,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Split programs into modules with `use` and `export`](./202610231613-split-programs-into-modules-with-use-and-export.md) | Accepted |
 | 2026-10-23 | [Organize the standard library into modules](./202610231614-organize-the-standard-library-into-modules.md) | Accepted |
 | 2026-10-23 | [Run cleanup with `always` after `attempt`](./202610231615-run-cleanup-with-always-after-attempt.md) | Accepted |
+| 2026-10-23 | [Rename `print-ln` to `print-line`](./202610231906-rename-print-ln-to-print-line.md) | Accepted |

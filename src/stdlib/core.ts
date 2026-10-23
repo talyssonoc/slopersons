@@ -76,7 +76,7 @@ export function runLoopBody(body: () => void): boolean {
 }
 
 export function registerCore(interpreter: Interpreter): void {
-  interpreter.defineIn('io', 'print-ln', 1, (inputs, context) => {
+  interpreter.defineIn('io', 'print-line', 1, (inputs, context) => {
     context.interpreter.io.write(`${formatValue(input(inputs, 0), 'print')}\n`);
     return input(inputs, 0);
   });

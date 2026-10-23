@@ -6,9 +6,9 @@ An error value is what `recover` binds when a runtime error happens inside its `
 attempt
 | 1 / 0
 recover e
-| e -> io/print-ln                  ~ division by zero
-| e -> show -> io/print-ln          ~ <error division by zero>
-| e -> type-of -> io/print-ln       ~ error
+| e -> io/print-line                ~ division by zero
+| e -> show -> io/print-line        ~ <error division by zero>
+| e -> type-of -> io/print-line     ~ error
 ```
 
 ## message
@@ -18,7 +18,7 @@ recover e
 Returns the message as a string.
 
 ```
-attempt | "boom" -> fail recover e | e -> error/message -> io/print-ln   ~ boom
+attempt | "boom" -> fail recover e | e -> error/message -> io/print-line   ~ boom
 ```
 
 ## line
@@ -37,7 +37,7 @@ Returns the column where the error was raised, as an int, or `nothing` when the 
 attempt
 | 1 / 0
 recover e
-| "{e -> error/message} at line {e -> error/line}" -> io/print-ln   ~ division by zero at line 2
+| "{e -> error/message} at line {e -> error/line}" -> io/print-line   ~ division by zero at line 2
 ```
 
 ## file
@@ -51,7 +51,7 @@ Returns the file the error was raised in, as a string, or `nothing` when unknown
 attempt
 | "circle" -> geometry/circle-area
 recover e
-| e -> error/file -> io/print-ln   ~ lib/geometry.slop
+| e -> error/file -> io/print-line   ~ lib/geometry.slop
 ```
 
 ## to-string

@@ -15,8 +15,8 @@ Functions for hashmaps. They live in the `hashmap` module and are called with th
 Returns the value stored under `key`. Use `hashmap/at-or` or `hashmap/has` when the key may be missing. Arrays and strings have their own `array/at` and `string/at`.
 
 ```
-{"a": 1  "b": 2} -> hashmap/at "b" -> io/print-ln        ~ 2
-{[1 2]: "pair"} -> hashmap/at [1 2] -> io/print-ln       ~ pair
+{"a": 1  "b": 2} -> hashmap/at "b" -> io/print-line      ~ 2
+{[1 2]: "pair"} -> hashmap/at [1 2] -> io/print-line     ~ pair
 ```
 
 Errors: `key` is not in the hashmap, as `key "zip" not found in hashmap` with the key in its `show` form.
@@ -28,8 +28,8 @@ Errors: `key` is not in the hashmap, as `key "zip" not found in hashmap` with th
 Returns the value stored under `key`, or `default` when the key is missing. A key stored with the value `nothing` is present, so `nothing` comes back rather than the default.
 
 ```
-{"a": 1} -> hashmap/at-or "a" 0 -> io/print-ln           ~ 1
-{"a": 1} -> hashmap/at-or "zip" 0 -> io/print-ln         ~ 0
+{"a": 1} -> hashmap/at-or "a" 0 -> io/print-line         ~ 1
+{"a": 1} -> hashmap/at-or "zip" 0 -> io/print-line       ~ 0
 ```
 
 ## hashmap/put
@@ -40,8 +40,8 @@ Stores `value` under `key` in place and returns the same hashmap. An existing ke
 
 ```
 {"a": 1} => m
-m -> hashmap/put "a" 10 -> hashmap/put "b" 2 -> io/print-ln    ~ {"a": 10  "b": 2}
-m -> io/print-ln                                               ~ {"a": 10  "b": 2}
+m -> hashmap/put "a" 10 -> hashmap/put "b" 2 -> io/print-line  ~ {"a": 10  "b": 2}
+m -> io/print-line                                             ~ {"a": 10  "b": 2}
 ```
 
 ## hashmap/remove
@@ -51,7 +51,7 @@ m -> io/print-ln                                               ~ {"a": 10  "b": 
 Deletes the entry under `key` in place and returns the same hashmap. Removing a key that is not there changes nothing.
 
 ```
-{"a": 1  "b": 2} -> hashmap/remove "a" -> hashmap/remove "zip" -> io/print-ln    ~ {"b": 2}
+{"a": 1  "b": 2} -> hashmap/remove "a" -> hashmap/remove "zip" -> io/print-line    ~ {"b": 2}
 ```
 
 ## hashmap/has
@@ -61,8 +61,8 @@ Deletes the entry under `key` in place and returns the same hashmap. Removing a 
 Returns `yes` when `key` is in the hashmap, `no` otherwise.
 
 ```
-{"a": 1} -> hashmap/has "a" -> io/print-ln               ~ yes
-{"a": 1} -> hashmap/has "b" -> io/print-ln               ~ no
+{"a": 1} -> hashmap/has "a" -> io/print-line             ~ yes
+{"a": 1} -> hashmap/has "b" -> io/print-line             ~ no
 ```
 
 ## hashmap/keys
@@ -72,7 +72,7 @@ Returns `yes` when `key` is in the hashmap, `no` otherwise.
 Returns the keys as an array, in insertion order.
 
 ```
-{"b": 2  "a": 1} -> hashmap/keys -> io/print-ln          ~ ["b" "a"]
+{"b": 2  "a": 1} -> hashmap/keys -> io/print-line          ~ ["b" "a"]
 ```
 
 ## hashmap/values
@@ -82,7 +82,7 @@ Returns the keys as an array, in insertion order.
 Returns the values as an array, in insertion order.
 
 ```
-{"b": 2  "a": 1} -> hashmap/values -> io/print-ln        ~ [2 1]
+{"b": 2  "a": 1} -> hashmap/values -> io/print-line        ~ [2 1]
 ```
 
 ## hashmap/entries
@@ -92,7 +92,7 @@ Returns the values as an array, in insertion order.
 Returns the entries as an array of two-element `[key value]` arrays, in insertion order. This is also how a hashmap becomes an array.
 
 ```
-{"b": 2  "a": 1} -> hashmap/entries -> io/print-ln       ~ [["b" 2] ["a" 1]]
+{"b": 2  "a": 1} -> hashmap/entries -> io/print-line       ~ [["b" 2] ["a" 1]]
 ```
 
 ## hashmap/length
@@ -102,7 +102,7 @@ Returns the entries as an array of two-element `[key value]` arrays, in insertio
 Returns the number of entries as an int.
 
 ```
-{"a": 1  "b": 2} -> hashmap/length -> io/print-ln        ~ 2
+{"a": 1  "b": 2} -> hashmap/length -> io/print-line        ~ 2
 ```
 
 ## hashmap/is-empty
@@ -112,8 +112,8 @@ Returns the number of entries as an int.
 Returns `yes` when the hashmap has no entries.
 
 ```
-{} -> hashmap/is-empty -> io/print-ln                    ~ yes
-{"a": 1} -> hashmap/is-empty -> io/print-ln              ~ no
+{} -> hashmap/is-empty -> io/print-line                  ~ yes
+{"a": 1} -> hashmap/is-empty -> io/print-line            ~ no
 ```
 
 ## hashmap/merge
@@ -123,7 +123,7 @@ Returns `yes` when the hashmap has no entries.
 Returns a new hashmap with the entries of both. The input's keys come first in their order, then the keys only `other` has; when a key is in both, the value from `other` wins. Neither input changes.
 
 ```
-{"a": 1  "b": 2} -> hashmap/merge {"b": 20  "c": 3} -> io/print-ln    ~ {"a": 1  "b": 20  "c": 3}
+{"a": 1  "b": 2} -> hashmap/merge {"b": 20  "c": 3} -> io/print-line    ~ {"a": 1  "b": 20  "c": 3}
 ```
 
 Errors: `other` is not a hashmap, as `the argument of \`hashmap/merge\` must be a hashmap, got an array`.
@@ -136,7 +136,7 @@ Calls the body once per entry, in insertion order, with the key and the value as
 
 ```
 {"a": 1  "b": 2} -> hashmap/each k v
-| "{k}={v}" -> io/print-ln                               ~ a=1
+| "{k}={v}" -> io/print-line                               ~ a=1
                                                          ~ b=2
 ```
 
@@ -150,7 +150,7 @@ Returns a new hashmap with the same keys in the same order, each value replaced 
 
 ```
 {"a": 1  "b": 2} -> hashmap/map-values v | v * 10
--> io/print-ln                                           ~ {"a": 10  "b": 20}
+-> io/print-line                                           ~ {"a": 10  "b": 20}
 ```
 
 Errors: the body is not a procedure.
@@ -163,7 +163,7 @@ Returns a new hashmap with the entries for which the body returns `yes`, in thei
 
 ```
 {"a": 1  "b": 2  "c": 3} -> hashmap/keep k v | v > 1
--> io/print-ln                                           ~ {"b": 2  "c": 3}
+-> io/print-line                                           ~ {"b": 2  "c": 3}
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no`, as `the condition in \`hashmap/keep\` must return \`yes\` or \`no\`, got an int`.
@@ -176,6 +176,6 @@ Returns a new hashmap with the same entries in the same order. The copy is shall
 
 ```
 {"a": 1} => m
-m -> hashmap/copy -> hashmap/put "b" 2 -> io/print-ln    ~ {"a": 1  "b": 2}
-m -> io/print-ln                                         ~ {"a": 1}
+m -> hashmap/copy -> hashmap/put "b" 2 -> io/print-line  ~ {"a": 1  "b": 2}
+m -> io/print-line                                       ~ {"a": 1}
 ```

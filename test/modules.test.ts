@@ -17,17 +17,17 @@ function project(files: Record<string, string>, main: string): { out: string; er
   return { out: io.out, err: io.error, code, dir };
 }
 
-const geometry = 'proc area r | 3 * r * r\nproc helper | "hidden"\n"geometry loaded" -> io/print-ln\nexport area\n';
+const geometry = 'proc area r | 3 * r * r\nproc helper | "hidden"\n"geometry loaded" -> io/print-line\nexport area\n';
 
 test('use loads a module once, binds it, and exposes only exported names', () => {
-  const result = project({ 'geometry.slop': geometry }, '"./geometry" -> use => geo\n5 -> geo/area -> io/print-ln\n"./geometry" -> use => again\n(again = geo) -> io/print-ln\ngeo -> module/names -> io/print-ln\ngeo -> module/has "area" -> io/print-ln\ngeo -> module/has "helper" -> io/print-ln\ngeo -> io/print-ln\ngeo -> type-of -> io/print-ln\n');
+  const result = project({ 'geometry.slop': geometry }, '"./geometry" -> use => geo\n5 -> geo/area -> io/print-line\n"./geometry" -> use => again\n(again = geo) -> io/print-line\ngeo -> module/names -> io/print-line\ngeo -> module/has "area" -> io/print-line\ngeo -> module/has "helper" -> io/print-line\ngeo -> io/print-line\ngeo -> type-of -> io/print-line\n');
   assert.equal(result.err, '');
   assert.equal(result.out, 'geometry loaded\n75\nyes\n["area"]\nyes\nno\n<module geometry>\nmodule\n');
   assert.equal(result.code, 0);
 });
 
 test('a member can be bound into scope, read with at, or reported as missing', () => {
-  const result = project({ 'geometry.slop': geometry }, '"./geometry" -> use => geo\ngeo/area => area\n2 -> area -> io/print-ln\n2 -> (geo -> module/at "area") -> io/print-ln\nattempt | geo/helper recover e | e -> io/print-ln\nattempt | geo -> module/at "helper" recover e | e -> io/print-ln\nattempt | 5 -> geo/area/deeper recover e | e -> io/print-ln\n');
+  const result = project({ 'geometry.slop': geometry }, '"./geometry" -> use => geo\ngeo/area => area\n2 -> area -> io/print-line\n2 -> (geo -> module/at "area") -> io/print-line\nattempt | geo/helper recover e | e -> io/print-line\nattempt | geo -> module/at "helper" recover e | e -> io/print-line\nattempt | 5 -> geo/area/deeper recover e | e -> io/print-line\n');
   assert.equal(result.out, 'geometry loaded\n12\n12\nmodule `geo` has no exported name `helper`\nmodule `geometry` has no exported name "helper"\n`geo/area` is a proc, not a module, so `geo/area/deeper` cannot be looked up\n');
 });
 
@@ -36,7 +36,7 @@ test('the .slop extension is optional and paths resolve relative to the importin
     'lib/geometry.slop': '"./helpers" -> use => helpers\nproc area r | r -> helpers/triple\nexport area\n',
     'lib/helpers.slop': 'proc triple n | n * 3\nexport triple\n',
   };
-  const result = project(files, '"./lib/geometry.slop" -> use => geo\n4 -> geo/area -> io/print-ln\n');
+  const result = project(files, '"./lib/geometry.slop" -> use => geo\n4 -> geo/area -> io/print-line\n');
   assert.equal(result.err, '');
   assert.equal(result.out, '12\n');
 });
@@ -54,23 +54,23 @@ test('circular imports are reported with the chain', () => {
 });
 
 test('a missing module is a runtime error that attempt can recover from', () => {
-  const result = project({}, 'attempt | "./missing" -> use recover e | "recovered: {e -> error/message}" -> io/print-ln\n');
+  const result = project({}, 'attempt | "./missing" -> use recover e | "recovered: {e -> error/message}" -> io/print-line\n');
   assert.match(result.out, /^recovered: cannot read module "\.\/missing" \(looked for .*missing\.slop\)\n$/);
 });
 
 test('errors raised inside a module point at the module file, and its parse errors are not catchable', () => {
-  const failing = project({ 'bad.slop': 'proc boom\n| 1 / 0\nexport boom\n' }, '"./bad" -> use => bad\nboom -> io/print-ln\nbad/boom -> do\n');
+  const failing = project({ 'bad.slop': 'proc boom\n| 1 / 0\nexport boom\n' }, '"./bad" -> use => bad\nboom -> io/print-line\nbad/boom -> do\n');
   assert.equal(failing.out, '');
   assert.match(failing.err, /^error: unknown name `boom`\n  at .*main\.slop:2:1\n$/);
-  const inner = project({ 'bad.slop': 'proc boom\n| 1 / 0\nexport boom\n' }, '"./bad" -> use => bad\nattempt | bad/boom -> do recover e | "{e -> error/message} in {e -> error/file} line {e -> error/line}" -> io/print-ln\n');
+  const inner = project({ 'bad.slop': 'proc boom\n| 1 / 0\nexport boom\n' }, '"./bad" -> use => bad\nattempt | bad/boom -> do recover e | "{e -> error/message} in {e -> error/file} line {e -> error/line}" -> io/print-line\n');
   assert.match(inner.out, /^division by zero in .*bad\.slop line 2\n$/);
-  const unparsable = project({ 'syntax.slop': 'x -1\n' }, 'attempt | "./syntax" -> use recover | "caught" -> io/print-ln\n');
+  const unparsable = project({ 'syntax.slop': 'x -1\n' }, 'attempt | "./syntax" -> use recover | "caught" -> io/print-line\n');
   assert.equal(unparsable.out, '');
   assert.match(unparsable.err, /^error: unexpected `-`; binary operators need spaces on both sides\n  at .*syntax\.slop:1:3\n$/);
   assert.equal(unparsable.code, 1);
 });
 
 test('export in the main program is allowed and ignored, and a module without exports is empty', () => {
-  const result = project({ 'empty.slop': '"side effect" -> io/print-ln\n' }, 'export whatever\n"./empty" -> use -> module/names -> io/print-ln\n');
+  const result = project({ 'empty.slop': '"side effect" -> io/print-line\n' }, 'export whatever\n"./empty" -> use -> module/names -> io/print-line\n');
   assert.equal(result.out, 'side effect\n[]\n');
 });

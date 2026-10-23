@@ -16,7 +16,7 @@ slopersons source is UTF-8 text in `.slop` files. A program is a sequence of sta
 Every statement is a flow that reads left to right. The value on the left flows through steps on the right, joined by `->`.
 
 ```
-[3 8 15] -> array/reverse -> io/print-ln   ~ [15 8 3]
+[3 8 15] -> array/reverse -> io/print-line   ~ [15 8 3]
 ```
 
 The piped value becomes the **first argument** of the procedure it flows into; further arguments follow the procedure's name.
@@ -32,7 +32,7 @@ A flow can be split over several lines. A line that starts with `->`, `=>` or `=
 numbers
 -> array/keep n | n > 10
 -> array/map n | n * 2
--> io/print-ln
+-> io/print-line
 ```
 
 A single value on its own line is a flow with no steps and is allowed, but useless unless it is the last line of a procedure, where it is the result.
@@ -43,7 +43,7 @@ A single value on its own line is a flow with no steps and is allowed, but usele
 
 ```
 5 => x
-x -> double => y -> io/print-ln     ~ prints 10, y is 10
+x -> double => y -> io/print-line     ~ prints 10, y is 10
 ```
 
 `=>` always binds in the current scope. If the name exists only in an enclosing scope, that is an error, because the intent is ambiguous. `=>>` updates the nearest existing binding, searching from the current scope outward.
@@ -52,14 +52,14 @@ x -> double => y -> io/print-ln     ~ prints 10, y is 10
 0 => total
 [1 2 3] -> array/each n
 | total + n =>> total        ~ updates the outer total
-total -> io/print-ln         ~ 6
+total -> io/print-line       ~ 6
 ```
 
 Scopes are created only by the program as a whole, by `proc` bodies and by lambda bodies. Conditional and loop blocks share the scope they appear in. See `semantics.md` for the full rules.
 
 ## Calls and procedures
 
-A bare name is always a value, never a call, and so is a qualified name: `io/print-ln` on its own is the print procedure itself. Calling happens only through `->`.
+A bare name is always a value, never a call, and so is a qualified name: `io/print-line` on its own is the print procedure itself. Calling happens only through `->`.
 
 ```
 proc double n | n * 2
@@ -70,9 +70,9 @@ double => d                  ~ d is the procedure
 A procedure with no input is called through `do`, which calls its input with any remaining arguments.
 
 ```
-date/today -> do -> io/print-ln
+date/today -> do -> io/print-line
 proc add a b | a + b
-add -> do 1 2 -> io/print-ln       ~ 3
+add -> do 1 2 -> io/print-line       ~ 3
 ```
 
 `proc name params` defines a named procedure. Its body is an inline body after `|` or a margin block. The value of a procedure is the value of its last statement; `-> out` leaves early with a value.
@@ -101,7 +101,7 @@ a b | a < b                  ~ two parameters
 A lambda written directly after a call is passed as the call's **last argument**. Any bare names between the last real argument and the bar are its parameters.
 
 ```
-numbers -> array/each n | n -> io/print-ln
+numbers -> array/each n | n -> io/print-line
 numbers -> array/reduce 0 acc n | acc + n
 numbers -> array/sort-by a b | a < b
 ```
@@ -111,13 +111,13 @@ The same lambda can be written as a margin block: the parameters stay on the hea
 ```
 numbers -> array/each n
 | n * 2 => doubled
-| doubled -> io/print-ln
+| doubled -> io/print-line
 ```
 
 A lambda with no parameters needs parentheses when used as a value, because a line cannot start with a bar:
 
 ```
-(| "hello" -> io/print-ln) => greet
+(| "hello" -> io/print-line) => greet
 greet -> do
 ```
 
@@ -128,7 +128,7 @@ proc adder k
 | n | n + k
 
 5 -> adder => add-five
-10 -> add-five -> io/print-ln      ~ 15
+10 -> add-five -> io/print-line      ~ 15
 ```
 
 ## Blocks
@@ -139,8 +139,8 @@ A block is a run of lines that start with `|`, belonging to the header line abov
 proc report xs
 | xs -> array/each x
 | | x > 0 ?
-| | | x -> io/print-ln
-| "done" -> io/print-ln
+| | | x -> io/print-line
+| "done" -> io/print-line
 ```
 
 Blank lines inside a block are ignored. Blocks attach to the last step of the header line (as a lambda body), to a `proc`, to a `while`, to a conditional branch, or to a line of bare names (making a lambda).
@@ -150,27 +150,27 @@ Blank lines inside a block are ignored. Blocks attach to the last step of the he
 The condition comes first, then `?`, then the branch. A `:` introduces the else branch; `: condition ?` chains another test.
 
 ```
-n > 100 ? "big" -> io/print-ln
-: n > 10 ? "medium" -> io/print-ln
-: "small" -> io/print-ln
+n > 100 ? "big" -> io/print-line
+: n > 10 ? "medium" -> io/print-line
+: "small" -> io/print-line
 ```
 
 In block form, each `:` line sits at the same depth as the `?` line:
 
 ```
 n > 100 ?
-| "big" -> io/print-ln
+| "big" -> io/print-line
 : n > 10 ?
-| "medium" -> io/print-ln
+| "medium" -> io/print-line
 :
-| "small" -> io/print-ln
+| "small" -> io/print-line
 ```
 
 A conditional has the value of the branch that ran, or `nothing`. In parentheses it is an expression:
 
 ```
 (n > 1 ? "many" : "one") => label
-"{n > 1 ? "many" : "one"} items" -> io/print-ln
+"{n > 1 ? "many" : "one"} items" -> io/print-line
 ```
 
 Conditions must be `yes` or `no`; any other value is an error.
@@ -184,7 +184,7 @@ When conditionals nest inline, `:` belongs to the nearest `?`.
 ```
 0 => i
 while i < 3
-| i -> io/print-ln
+| i -> io/print-line
 | i + 1 =>> i
 ```
 
@@ -193,7 +193,7 @@ while i < 3
 ```
 [1 2 3 4] -> array/each n
 | n = 3 ? stop
-| n -> io/print-ln
+| n -> io/print-line
 ```
 
 ## Error handling
@@ -204,7 +204,7 @@ while i < 3
 attempt
 | line -> string/to-int => n
 recover e
-| "not a number: {e}" -> io/print-ln
+| "not a number: {e}" -> io/print-line
 | 0 => n
 ```
 
@@ -214,7 +214,7 @@ Inline bodies work as everywhere else, and `recover` ends an inline `attempt` bo
 
 ```
 attempt | risky -> do
-recover e | "problem: {e}" -> io/print-ln
+recover e | "problem: {e}" -> io/print-line
 
 (attempt | line -> string/to-int recover | 0) => n
 ```
@@ -223,14 +223,14 @@ An `always` body runs after the `attempt` body or the `recover` body, however th
 
 ```
 attempt
-| "opening" -> io/print-ln
+| "opening" -> io/print-line
 | risky -> do
 recover e
-| "problem: {e}" -> io/print-ln
+| "problem: {e}" -> io/print-line
 always
-| "closing" -> io/print-ln
+| "closing" -> io/print-line
 
-attempt | risky -> do always | "closing" -> io/print-ln   ~ no handler: the error propagates after the cleanup
+attempt | risky -> do always | "closing" -> io/print-line   ~ no handler: the error propagates after the cleanup
 ```
 
 An `attempt` needs a `recover`, an `always` or both, with `recover` first; anything else is a parse error. `out`, `stop` and `exit` are not errors and pass through an `attempt` untouched, although `out` and `stop` still run an `always` body on their way out. See `semantics.md` for what an error value carries and which failures cannot be caught.
@@ -241,7 +241,7 @@ A program can use procedures and values defined in another `.slop` file. `use` l
 
 ```
 "./lib/geometry" -> use => geometry
-2.0 -> geometry/circle-area -> io/print-ln
+2.0 -> geometry/circle-area -> io/print-line
 geometry/square-area => square-area      ~ bring one member into scope
 ```
 
@@ -257,7 +257,7 @@ proc helper | "not visible to importers"
 export pi circle-area
 ```
 
-The standard library has the same shape: `io`, `array`, `string` and the other builtin modules listed in `stdlib/core.md` are always bound, so `io/print-ln` and `array/map` need no `use`, and `array/map => map` brings a member into scope.
+The standard library has the same shape: `io`, `array`, `string` and the other builtin modules listed in `stdlib/core.md` are always bound, so `io/print-line` and `array/map` need no `use`, and `array/map => map` brings a member into scope.
 
 Qualified names are values and callees, never binding targets or parameters: `geometry/pi => x` binds `x`, while `1 => geometry/pi` is a parse error. See `semantics.md` for loading rules and `stdlib/module.md` for the module builtins.
 
@@ -286,14 +286,14 @@ A lambda inside a literal must be parenthesized unless it is the last thing in t
 
 ```
 {"double": (n | n * 2)  "square": (n | n * n)} => ops
-7 -> (ops -> hashmap/at "square") -> io/print-ln
+7 -> (ops -> hashmap/at "square") -> io/print-line
 ```
 
 ## Names
 
 Names start with a letter and continue with letters, digits and single hyphens: `total`, `is-empty`, `add-five`, `x2`. Kebab-case is the convention.
 
-Because `a-b` is a name, binary operators need spaces on both sides: `a - b`. Writing `a -b` is a parse error, reported as a missing operator, not a silent subtraction. The same rule gives qualified names: `geometry/area` and `io/print-ln` are single names reaching into a module, `a / b` is a division.
+Because `a-b` is a name, binary operators need spaces on both sides: `a - b`. Writing `a -b` is a parse error, reported as a missing operator, not a silent subtraction. The same rule gives qualified names: `geometry/area` and `io/print-line` are single names reaching into a module, `a / b` is a division.
 
 Reserved words: `proc`, `while`, `stop`, `attempt`, `recover`, `always`, `export`, `yes`, `no`, `nothing`, `and`, `or`, `not`, `mod`.
 
@@ -319,7 +319,7 @@ Operators apply only to plain expressions. A step's arguments are expressions, s
 Each of these produces an error rather than a silent misparse.
 
 - **Trailing names before a bar are parameters.** `xs -> fold start acc n | ...` makes `start` a parameter. Write `fold (start) acc n` to pass a variable.
-- **An inline lambda body runs to the end of the line.** `a ? xs -> array/each n | n -> io/print-ln : "else" -> io/print-ln` is an error; the `:` is inside the lambda. Use a margin block or parentheses.
+- **An inline lambda body runs to the end of the line.** `a ? xs -> array/each n | n -> io/print-line : "else" -> io/print-line` is an error; the `:` is inside the lambda. Use a margin block or parentheses.
 - **A then-branch ends at the first `:`** that is not inside brackets.
 - **A line of bare names followed by a block is a lambda.** `n` on one line and `| n + k` below it is `n | n + k`.
 - **A literal cannot take a block.**

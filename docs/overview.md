@@ -10,14 +10,14 @@ slopersons is a small dynamically typed, structured programming language in whic
 numbers -> array/each n
 | n mod 2 = 0 ? total + n =>> total
 
-"even total: {total}" -> io/print-ln
+"even total: {total}" -> io/print-line
 
 proc describe n
 | n > 20 ? "big" -> out
 | n > 10 ? "medium" -> out
 | "small"
 
-numbers -> array/map describe -> io/print-ln
+numbers -> array/map describe -> io/print-line
 ```
 
 Running it:
@@ -40,7 +40,7 @@ even total: 30
 ## The shape in one minute
 
 - `value -> procedure arg` calls the procedure with the value as its first argument. There are no parentheses for calls and no dot syntax.
-- The standard library is a set of modules that are always available, named after the type they work on: `"hi" -> io/print-ln`, `xs -> array/map n | n * 2`, `"2026-10-23" -> date/parse`. `array/map => map` brings a member into scope.
+- The standard library is a set of modules that are always available, named after the type they work on: `"hi" -> io/print-line`, `xs -> array/map n | n * 2`, `"2026-10-23" -> date/parse`. `array/map => map` brings a member into scope.
 - `value => name` binds. `=>>` updates a binding from an enclosing scope.
 - `condition ? then : else`, with `:` chaining more tests.
 - Blocks are lines starting with `|`; nesting adds bars.

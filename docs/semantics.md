@@ -73,7 +73,7 @@ Within a flow, the head is evaluated first, then each step left to right. Within
 
 ## Printing
 
-`io/print-ln` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, times as `HH:MM:SS` with `.SSS` only when the milliseconds are not zero, datetimes as `yyyy-mm-ddTHH:MM:SS`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>` (a builtin under its qualified name, `<proc io/print-ln>`), modules as `<module name>` and errors as their message. Inside containers, strings are quoted and escaped, chars are shown in backticks and errors as `<error message>`. `show` returns that quoted form for any value. String interpolation uses the `io/print-ln` form.
+`io/print-line` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, times as `HH:MM:SS` with `.SSS` only when the milliseconds are not zero, datetimes as `yyyy-mm-ddTHH:MM:SS`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>` (a builtin under its qualified name, `<proc io/print-line>`), modules as `<module name>` and errors as their message. Inside containers, strings are quoted and escaped, chars are shown in backticks and errors as `<error message>`. `show` returns that quoted form for any value. String interpolation uses the `io/print-line` form.
 
 ## Modules
 

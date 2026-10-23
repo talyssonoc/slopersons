@@ -1,4 +1,4 @@
-"first" -> io/print-ln
+"first" -> io/print-line
 [1 2 3] => numbers
 numbers -> array/each n
 | n -> totl

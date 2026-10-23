@@ -6,4 +6,4 @@ proc label n
 | : n
 
 1 -> int/up-to 15 -> array/each n
-| n -> label -> io/print-ln
+| n -> label -> io/print-line

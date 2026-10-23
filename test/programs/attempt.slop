@@ -3,32 +3,32 @@ proc parse-int text
 | recover | nothing
 
 ["12" "x" "-3"] -> array/each t
-| "{t} -> {t -> parse-int}" -> io/print-ln
+| "{t} -> {t -> parse-int}" -> io/print-line
 
 attempt
 | {"a": 1} -> hashmap/at "b"
 recover e
-| "missing: {e}" -> io/print-ln
-| "at line {e -> error/line}" -> io/print-ln
+| "missing: {e}" -> io/print-line
+| "at line {e -> error/line}" -> io/print-line
 
-(attempt | 10 / 0 recover | -1) -> io/print-ln
+(attempt | 10 / 0 recover | -1) -> io/print-line
 
 attempt
 | "custom" -> fail
 recover e
-| e -> error/message -> string/upper -> io/print-ln
+| e -> error/message -> string/upper -> io/print-line
 
 attempt
 | attempt | 1 / 0 recover e | "wrapped: {e}" -> fail
 recover outer
-| outer -> io/print-ln
+| outer -> io/print-line
 
 attempt
-| "opening" -> io/print-ln
+| "opening" -> io/print-line
 | 1 / 0
 recover e
-| "recovered: {e}" -> io/print-ln
+| "recovered: {e}" -> io/print-line
 always
-| "closing" -> io/print-ln
+| "closing" -> io/print-line
 
-attempt | "no error" -> io/print-ln always | "closing again" -> io/print-ln
+attempt | "no error" -> io/print-line always | "closing again" -> io/print-line

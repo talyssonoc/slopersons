@@ -1,4 +1,4 @@
 io/read-line -> do => name
 io/read-line -> do => missing
-"hello, {name}" -> io/print-ln
-missing -> io/print-ln
+"hello, {name}" -> io/print-line
+missing -> io/print-line

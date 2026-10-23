@@ -4,9 +4,9 @@ A module value is what `use` returns for a `.slop` file, and what the names of t
 
 ```
 "./lib/geometry" -> use => geometry
-geometry -> io/print-ln                     ~ <module geometry>
-geometry -> module/names -> io/print-ln     ~ ["pi" "circle-area" "square-area" "describe"]
-io -> module/names -> io/print-ln           ~ ["print-ln" "print" "read-line"]
+geometry -> io/print-line                   ~ <module geometry>
+geometry -> module/names -> io/print-line   ~ ["pi" "circle-area" "square-area" "describe"]
+io -> module/names -> io/print-line         ~ ["print-line" "print" "read-line"]
 ```
 
 ## at
@@ -16,9 +16,9 @@ io -> module/names -> io/print-ln           ~ ["print-ln" "print" "read-line"]
 Returns the exported member named by the string. This is how a member whose name is computed at run time is reached.
 
 ```
-geometry -> module/at "pi" -> io/print-ln              ~ 3.14159
+geometry -> module/at "pi" -> io/print-line              ~ 3.14159
 "circle-area" => which
-2.0 -> (geometry -> module/at which) -> io/print-ln   ~ 12.56636
+2.0 -> (geometry -> module/at which) -> io/print-line   ~ 12.56636
 ```
 
 Errors: the input is not a module; the name is not a string; the module has no exported member of that name.
@@ -30,8 +30,8 @@ Errors: the input is not a module; the name is not a string; the module has no e
 Returns `yes` when the module exports the name.
 
 ```
-geometry -> module/has "pi" -> io/print-ln       ~ yes
-geometry -> module/has "secret" -> io/print-ln   ~ no
+geometry -> module/has "pi" -> io/print-line      ~ yes
+geometry -> module/has "secret" -> io/print-line  ~ no
 ```
 
 Errors: the input is not a module; the name is not a string.
@@ -43,7 +43,7 @@ Errors: the input is not a module; the name is not a string.
 Returns the exported names as an array of strings, in `export` order for a file and in definition order for a builtin module.
 
 ```
-math -> module/names -> io/print-ln   ~ ["abs" "pow" "sqrt" "min" "max" "clamp" "sign"]
+math -> module/names -> io/print-line   ~ ["abs" "pow" "sqrt" "min" "max" "clamp" "sign"]
 ```
 
 Errors: the input is not a module.
@@ -55,8 +55,8 @@ Errors: the input is not a module.
 Returns the file the module was loaded from: relative to the working directory when the file is under it, absolute otherwise. A builtin module has no file and gives `<builtin name>`.
 
 ```
-geometry -> module/path -> io/print-ln   ~ lib/geometry.slop
-io -> module/path -> io/print-ln         ~ <builtin io>
+geometry -> module/path -> io/print-line  ~ lib/geometry.slop
+io -> module/path -> io/print-line        ~ <builtin io>
 ```
 
 Errors: the input is not a module.

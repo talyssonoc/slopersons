@@ -9,7 +9,7 @@ Builtins whose input is a boolean, `yes` or `no`. Booleans do not coerce anywher
 Returns `"yes"` or `"no"`.
 
 ```
-yes -> boolean/to-string -> show -> io/print-ln   ~ "yes"
+yes -> boolean/to-string -> show -> io/print-line   ~ "yes"
 ```
 
 Errors: the input is not a boolean.
@@ -21,8 +21,8 @@ Errors: the input is not a boolean.
 Returns `1` for `yes` and `0` for `no`, which makes counting matches a sum.
 
 ```
-(3 > 2) -> boolean/to-int -> io/print-ln          ~ 1
-no -> boolean/to-int -> io/print-ln               ~ 0
+(3 > 2) -> boolean/to-int -> io/print-line        ~ 1
+no -> boolean/to-int -> io/print-line             ~ 0
 ```
 
 Errors: the input is not a boolean.

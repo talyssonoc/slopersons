@@ -15,8 +15,8 @@ Functions for sets. They live in the `set` module and are called with their qual
 Builds a set from an array: duplicates collapse and each element keeps the position of its first occurrence. It only accepts an array; to duplicate a set use `set/copy`.
 
 ```
-[3 1 3 2 1] -> array/to-set -> io/print-ln              ~ set[3 1 2]
-[] -> array/to-set -> io/print-ln                       ~ set[]
+[3 1 3 2 1] -> array/to-set -> io/print-line            ~ set[3 1 2]
+[] -> array/to-set -> io/print-line                     ~ set[]
 ```
 
 Errors: the input is not an array, as `the input of \`array/to-set\` must be an array, got a set`.
@@ -29,8 +29,8 @@ Adds `value` in place and returns the same set. Adding an element that is alread
 
 ```
 [1] -> array/to-set => s
-s -> set/add 2 -> set/add 1 -> io/print-ln              ~ set[1 2]
-s -> io/print-ln                                        ~ set[1 2]
+s -> set/add 2 -> set/add 1 -> io/print-line            ~ set[1 2]
+s -> io/print-line                                      ~ set[1 2]
 ```
 
 ## set/remove
@@ -40,7 +40,7 @@ s -> io/print-ln                                        ~ set[1 2]
 Deletes `value` in place and returns the same set. Removing an element that is not there changes nothing.
 
 ```
-[1 2 3] -> array/to-set -> set/remove 2 -> set/remove 9 -> io/print-ln    ~ set[1 3]
+[1 2 3] -> array/to-set -> set/remove 2 -> set/remove 9 -> io/print-line    ~ set[1 3]
 ```
 
 ## set/has
@@ -50,8 +50,8 @@ Deletes `value` in place and returns the same set. Removing an element that is n
 Returns `yes` when `value` is in the set, `no` otherwise.
 
 ```
-[[1 2] "a"] -> array/to-set -> set/has [1 2] -> io/print-ln    ~ yes
-[[1 2] "a"] -> array/to-set -> set/has [2 1] -> io/print-ln    ~ no
+[[1 2] "a"] -> array/to-set -> set/has [1 2] -> io/print-line  ~ yes
+[[1 2] "a"] -> array/to-set -> set/has [2 1] -> io/print-line  ~ no
 ```
 
 ## set/length
@@ -61,7 +61,7 @@ Returns `yes` when `value` is in the set, `no` otherwise.
 Returns the number of elements as an int.
 
 ```
-[1 1 2] -> array/to-set -> set/length -> io/print-ln    ~ 2
+[1 1 2] -> array/to-set -> set/length -> io/print-line    ~ 2
 ```
 
 ## set/is-empty
@@ -71,8 +71,8 @@ Returns the number of elements as an int.
 Returns `yes` when the set has no elements.
 
 ```
-[] -> array/to-set -> set/is-empty -> io/print-ln       ~ yes
-[1] -> array/to-set -> set/is-empty -> io/print-ln      ~ no
+[] -> array/to-set -> set/is-empty -> io/print-line     ~ yes
+[1] -> array/to-set -> set/is-empty -> io/print-line    ~ no
 ```
 
 ## set/union
@@ -82,7 +82,7 @@ Returns `yes` when the set has no elements.
 Returns a new set with the elements of both: the input's elements in their order, then the elements only `other` has. Neither input changes.
 
 ```
-[1 2 3] -> array/to-set -> set/union ([3 4] -> array/to-set) -> io/print-ln    ~ set[1 2 3 4]
+[1 2 3] -> array/to-set -> set/union ([3 4] -> array/to-set) -> io/print-line    ~ set[1 2 3 4]
 ```
 
 Errors: `other` is not a set, as `the argument of \`set/union\` must be a set, got an array`.
@@ -94,7 +94,7 @@ Errors: `other` is not a set, as `the argument of \`set/union\` must be a set, g
 Returns a new set with the elements of the input that are also in `other`, in the input's order.
 
 ```
-[1 2 3] -> array/to-set -> set/intersect ([3 4] -> array/to-set) -> io/print-ln    ~ set[3]
+[1 2 3] -> array/to-set -> set/intersect ([3 4] -> array/to-set) -> io/print-line    ~ set[3]
 ```
 
 Errors: `other` is not a set.
@@ -106,7 +106,7 @@ Errors: `other` is not a set.
 Returns a new set with the elements of the input that are not in `other`, in the input's order.
 
 ```
-[1 2 3] -> array/to-set -> set/difference ([3 4] -> array/to-set) -> io/print-ln    ~ set[1 2]
+[1 2 3] -> array/to-set -> set/difference ([3 4] -> array/to-set) -> io/print-line    ~ set[1 2]
 ```
 
 Errors: `other` is not a set.
@@ -118,7 +118,7 @@ Errors: `other` is not a set.
 Returns the elements as an array, in insertion order.
 
 ```
-[2 1 2] -> array/to-set -> set/to-array -> io/print-ln    ~ [2 1]
+[2 1 2] -> array/to-set -> set/to-array -> io/print-line    ~ [2 1]
 ```
 
 ## set/each
@@ -128,7 +128,7 @@ Returns the elements as an array, in insertion order.
 Calls the body once per element, in insertion order, and returns `nothing`. `stop` ends the loop early and `out` leaves the enclosing procedure. The loop walks the elements as they were when it started, so adding or removing inside the body does not change which elements are visited.
 
 ```
-[1 2 3] -> array/to-set -> set/each n | n -> io/print-ln    ~ 1
+[1 2 3] -> array/to-set -> set/each n | n -> io/print-line    ~ 1
                                                             ~ 2
                                                             ~ 3
 ```
@@ -143,6 +143,6 @@ Returns a new set with the same elements in the same order. The copy is shallow:
 
 ```
 [1] -> array/to-set => s
-s -> set/copy -> set/add 2 -> io/print-ln               ~ set[1 2]
-s -> io/print-ln                                        ~ set[1]
+s -> set/copy -> set/add 2 -> io/print-line             ~ set[1 2]
+s -> io/print-line                                      ~ set[1]
 ```

@@ -9,8 +9,8 @@ Builtins whose input is an int. The numeric functions that accept a float as wel
 Returns `yes` when the int is divisible by two. Zero is even.
 
 ```
-4 -> int/is-even -> io/print-ln        ~ yes
--3 -> int/is-even -> io/print-ln       ~ no
+4 -> int/is-even -> io/print-line      ~ yes
+-3 -> int/is-even -> io/print-line     ~ no
 ```
 
 Errors: the input is not an int.
@@ -22,7 +22,7 @@ Errors: the input is not an int.
 Returns `yes` when the int is not divisible by two.
 
 ```
--3 -> int/is-odd -> io/print-ln        ~ yes
+-3 -> int/is-odd -> io/print-line        ~ yes
 ```
 
 Errors: the input is not an int.
@@ -34,7 +34,7 @@ Errors: the input is not an int.
 Returns the int as a float. Ints above 2^53 in magnitude lose precision in the conversion.
 
 ```
-3 -> int/to-float -> io/print-ln       ~ 3.0
+3 -> int/to-float -> io/print-line       ~ 3.0
 ```
 
 Errors: the input is too large for a float.
@@ -46,7 +46,7 @@ Errors: the input is too large for a float.
 Returns the int unchanged. Floats, chars and booleans have their own conversion: `float/to-int`, `char/to-int` and `boolean/to-int`.
 
 ```
-42 -> int/to-int -> io/print-ln        ~ 42
+42 -> int/to-int -> io/print-line        ~ 42
 ```
 
 Errors: the input is not an int.
@@ -58,8 +58,8 @@ Errors: the input is not an int.
 Returns the char with this Unicode code point. `char/to-int` is the way back.
 
 ```
-97 -> int/to-char -> io/print-ln       ~ a
-128077 -> int/to-char -> io/print-ln   ~ 👍
+97 -> int/to-char -> io/print-line      ~ a
+128077 -> int/to-char -> io/print-line  ~ 👍
 ```
 
 Errors: the input is not an int; the input is not between 0 and 1114111; the input is a surrogate code point (55296 to 57343).
@@ -68,10 +68,10 @@ Errors: the input is not an int; the input is not between 0 and 1114111; the inp
 
 `int -> int/to-string`
 
-Returns the int as `io/print-ln` shows it. Floats, chars and booleans have their own conversion: `float/to-string`, `char/to-string` and `boolean/to-string`.
+Returns the int as `io/print-line` shows it. Floats, chars and booleans have their own conversion: `float/to-string`, `char/to-string` and `boolean/to-string`.
 
 ```
-42 -> int/to-string -> show -> io/print-ln    ~ "42"
+42 -> int/to-string -> show -> io/print-line    ~ "42"
 ```
 
 ## up-to
@@ -81,7 +81,7 @@ Returns the int as `io/print-ln` shows it. Floats, chars and booleans have their
 Builds an array of ints from `from` to `until` inclusive. An empty array when `until` is less than `from`.
 
 ```
-1 -> int/up-to 4 -> io/print-ln   ~ [1 2 3 4]
+1 -> int/up-to 4 -> io/print-line   ~ [1 2 3 4]
 ```
 
 Errors: either bound is not an int; the range would exceed the size limit.
@@ -94,7 +94,7 @@ Runs the body `count` times. With one parameter the lambda receives the iteratio
 
 ```
 2 -> int/times | "x" -> io/print
-"" -> io/print-ln                   ~ xx
+"" -> io/print-line                   ~ xx
 ```
 
 Errors: the count is not an int; the body is not a procedure.

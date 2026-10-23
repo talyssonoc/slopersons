@@ -5,13 +5,13 @@
 text -> string/words -> array/each w
 | counts -> hashmap/put w ((counts -> hashmap/at-or w 0) + 1)
 
-counts -> io/print-ln
-counts -> hashmap/keys -> io/print-ln
+counts -> io/print-line
+counts -> hashmap/keys -> io/print-line
 
 counts -> hashmap/entries
 -> array/sort-by a b | (a -> array/at 1) > (b -> array/at 1)
 -> array/each pair
-| "{pair -> array/at 0}: {pair -> array/at 1}" -> io/print-ln
+| "{pair -> array/at 0}: {pair -> array/at 1}" -> io/print-line
 
 counts -> hashmap/keep k v | v > 1
--> hashmap/keys -> io/print-ln
+-> hashmap/keys -> io/print-line

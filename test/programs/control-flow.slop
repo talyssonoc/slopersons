@@ -5,27 +5,27 @@ proc classify n
 | : "large"
 
 [-5 0 3 42] -> array/each n
-| "{n}: {n -> classify}" -> io/print-ln
+| "{n}: {n -> classify}" -> io/print-line
 
 proc first-over xs limit
 | xs -> array/each x
 | | x > limit ? x -> out
 | nothing
 
-[1 5 9 12 20] -> first-over 8 -> io/print-ln
-[1 5] -> first-over 8 -> io/print-ln
+[1 5 9 12 20] -> first-over 8 -> io/print-line
+[1 5] -> first-over 8 -> io/print-line
 
 0 => i
 while yes
 | i >= 3 ? stop
-| "loop {i}" -> io/print-ln
+| "loop {i}" -> io/print-line
 | i + 1 =>> i
 
 3 -> int/times k
 | k = 1 ? stop
-| "repeat {k}" -> io/print-ln
+| "repeat {k}" -> io/print-line
 
 [1 2] -> array/each a
 | [10 20 30] -> array/each b
 | | b = 30 ? stop
-| | "{a}-{b}" -> io/print-ln
+| | "{a}-{b}" -> io/print-line

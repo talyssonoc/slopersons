@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [Rename `print-ln` to `print-line`](./202610231906-rename-print-ln-to-print-line.md)
 
 ## Context
 

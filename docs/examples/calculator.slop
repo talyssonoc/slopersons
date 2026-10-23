@@ -25,14 +25,14 @@ proc ask-number label
 | | text = nothing ? nothing -> out
 | | text -> parse-number => value
 | | value /= nothing ? value -> out
-| | "'{text}' is not a number, try again." -> io/print-ln
+| | "'{text}' is not a number, try again." -> io/print-line
 
 proc ask-operator
 | while yes
 | | "Operator (+, -, *, /): " -> ask => op
 | | op = nothing ? nothing -> out
 | | operations -> hashmap/has op ? op -> out
-| | "'{op}' is not one of + - * /, try again." -> io/print-ln
+| | "'{op}' is not one of + - * /, try again." -> io/print-line
 
 proc wants-another
 | "Another calculation? (y/n): " -> ask => answer
@@ -40,7 +40,7 @@ proc wants-another
 | answer -> string/lower => answer
 | answer = "y" or answer = "yes"
 
-"Welcome to the slopersons calculator." -> io/print-ln
+"Welcome to the slopersons calculator." -> io/print-line
 while yes
 | "First number: " -> ask-number => left
 | left = nothing ? stop
@@ -49,8 +49,8 @@ while yes
 | "Second number: " -> ask-number => right
 | right = nothing ? stop
 | op = "/" and (right = 0 or right = 0.0) ?
-| | "Cannot divide by zero." -> io/print-ln
+| | "Cannot divide by zero." -> io/print-line
 | :
-| | "{left} {op} {right} = {left -> (operations -> hashmap/at op) right}" -> io/print-ln
+| | "{left} {op} {right} = {left -> (operations -> hashmap/at op) right}" -> io/print-line
 | not (wants-another -> do) ? stop
-"Goodbye." -> io/print-ln
+"Goodbye." -> io/print-line

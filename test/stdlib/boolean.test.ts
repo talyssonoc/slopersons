@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { failure, output } from '../helpers/run.ts';
 
 test('boolean/to-string gives yes or no as a string', () => {
-  assert.equal(output('yes -> boolean/to-string -> show -> io/print-ln\nno -> boolean/to-string -> show -> io/print-ln\nyes -> boolean/to-string -> type-of -> io/print-ln'), '"yes"\n"no"\nstring\n');
+  assert.equal(output('yes -> boolean/to-string -> show -> io/print-line\nno -> boolean/to-string -> show -> io/print-line\nyes -> boolean/to-string -> type-of -> io/print-line'), '"yes"\n"no"\nstring\n');
 });
 
 test('boolean/to-int maps yes to 1 and no to 0', () => {
-  assert.equal(output('yes -> boolean/to-int -> io/print-ln\nno -> boolean/to-int -> io/print-ln\nyes -> boolean/to-int -> type-of -> io/print-ln'), '1\n0\nint\n');
-  assert.equal(output('(3 > 2) -> boolean/to-int -> io/print-ln'), '1\n');
+  assert.equal(output('yes -> boolean/to-int -> io/print-line\nno -> boolean/to-int -> io/print-line\nyes -> boolean/to-int -> type-of -> io/print-line'), '1\n0\nint\n');
+  assert.equal(output('(3 > 2) -> boolean/to-int -> io/print-line'), '1\n');
 });
 
 test('boolean builtins reject other receivers and extra arguments', () => {

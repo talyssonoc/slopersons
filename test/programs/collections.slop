@@ -1,47 +1,47 @@
 [5 3 8 1] => xs
-xs -> array/sort -> io/print-ln
-xs -> io/print-ln
-xs -> array/push 2 -> io/print-ln
-xs -> array/pop -> io/print-ln
+xs -> array/sort -> io/print-line
+xs -> io/print-line
+xs -> array/push 2 -> io/print-line
+xs -> array/pop -> io/print-line
 xs -> array/map n | n * 10
--> io/print-ln
+-> io/print-line
 xs -> array/keep n | n > 3
--> io/print-ln
+-> io/print-line
 xs -> array/reduce 0 acc n | acc + n
--> io/print-ln
+-> io/print-line
 xs -> array/any n | n > 7
--> io/print-ln
+-> io/print-line
 xs -> array/all n | n > 7
--> io/print-ln
+-> io/print-line
 xs -> array/find n | n > 4
--> io/print-ln
-xs -> array/index-of 8 -> io/print-ln
-xs -> array/index-of 9 -> io/print-ln
-xs -> array/contains 9 -> io/print-ln
-xs -> array/first -> io/print-ln
-xs -> array/last -> io/print-ln
-xs -> array/slice 1 3 -> io/print-ln
-xs -> array/reverse -> io/print-ln
-xs -> array/sum -> io/print-ln
-xs -> array/min -> io/print-ln
-xs -> array/max -> io/print-ln
-xs -> array/length -> io/print-ln
+-> io/print-line
+xs -> array/index-of 8 -> io/print-line
+xs -> array/index-of 9 -> io/print-line
+xs -> array/contains 9 -> io/print-line
+xs -> array/first -> io/print-line
+xs -> array/last -> io/print-line
+xs -> array/slice 1 3 -> io/print-line
+xs -> array/reverse -> io/print-line
+xs -> array/sum -> io/print-line
+xs -> array/min -> io/print-line
+xs -> array/max -> io/print-line
+xs -> array/length -> io/print-line
 [1 2 2 3 3 3] -> array/to-set => s
-s -> io/print-ln
-s -> set/add 4 -> set/has 4 -> io/print-ln
+s -> io/print-line
+s -> set/add 4 -> set/has 4 -> io/print-line
 [3 4 5] -> array/to-set => t
-s -> set/intersect t -> io/print-ln
-s -> set/union t -> set/to-array -> io/print-ln
-s -> set/difference t -> io/print-ln
-[[1 2] [3 4]] -> array/flatten -> io/print-ln
-[1 2 3] -> array/zip ["a" "b"] -> io/print-ln
-["b" "a" "c"] -> array/sort -> array/join ", " -> io/print-ln
-[3 1 2] -> array/with-index -> io/print-ln
-[[1] [1] [2]] -> array/unique -> io/print-ln
+s -> set/intersect t -> io/print-line
+s -> set/union t -> set/to-array -> io/print-line
+s -> set/difference t -> io/print-line
+[[1 2] [3 4]] -> array/flatten -> io/print-line
+[1 2 3] -> array/zip ["a" "b"] -> io/print-line
+["b" "a" "c"] -> array/sort -> array/join ", " -> io/print-line
+[3 1 2] -> array/with-index -> io/print-line
+[[1] [1] [2]] -> array/unique -> io/print-line
 {"x": 1} => m
-m -> hashmap/put "y" 2 -> io/print-ln
-m -> hashmap/remove "x" -> io/print-ln
-m -> hashmap/has "x" -> io/print-ln
-m -> hashmap/merge {"z": 3} -> hashmap/values -> io/print-ln
+m -> hashmap/put "y" 2 -> io/print-line
+m -> hashmap/remove "x" -> io/print-line
+m -> hashmap/has "x" -> io/print-line
+m -> hashmap/merge {"z": 3} -> hashmap/values -> io/print-line
 m -> hashmap/each k v
-| "{k} = {v}" -> io/print-ln
+| "{k} = {v}" -> io/print-line

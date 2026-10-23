@@ -1,6 +1,6 @@
 # Core builtins
 
-The standard library is a set of modules that are always available, without a `use`. Each module is named after the type its members work on, and a member is reached with a qualified name: `"hi" -> io/print-ln`, `[3 8 15] -> array/keep n | n > 5`. A member is called like any other procedure: the piped value is the first argument, further arguments follow the name, and a trailing `params | body` lambda or margin block is the last argument.
+The standard library is a set of modules that are always available, without a `use`. Each module is named after the type its members work on, and a member is reached with a qualified name: `"hi" -> io/print-line`, `[3 8 15] -> array/keep n | n > 5`. A member is called like any other procedure: the piped value is the first argument, further arguments follow the name, and a trailing `params | body` lambda or margin block is the last argument.
 
 | Module | What it holds | Page |
 | --- | --- | --- |
@@ -25,11 +25,11 @@ A function lives in the module of its input's type, so `array/length`, `string/l
 The builtin modules are ordinary module values, bound in the fallback namespace below the program's scope, so everything on the [module page](module.md) works on them and a member can be bound to a shorter name:
 
 ```
-io -> module/names -> io/print-ln       ~ ["print-ln" "print" "read-line"]
-io -> io/print-ln                       ~ <module io>
+io -> module/names -> io/print-line     ~ ["print-line" "print" "read-line"]
+io -> io/print-line                     ~ <module io>
 proc double n | n * 2
 array/map => map
-[1 2] -> map double -> io/print-ln      ~ [2 4]
+[1 2] -> map double -> io/print-line    ~ [2 4]
 ```
 
 Binding a module's name hides the module within that scope, as with any builtin: after `[1 2] => array`, `array/length` fails because `array` is now an array, not a module.
@@ -46,12 +46,12 @@ Conventions used in every stdlib page:
 
 `value -> show`
 
-Returns the literal form of `value` as a string: strings come back quoted and escaped, chars in backticks, everything else as `io/print-ln` would show it inside a container.
+Returns the literal form of `value` as a string: strings come back quoted and escaped, chars in backticks, everything else as `io/print-line` would show it inside a container.
 
 ```
-"a\"b" -> show -> io/print-ln     ~ "a\"b"
-`x` -> show -> io/print-ln        ~ `x`
-io -> show -> io/print-ln         ~ <module io>
+"a\"b" -> show -> io/print-line   ~ "a\"b"
+`x` -> show -> io/print-line      ~ `x`
+io -> show -> io/print-line       ~ <module io>
 ```
 
 ## type-of
@@ -61,9 +61,9 @@ io -> show -> io/print-ln         ~ <module io>
 Returns the type name as a string: `int`, `float`, `char`, `boolean`, `string`, `nothing`, `array`, `hashmap`, `set`, `date`, `time`, `datetime`, `error`, `module` or `proc`. Builtin procedures report `proc` like user-defined ones.
 
 ```
-[1 2] -> type-of -> io/print-ln       ~ array
-io -> type-of -> io/print-ln          ~ module
-io/print-ln -> type-of -> io/print-ln ~ proc
+[1 2] -> type-of -> io/print-line         ~ array
+io -> type-of -> io/print-line            ~ module
+io/print-line -> type-of -> io/print-line ~ proc
 ```
 
 ## do
@@ -73,9 +73,9 @@ io/print-ln -> type-of -> io/print-ln ~ proc
 Calls `procedure` with the given arguments. This is how a procedure with no input is called, since a bare name is a value, not a call.
 
 ```
-date/today -> do -> io/print-ln   ~ the current date
+date/today -> do -> io/print-line  ~ the current date
 proc add a b | a + b
-add -> do 1 2 -> io/print-ln      ~ 3
+add -> do 1 2 -> io/print-line     ~ 3
 ```
 
 Errors: the input is not a procedure; wrong number of arguments for the procedure.
@@ -92,7 +92,7 @@ proc find-first xs target
 | | x = target ? x -> out
 | nothing
 
-[4 7 9] -> find-first 7 -> io/print-ln   ~ 7
+[4 7 9] -> find-first 7 -> io/print-line   ~ 7
 ```
 
 Errors: used at the top level; used inside a lambda whose procedure has already returned.
@@ -104,7 +104,7 @@ Errors: used at the top level; used inside a lambda whose procedure has already 
 With a string, raises an error with that message at the position of the call. With an error value, raises that error again unchanged, keeping its original message and position. Either way the error can be handled by an enclosing `attempt`, and ends the program otherwise.
 
 ```
-attempt | "boom" -> fail recover e | e -> io/print-ln   ~ boom
+attempt | "boom" -> fail recover e | e -> io/print-line   ~ boom
 ```
 
 Errors: the input is neither a string nor an error.
@@ -117,7 +117,7 @@ Loads another `.slop` file as a module and returns the module value. The path is
 
 ```
 "./lib/geometry" -> use => geometry
-2.0 -> geometry/circle-area -> io/print-ln   ~ 12.56636
+2.0 -> geometry/circle-area -> io/print-line   ~ 12.56636
 ```
 
 Errors: the path is not a string; the file cannot be read; the file imports itself through a cycle; an `export` in the file names something it never binds.

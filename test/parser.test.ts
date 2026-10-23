@@ -20,23 +20,23 @@ function parseError(source: string): SlopersonsError {
 
 test('flows: binding, calls with arguments, bare values', () => {
   assert.equal(printed('5 => x'), '(flow 5 (=> x))');
-  assert.equal(printed('x -> add 3 -> print-ln'), '(flow x (-> add 3) (-> print-ln))');
+  assert.equal(printed('x -> add 3 -> print-line'), '(flow x (-> add 3) (-> print-line))');
   assert.equal(printed('42'), '42');
   assert.equal(printed('x'), 'x');
   assert.equal(printed('total + n =>> total'), '(flow (+ total n) (=>> total))');
-  assert.equal(printed('x -> f => y -> print-ln'), '(flow x (-> f) (=> y) (-> print-ln))');
+  assert.equal(printed('x -> f => y -> print-line'), '(flow x (-> f) (=> y) (-> print-line))');
 });
 
 test('a margin block attaches to the last step as a lambda, trailing names are its parameters', () => {
-  assert.equal(printed('numbers -> each n\n| n -> print-ln'), '(flow numbers (-> each (lambda [n] (flow n (-> print-ln)))))');
+  assert.equal(printed('numbers -> each n\n| n -> print-line'), '(flow numbers (-> each (lambda [n] (flow n (-> print-line)))))');
   assert.equal(printed('xs -> fold 0 acc n\n| acc + n\n| acc'), '(flow xs (-> fold 0 (lambda [acc n] (+ acc n) acc)))');
-  assert.equal(printed('3 -> repeat\n| "hi" -> print-ln'), '(flow 3 (-> repeat (lambda [] (flow "hi" (-> print-ln)))))');
+  assert.equal(printed('3 -> repeat\n| "hi" -> print-line'), '(flow 3 (-> repeat (lambda [] (flow "hi" (-> print-line)))))');
 });
 
 test('inline lambda bodies run to the end of the line', () => {
   assert.equal(printed('numbers -> keep n | n > 10'), '(flow numbers (-> keep (lambda [n] (> n 10))))');
   assert.equal(printed('xs -> sort-by a b | a < b'), '(flow xs (-> sort-by (lambda [a b] (< a b))))');
-  assert.equal(printed('xs -> each n | n > 2 ? n -> print-ln : 0 -> print-ln'), '(flow xs (-> each (lambda [n] (conditional (branch (> n 2) (flow n (-> print-ln))) (else (flow 0 (-> print-ln)))))))');
+  assert.equal(printed('xs -> each n | n > 2 ? n -> print-line : 0 -> print-line'), '(flow xs (-> each (lambda [n] (conditional (branch (> n 2) (flow n (-> print-line))) (else (flow 0 (-> print-line)))))))');
 });
 
 test('trailing-name rule: a variable argument before a lambda must be parenthesized', () => {
@@ -48,7 +48,7 @@ test('lambda literals: inline, block, zero-parameter in parentheses', () => {
   assert.equal(printed('n | n * 2'), '(lambda [n] (* n 2))');
   assert.equal(printed('a b | a < b'), '(lambda [a b] (< a b))');
   assert.equal(printed('n\n| n + k'), '(lambda [n] (+ n k))');
-  assert.equal(printed('(| "hi" -> print-ln) => greet'), '(flow (lambda [] (flow "hi" (-> print-ln))) (=> greet))');
+  assert.equal(printed('(| "hi" -> print-line) => greet'), '(flow (lambda [] (flow "hi" (-> print-line))) (=> greet))');
   assert.equal(printed('(n | n * 2) => double'), '(flow (lambda [n] (* n 2)) (=> double))');
 });
 
@@ -57,7 +57,7 @@ test('procedures with block bodies, inline bodies, and lambda-returning bodies',
   assert.equal(printed('proc double n | n * 2'), '(proc double [n] (* n 2))');
   assert.equal(printed('proc adder k\n| n | n + k'), '(proc adder [k] (lambda [n] (+ n k)))');
   assert.equal(printed('proc adder k\n| n\n| | n + k'), '(proc adder [k] (lambda [n] (+ n k)))');
-  assert.equal(printed('proc greet\n| "hi" -> print-ln'), '(proc greet [] (flow "hi" (-> print-ln)))');
+  assert.equal(printed('proc greet\n| "hi" -> print-line'), '(proc greet [] (flow "hi" (-> print-line)))');
 });
 
 test('while loops', () => {
@@ -68,8 +68,8 @@ test('while loops', () => {
 });
 
 test('conditionals in margin form with else-if and else lines', () => {
-  const source = 'n > 100 ?\n| "big" -> print-ln\n: n > 10 ?\n| "medium" -> print-ln\n:\n| "small" -> print-ln';
-  assert.equal(printed(source), '(conditional (branch (> n 100) (flow "big" (-> print-ln))) (branch (> n 10) (flow "medium" (-> print-ln))) (else (flow "small" (-> print-ln))))');
+  const source = 'n > 100 ?\n| "big" -> print-line\n: n > 10 ?\n| "medium" -> print-line\n:\n| "small" -> print-line';
+  assert.equal(printed(source), '(conditional (branch (> n 100) (flow "big" (-> print-line))) (branch (> n 10) (flow "medium" (-> print-line))) (else (flow "small" (-> print-line))))');
   assert.equal(printed('x ?\n| 1\n: 2'), '(conditional (branch x 1) (else 2))');
   assert.equal(printed('x ?\n| 1\n: y ? 2 : 3'), '(conditional (branch x 1) (branch y 2) (else 3))');
 });
@@ -79,15 +79,15 @@ test('conditionals in inline form, chained, nested, and as expressions', () => {
   assert.equal(printed('a ? 1 : b ? 2 : 3'), '(conditional (branch a 1) (branch b 2) (else 3))');
   assert.equal(printed('a ? b ? 1 : 2 : 3'), '(conditional (branch a (conditional (branch b 1) (else 2))) (else 3))');
   assert.equal(printed('(n > 1 ? "a" : "b") => s'), '(flow (conditional (branch (> n 1) "a") (else "b")) (=> s))');
-  assert.equal(printed('x -> is-even ? "even" -> print-ln'), '(conditional (branch (flow x (-> is-even)) (flow "even" (-> print-ln))))');
+  assert.equal(printed('x -> is-even ? "even" -> print-line'), '(conditional (branch (flow x (-> is-even)) (flow "even" (-> print-line))))');
 });
 
 test('continuation lines extend the flow above and keep their own blocks', () => {
-  assert.equal(printed('numbers\n-> keep n | n > 10\n-> map n | n * 2\n-> print-ln'), '(flow numbers (-> keep (lambda [n] (> n 10))) (-> map (lambda [n] (* n 2))) (-> print-ln))');
-  assert.equal(printed('numbers -> keep n\n| n > 10\n-> map n\n| n * 2\n-> print-ln'), '(flow numbers (-> keep (lambda [n] (> n 10))) (-> map (lambda [n] (* n 2))) (-> print-ln))');
-  assert.equal(printed('x -> double\n-> is-even ?\n| "even" -> print-ln'), '(conditional (branch (flow x (-> double) (-> is-even)) (flow "even" (-> print-ln))))');
+  assert.equal(printed('numbers\n-> keep n | n > 10\n-> map n | n * 2\n-> print-line'), '(flow numbers (-> keep (lambda [n] (> n 10))) (-> map (lambda [n] (* n 2))) (-> print-line))');
+  assert.equal(printed('numbers -> keep n\n| n > 10\n-> map n\n| n * 2\n-> print-line'), '(flow numbers (-> keep (lambda [n] (> n 10))) (-> map (lambda [n] (* n 2))) (-> print-line))');
+  assert.equal(printed('x -> double\n-> is-even ?\n| "even" -> print-line'), '(conditional (branch (flow x (-> double) (-> is-even)) (flow "even" (-> print-line))))');
   assert.equal(printed('5\n=> x'), '(flow 5 (=> x))');
-  assert.equal(printed('proc f\n| xs\n| -> map n | n * 2\n| -> print-ln'), '(proc f [] (flow xs (-> map (lambda [n] (* n 2))) (-> print-ln)))');
+  assert.equal(printed('proc f\n| xs\n| -> map n | n * 2\n| -> print-line'), '(proc f [] (flow xs (-> map (lambda [n] (* n 2))) (-> print-line)))');
 });
 
 test('expression precedence and unary operators', () => {
@@ -119,7 +119,7 @@ test('a parenthesized flow can be the callee', () => {
 });
 
 test('errors: blocks in the wrong place', () => {
-  assert.match(parseError('n > 1 ? "a" -> print-ln\n| x').message, /inline body cannot also take a block/);
+  assert.match(parseError('n > 1 ? "a" -> print-line\n| x').message, /inline body cannot also take a block/);
   assert.match(parseError('5\n| x').message, /cannot take a block/);
   assert.match(parseError('x => y\n| z').message, /binding cannot take a block/);
   assert.match(parseError('xs -> each n | n\n| x').message, /already has an inline lambda/);
@@ -135,12 +135,12 @@ test('errors: else and continuation without a partner', () => {
   assert.match(parseError(': x').message, /without a preceding/);
   assert.match(parseError('x ?\n| 1\n: 2\n: 3').message, /already has a final/);
   assert.match(parseError('x ? 1 : 2 : 3').message, /unexpected `:`/);
-  assert.match(parseError('-> print-ln').message, /continues the flow above/);
-  assert.match(parseError('x ?\n| 1\n-> print-ln').message, /continues the flow above/);
+  assert.match(parseError('-> print-line').message, /continues the flow above/);
+  assert.match(parseError('x ?\n| 1\n-> print-line').message, /continues the flow above/);
 });
 
 test('errors: lambdas and colons in inline contexts', () => {
-  assert.match(parseError('a ? xs -> each n | n -> print-ln : 1 -> print-ln').message, /wrap the lambda in parentheses/);
+  assert.match(parseError('a ? xs -> each n | n -> print-line : 1 -> print-line').message, /wrap the lambda in parentheses/);
   assert.match(parseError('{"a": n | n * 2}').message, /wrapped in parentheses/);
   assert.equal(printed('x | y'), '(lambda [x] y)');
   assert.match(parseError('5 | y').message, /unexpected `\|`/);
@@ -163,14 +163,14 @@ test('errors: operators and operands', () => {
 });
 
 test('a program is a sequence of statements', () => {
-  const source = '~ demo\n[3 8 15] => numbers\n0 => total\nnumbers -> each n\n| n mod 2 = 0 ? total + n =>> total\n"total: {total}" -> print-ln';
+  const source = '~ demo\n[3 8 15] => numbers\n0 => total\nnumbers -> each n\n| n mod 2 = 0 ? total + n =>> total\n"total: {total}" -> print-line';
   assert.equal(
     printed(source),
     [
       '(flow [3 8 15] (=> numbers))',
       '(flow 0 (=> total))',
       '(flow numbers (-> each (lambda [n] (conditional (branch (= (mod n 2) 0) (flow (+ total n) (=>> total)))))))',
-      '(flow (interpolation "total: " total) (-> print-ln))',
+      '(flow (interpolation "total: " total) (-> print-line))',
     ].join('\n'),
   );
 });

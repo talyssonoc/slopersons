@@ -8,7 +8,7 @@ Five functions change the array they receive and return that same array so a flo
 
 Equality in `array/contains`, `array/index-of` and `array/unique` is structural, the same as `=`. Ordering in `array/sort`, `array/min` and `array/max` is the same as `<`: numbers with numbers, strings with strings, chars with chars, dates with dates, arrays element by element; mixing other types is an error.
 
-Lambdas given to `array/each`, `array/map`, `array/keep` and the rest receive each element in turn. A `stop` inside such a lambda is not caught here; it leaves the innermost `while`, `array/each` or `int/times` around the call. `out` leaves the enclosing procedure as usual. An inline body such as `array/map n | n * 2` runs to the end of the line, so to keep flowing after it either wrap the lambda in parentheses, `array/map (n | n * 2) -> io/print-ln`, or continue the flow on the next line with a leading `->`.
+Lambdas given to `array/each`, `array/map`, `array/keep` and the rest receive each element in turn. A `stop` inside such a lambda is not caught here; it leaves the innermost `while`, `array/each` or `int/times` around the call. `out` leaves the enclosing procedure as usual. An inline body such as `array/map n | n * 2` runs to the end of the line, so to keep flowing after it either wrap the lambda in parentheses, `array/map (n | n * 2) -> io/print-line`, or continue the flow on the next line with a leading `->`.
 
 ## length
 
@@ -17,7 +17,7 @@ Lambdas given to `array/each`, `array/map`, `array/keep` and the rest receive ea
 Returns the number of elements as an int.
 
 ```
-[1 2 3] -> array/length -> io/print-ln     ~ 3
+[1 2 3] -> array/length -> io/print-line     ~ 3
 ```
 
 ## is-empty
@@ -27,7 +27,7 @@ Returns the number of elements as an int.
 Returns `yes` when the array has no elements.
 
 ```
-[] -> array/is-empty -> io/print-ln        ~ yes
+[] -> array/is-empty -> io/print-line        ~ yes
 ```
 
 ## at
@@ -37,7 +37,7 @@ Returns `yes` when the array has no elements.
 Returns the element at `index`.
 
 ```
-[10 20 30] -> array/at 1 -> io/print-ln    ~ 20
+[10 20 30] -> array/at 1 -> io/print-line    ~ 20
 ```
 
 Errors: the index is not an int; the index is negative or not below the length (`index 5 is out of range for an array of length 3`).
@@ -51,7 +51,7 @@ Replaces the element at `index` in place and returns the same array.
 ```
 [1 2 3] => xs
 xs -> array/put 1 9
-xs -> io/print-ln                          ~ [1 9 3]
+xs -> io/print-line                          ~ [1 9 3]
 ```
 
 Errors: the index is not an int; the index is out of range.
@@ -65,7 +65,7 @@ Appends `value` in place and returns the same array.
 ```
 [1] => xs
 xs -> array/push 2 -> array/push 3
-xs -> io/print-ln                          ~ [1 2 3]
+xs -> io/print-line                          ~ [1 2 3]
 ```
 
 ## pop
@@ -76,8 +76,8 @@ Removes the last element in place and returns it.
 
 ```
 [1 2 3] => xs
-xs -> array/pop -> io/print-ln             ~ 3
-xs -> io/print-ln                          ~ [1 2]
+xs -> array/pop -> io/print-line           ~ 3
+xs -> io/print-line                        ~ [1 2]
 ```
 
 Errors: the array is empty (`cannot pop from an empty array`).
@@ -91,7 +91,7 @@ Inserts `value` before the element at `index` in place and returns the same arra
 ```
 [1 3] => xs
 xs -> array/insert 1 2 -> array/insert 3 4
-xs -> io/print-ln                          ~ [1 2 3 4]
+xs -> io/print-line                          ~ [1 2 3 4]
 ```
 
 Errors: the index is not an int; the index is negative or greater than the length.
@@ -103,7 +103,7 @@ Errors: the index is not an int; the index is negative or greater than the lengt
 Removes the element at `index` in place and returns the same array.
 
 ```
-[1 2 3] -> array/remove-at 1 -> io/print-ln   ~ [1 3]
+[1 2 3] -> array/remove-at 1 -> io/print-line   ~ [1 3]
 ```
 
 Errors: the index is not an int; the index is out of range.
@@ -115,7 +115,7 @@ Errors: the index is not an int; the index is out of range.
 Returns the first element.
 
 ```
-[1 2 3] -> array/first -> io/print-ln      ~ 1
+[1 2 3] -> array/first -> io/print-line      ~ 1
 ```
 
 Errors: the array is empty.
@@ -127,7 +127,7 @@ Errors: the array is empty.
 Returns the last element.
 
 ```
-[1 2 3] -> array/last -> io/print-ln       ~ 3
+[1 2 3] -> array/last -> io/print-line       ~ 3
 ```
 
 Errors: the array is empty.
@@ -139,8 +139,8 @@ Errors: the array is empty.
 Returns a new array with the elements from `start` up to but not including `end`. Both bounds are clamped to the array, so an `end` past the length means "to the end" and an `end` at or before `start` gives an empty array.
 
 ```
-[1 2 3 4 5] -> array/slice 1 3 -> io/print-ln    ~ [2 3]
-[1 2 3 4 5] -> array/slice 3 99 -> io/print-ln   ~ [4 5]
+[1 2 3 4 5] -> array/slice 1 3 -> io/print-line   ~ [2 3]
+[1 2 3 4 5] -> array/slice 3 99 -> io/print-line  ~ [4 5]
 ```
 
 Errors: either bound is not an int.
@@ -152,7 +152,7 @@ Errors: either bound is not an int.
 Returns a new array with the elements of `array` followed by those of `other`. Neither input changes.
 
 ```
-[1 2] -> array/concat [3] -> io/print-ln   ~ [1 2 3]
+[1 2] -> array/concat [3] -> io/print-line   ~ [1 2 3]
 ```
 
 Errors: `other` is not an array.
@@ -164,7 +164,7 @@ Errors: `other` is not an array.
 Returns a new array where each element that is itself an array is replaced by its elements. Only one level is removed; other elements are kept as they are.
 
 ```
-[1 [2 [3]] [] 4] -> array/flatten -> io/print-ln   ~ [1 2 [3] 4]
+[1 [2 [3]] [] 4] -> array/flatten -> io/print-line   ~ [1 2 [3] 4]
 ```
 
 ## zip
@@ -174,7 +174,7 @@ Returns a new array where each element that is itself an array is replaced by it
 Returns a new array of two-element arrays pairing each element with the one at the same index in `other`, stopping at the shorter length.
 
 ```
-[1 2 3] -> array/zip ["a" "b"] -> io/print-ln    ~ [[1 "a"] [2 "b"]]
+[1 2 3] -> array/zip ["a" "b"] -> io/print-line    ~ [[1 "a"] [2 "b"]]
 ```
 
 Errors: `other` is not an array.
@@ -186,7 +186,7 @@ Errors: `other` is not an array.
 Returns `yes` when some element is structurally equal to `value`.
 
 ```
-[1 [2 3]] -> array/contains [2 3] -> io/print-ln   ~ yes
+[1 [2 3]] -> array/contains [2 3] -> io/print-line   ~ yes
 ```
 
 ## index-of
@@ -196,8 +196,8 @@ Returns `yes` when some element is structurally equal to `value`.
 Returns the index of the first element structurally equal to `value`, or `nothing` when there is none.
 
 ```
-["a" "b"] -> array/index-of "b" -> io/print-ln     ~ 1
-["a" "b"] -> array/index-of "z" -> io/print-ln     ~ nothing
+["a" "b"] -> array/index-of "b" -> io/print-line   ~ 1
+["a" "b"] -> array/index-of "z" -> io/print-line   ~ nothing
 ```
 
 ## sum
@@ -207,8 +207,8 @@ Returns the index of the first element structurally equal to `value`, or `nothin
 Adds the elements with the rules of `+`: all ints give an int, any float promotes the result to a float. An empty array gives `0`.
 
 ```
-[1 2 3] -> array/sum -> io/print-ln        ~ 6
-[1 2.5] -> array/sum -> io/print-ln        ~ 3.5
+[1 2 3] -> array/sum -> io/print-line      ~ 6
+[1 2.5] -> array/sum -> io/print-line      ~ 3.5
 ```
 
 Errors: an element is not an int or a float (`` `array/sum` needs an array of numbers, but found a string ``).
@@ -220,8 +220,8 @@ Errors: an element is not an int or a float (`` `array/sum` needs an array of nu
 Returns the smallest element by value ordering. Among equal elements the first one wins. To take the smaller of two numbers use `math/min`.
 
 ```
-[3 1 2] -> array/min -> io/print-ln        ~ 1
-["b" "a"] -> array/min -> io/print-ln      ~ a
+[3 1 2] -> array/min -> io/print-line      ~ 1
+["b" "a"] -> array/min -> io/print-line    ~ a
 ```
 
 Errors: the array is empty; two elements cannot be compared.
@@ -233,7 +233,7 @@ Errors: the array is empty; two elements cannot be compared.
 Returns the largest element by value ordering. Among equal elements the first one wins. To take the larger of two numbers use `math/max`.
 
 ```
-[3 1 2] -> array/max -> io/print-ln        ~ 3
+[3 1 2] -> array/max -> io/print-line        ~ 3
 ```
 
 Errors: the array is empty; two elements cannot be compared.
@@ -245,8 +245,8 @@ Errors: the array is empty; two elements cannot be compared.
 Returns a new array keeping the first occurrence of each structurally distinct element, in order.
 
 ```
-[1 2 1 3 2] -> array/unique -> io/print-ln     ~ [1 2 3]
-[[1] [1] [2]] -> array/unique -> io/print-ln   ~ [[1] [2]]
+[1 2 1 3 2] -> array/unique -> io/print-line    ~ [1 2 3]
+[[1] [1] [2]] -> array/unique -> io/print-line  ~ [[1] [2]]
 ```
 
 ## reverse
@@ -256,7 +256,7 @@ Returns a new array keeping the first occurrence of each structurally distinct e
 Returns a new array with the elements in the opposite order.
 
 ```
-[1 2 3] -> array/reverse -> io/print-ln    ~ [3 2 1]
+[1 2 3] -> array/reverse -> io/print-line    ~ [3 2 1]
 ```
 
 ## join
@@ -266,7 +266,7 @@ Returns a new array with the elements in the opposite order.
 Concatenates the elements, all of which must be strings, with `separator` between them. An empty array gives `""`.
 
 ```
-["a" "b" "c"] -> array/join ", " -> io/print-ln   ~ a, b, c
+["a" "b" "c"] -> array/join ", " -> io/print-line   ~ a, b, c
 ```
 
 Errors: the separator is not a string; an element is not a string (`` `array/join` needs an array of strings, but found an int ``).
@@ -278,8 +278,8 @@ Errors: the separator is not a string; an element is not a string (`` `array/joi
 Returns a new array in ascending value ordering. The sort is stable.
 
 ```
-[3 1 2] -> array/sort -> io/print-ln           ~ [1 2 3]
-["b" "a"] -> array/sort -> io/print-ln         ~ ["a" "b"]
+[3 1 2] -> array/sort -> io/print-line         ~ [1 2 3]
+["b" "a"] -> array/sort -> io/print-line       ~ ["a" "b"]
 ```
 
 Errors: two elements cannot be compared (`cannot compare an int with a string`).
@@ -291,8 +291,8 @@ Errors: two elements cannot be compared (`cannot compare an int with a string`).
 Returns a new array ordered by the lambda, which receives two elements and returns `yes` when `a` should come before `b`. Elements that are neither before nor after each other keep their original order, so sorting records by one field preserves the order of ties.
 
 ```
-[1 3 2] -> array/sort-by (a b | a > b) -> io/print-ln                                                 ~ [3 2 1]
-[["b" 2] ["a" 1] ["c" 2]] -> array/sort-by (a b | (a -> array/at 1) < (b -> array/at 1)) -> io/print-ln   ~ [["a" 1] ["b" 2] ["c" 2]]
+[1 3 2] -> array/sort-by (a b | a > b) -> io/print-line                                                 ~ [3 2 1]
+[["b" 2] ["a" 1] ["c" 2]] -> array/sort-by (a b | (a -> array/at 1) < (b -> array/at 1)) -> io/print-line   ~ [["a" 1] ["b" 2] ["c" 2]]
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no` (`` the comparison in `array/sort-by` must return `yes` or `no`, got an int ``).
@@ -305,7 +305,7 @@ Calls the body once per element, in order, and returns `nothing`. `stop` ends th
 
 ```
 [1 2 3] -> array/each n
-| n * 10 -> io/print-ln
+| n * 10 -> io/print-line
 ~ 10
 ~ 20
 ~ 30
@@ -320,9 +320,9 @@ Errors: the input is not an array; the body is not a procedure.
 Returns a new array of the body's result for each element.
 
 ```
-[1 2 3] -> array/map (n | n * 2) -> io/print-ln   ~ [2 4 6]
+[1 2 3] -> array/map (n | n * 2) -> io/print-line   ~ [2 4 6]
 [1 2 3] -> array/map n | n + 1
--> io/print-ln                             ~ [2 3 4]
+-> io/print-line                             ~ [2 3 4]
 ```
 
 Errors: the body is not a procedure.
@@ -334,7 +334,7 @@ Errors: the body is not a procedure.
 Returns a new array with the elements for which the body returns `yes`.
 
 ```
-[1 2 3 4] -> array/keep (n | n mod 2 = 0) -> io/print-ln    ~ [2 4]
+[1 2 3 4] -> array/keep (n | n mod 2 = 0) -> io/print-line    ~ [2 4]
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no` (`` the condition in `array/keep` must return `yes` or `no`, got an int ``).
@@ -346,7 +346,7 @@ Errors: the body is not a procedure; the body returns something other than `yes`
 Returns a new array with the elements for which the body returns `no`.
 
 ```
-[1 2 3 4] -> array/reject (n | n mod 2 = 0) -> io/print-ln  ~ [1 3]
+[1 2 3 4] -> array/reject (n | n mod 2 = 0) -> io/print-line  ~ [1 3]
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no`.
@@ -358,7 +358,7 @@ Errors: the body is not a procedure; the body returns something other than `yes`
 Calls the body with the accumulator and each element in turn, starting from `initial`, and returns the final accumulator. An empty array gives `initial`.
 
 ```
-[1 2 3] -> array/reduce 0 (acc n | acc + n) -> io/print-ln  ~ 6
+[1 2 3] -> array/reduce 0 (acc n | acc + n) -> io/print-line  ~ 6
 ```
 
 Errors: the body is not a procedure.
@@ -373,7 +373,7 @@ Returns `yes` as soon as the body returns `yes` for an element, without calling 
 proc has-even xs
 | xs -> array/any n
 | | n mod 2 = 0
-[1 3 4 5] -> has-even -> io/print-ln       ~ yes
+[1 3 4 5] -> has-even -> io/print-line       ~ yes
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no`.
@@ -388,7 +388,7 @@ Returns `no` as soon as the body returns `no` for an element, without calling it
 proc all-small xs
 | xs -> array/all n
 | | n < 10
-[1 2 3] -> all-small -> io/print-ln        ~ yes
+[1 2 3] -> all-small -> io/print-line        ~ yes
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no`.
@@ -400,8 +400,8 @@ Errors: the body is not a procedure; the body returns something other than `yes`
 Returns the first element for which the body returns `yes`, or `nothing` when there is none.
 
 ```
-[1 2 3] -> array/find (n | n > 1) -> io/print-ln     ~ 2
-[1 2 3] -> array/find (n | n > 5) -> io/print-ln     ~ nothing
+[1 2 3] -> array/find (n | n > 1) -> io/print-line   ~ 2
+[1 2 3] -> array/find (n | n > 5) -> io/print-line   ~ nothing
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no`.
@@ -413,7 +413,7 @@ Errors: the body is not a procedure; the body returns something other than `yes`
 Returns how many elements make the body return `yes`, as an int.
 
 ```
-[1 2 3 4] -> array/count (n | n > 2) -> io/print-ln  ~ 2
+[1 2 3 4] -> array/count (n | n > 2) -> io/print-line  ~ 2
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no`.
@@ -425,8 +425,8 @@ Errors: the body is not a procedure; the body returns something other than `yes`
 Returns a new array of `[index item]` pairs, so `array/each` over it sees positions as well as elements.
 
 ```
-["a" "b"] -> array/with-index -> io/print-ln         ~ [[0 "a"] [1 "b"]]
-["a" "b"] -> array/with-index -> array/each pair | "{pair -> array/at 0}:{pair -> array/at 1}" -> io/print-ln
+["a" "b"] -> array/with-index -> io/print-line         ~ [[0 "a"] [1 "b"]]
+["a" "b"] -> array/with-index -> array/each pair | "{pair -> array/at 0}:{pair -> array/at 1}" -> io/print-line
 ~ 0:a
 ~ 1:b
 ```
@@ -441,6 +441,6 @@ Returns a new array with the same elements. The copy is shallow: nested arrays a
 [1 2] => a
 a -> array/copy => b
 b -> array/push 3
-a -> io/print-ln                           ~ [1 2]
-b -> io/print-ln                           ~ [1 2 3]
+a -> io/print-line                         ~ [1 2]
+b -> io/print-line                         ~ [1 2 3]
 ```
