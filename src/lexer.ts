@@ -1,4 +1,4 @@
-import { parseError, type Position } from './errors.ts';
+import { incompleteError, parseError, type Position } from './errors.ts';
 
 export type Keyword = 'proc' | 'while' | 'stop' | 'attempt' | 'recover' | 'yes' | 'no' | 'nothing' | 'and' | 'or' | 'not' | 'mod';
 
@@ -151,7 +151,7 @@ class Lexer {
       current.endPosition = this.position();
     }
     const unclosed = this.openBrackets[this.openBrackets.length - 1];
-    if (unclosed !== undefined) throw parseError(`unclosed \`${unclosed.character}\``, unclosed.position);
+    if (unclosed !== undefined) throw incompleteError(`unclosed \`${unclosed.character}\``, unclosed.position);
     if (current !== null && current.tokens.length > 0) lines.push(current);
     return lines;
   }
@@ -169,7 +169,7 @@ class Lexer {
       tokens.push(this.lexToken());
     }
     const unclosed = this.openBrackets[this.openBrackets.length - 1];
-    if (unclosed !== undefined) throw parseError(`unclosed \`${unclosed.character}\``, unclosed.position);
+    if (unclosed !== undefined) throw incompleteError(`unclosed \`${unclosed.character}\``, unclosed.position);
     return tokens;
   }
 

@@ -2,7 +2,8 @@ import { SlopersonsError } from '../../src/errors.ts';
 import { Interpreter } from '../../src/interpreter.ts';
 import { parse } from '../../src/parser.ts';
 import { registerStdlib } from '../../src/stdlib/registry.ts';
-import { runProgram, type CliIo } from '../../src/cli.ts';
+import type { CliIo } from '../../src/boundary.ts';
+import { runProgram } from '../../src/cli.ts';
 
 export interface RunResult {
   out: string;

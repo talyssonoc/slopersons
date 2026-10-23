@@ -5,7 +5,8 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { EXIT_INTERNAL, EXIT_PROGRAM_ERROR, createInterpreter, runProgram } from '../src/cli.ts';
+import { EXIT_INTERNAL, EXIT_PROGRAM_ERROR } from '../src/boundary.ts';
+import { createInterpreter, runProgram } from '../src/cli.ts';
 import { fakeIo, runCli } from './helpers/run.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -176,6 +177,18 @@ test('a value that outgrows the interpreter is not catchable by attempt', () => 
   assert.equal(result.stdout, '');
   assert.equal(result.stderr, 'error: a value grew too large for the interpreter to hold\n');
   assert.equal(result.status, 1);
+});
+
+test('--repl runs an interactive session through the binary', () => {
+  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', input: '5 + 3\n"x" -> print-ln\n' });
+  assert.equal(result.stdout, 'slopersons, Ctrl-D to leave\n> -> 8\n> x\n-> "x"\n> \n');
+  assert.equal(result.stderr, '');
+  assert.equal(result.status, 0);
+});
+
+test('--help mentions the REPL', () => {
+  const result = spawnSync(bin, ['--help'], { encoding: 'utf8' });
+  assert.match(result.stdout, /slopersons --repl/);
 });
 
 test('runProgram maps program errors to exit 1 and prints them in slopersons terms', () => {

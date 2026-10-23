@@ -5,6 +5,7 @@ A flow-shaped programming language and its interpreter. See [docs/overview.md](d
 ```
 pnpm install
 pnpm slopersons docs/examples/even-sum.slop
+pnpm slopersons --repl
 pnpm test
 ```
 

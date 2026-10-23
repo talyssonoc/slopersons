@@ -2,11 +2,37 @@
 
 ```
 slopersons <file.slop>
+slopersons --repl
 slopersons --version
 slopersons --help
 ```
 
 From a checkout, the command is `./bin/slopersons.mjs`, or `pnpm slopersons <file.slop>` through the package script. pnpm prints its script banner on standard output, so when piping the program's output use `pnpm --silent slopersons <file.slop>`. The `bin` field in `package.json` exposes it as `slopersons` after `pnpm link --global` or an install.
+
+## REPL
+
+`slopersons --repl` starts an interactive session. Each entry is parsed and run in one persistent top-level scope, so bindings and procedures carry over.
+
+```
+> 5 + 3
+-> 8
+> 5 => x
+-> 5
+> proc double n
+.. | n * 2
+..
+> x -> double
+-> 10
+```
+
+- A line that is a complete statement runs as soon as it is entered.
+- A line the parser finds incomplete, such as `proc double n`, `x > 1 ?`, `attempt` or an unclosed bracket, starts a block entry: the prompt changes to `..` and lines are collected until an empty line, then the whole entry runs.
+- A line that ends a call with names that are not bound, such as `xs -> each n`, also starts a block entry, because those names are almost certainly lambda parameters. Press Enter on an empty line to run it without a block.
+- The value of an entry is echoed as `-> value` in the same form `show` uses, so a string appears quoted. `nothing` is not echoed.
+- Errors are printed as `error: message` with the position inside the entry, and the session continues.
+- Ctrl-D leaves with exit code 0; `code -> exit` leaves with that code.
+
+Input is read line by line as programs read it, so the terminal provides basic editing but there is no history or cursor movement between lines.
 
 ## Exit codes
 

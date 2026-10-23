@@ -12,7 +12,7 @@ import type {
   Step,
   WhileStatement,
 } from './ast.ts';
-import { parseError, type Position } from './errors.ts';
+import { incompleteError, parseError, type Position } from './errors.ts';
 import { lex, type OpToken, type StringPart, type Token } from './lexer.ts';
 import { buildLineTree, type Line } from './line-tree.ts';
 
@@ -33,7 +33,7 @@ class Cursor {
 
   next(): Token {
     const token = this.tokens[this.i];
-    if (token === undefined) throw parseError('unexpected end of line', this.endPosition);
+    if (token === undefined) throw incompleteError('unexpected end of line', this.endPosition);
     this.i++;
     return token;
   }
@@ -71,7 +71,8 @@ class Cursor {
 
   expectName(what: string): Name {
     const token = this.peek();
-    if (token === undefined || token.kind !== 'name') throw parseError(`expected ${what}`, this.position());
+    if (token === undefined) throw incompleteError(`expected ${what}`, this.position());
+    if (token.kind !== 'name') throw parseError(`expected ${what}`, this.position());
     this.i++;
     return { kind: 'name', name: token.name, position: token.position };
   }
@@ -164,7 +165,7 @@ class Parser {
       }
     }
     for (const statement of statements) {
-      if (statement.kind === 'attempt' && statement.handler === null) throw parseError('`attempt` needs a `recover`', statement.position);
+      if (statement.kind === 'attempt' && statement.handler === null) throw incompleteError('`attempt` needs a `recover`', statement.position);
     }
     return statements;
   }
@@ -247,7 +248,7 @@ class Parser {
       return [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
     }
     if (!isStop(cursor, EMPTY)) throw parseError(`unexpected ${describe(cursor.peek())} in ${what} header`, cursor.position());
-    if (children.length === 0) throw parseError(`${what} needs a body`, cursor.position());
+    if (children.length === 0) throw incompleteError(`${what} needs a body`, cursor.position());
     return this.parseBlock(children);
   }
 
@@ -260,7 +261,7 @@ class Parser {
 
   private parseBranchBody(conditional: Conditional, condition: Expression, cursor: Cursor, children: Line[]): void {
     if (isStop(cursor, EMPTY)) {
-      if (children.length === 0) throw parseError('`?` needs a body', cursor.position());
+      if (children.length === 0) throw incompleteError('`?` needs a body', cursor.position());
       conditional.branches.push({ condition, body: this.parseBlock(children) });
       return;
     }
@@ -272,12 +273,12 @@ class Parser {
   private parseInlineElseChain(conditional: Conditional, cursor: Cursor): void {
     while (cursor.isOp(':')) {
       cursor.next();
-      if (isStop(cursor, EMPTY)) throw parseError('`:` needs a body', cursor.position());
+      if (isStop(cursor, EMPTY)) throw incompleteError('`:` needs a body', cursor.position());
       const save = cursor.i;
       const condition = simplify(this.parseFlow(cursor));
       if (cursor.isOp('?')) {
         cursor.next();
-        if (isStop(cursor, EMPTY)) throw parseError('`?` needs a body', cursor.position());
+        if (isStop(cursor, EMPTY)) throw incompleteError('`?` needs a body', cursor.position());
         conditional.branches.push({ condition, body: [this.parseStatement(cursor, NO_CHILDREN, COLON)] });
         continue;
       }
@@ -301,7 +302,7 @@ class Parser {
       return attempt;
     }
     if (!isStop(cursor, EMPTY)) throw parseError(`unexpected ${describe(cursor.peek())} after \`attempt\``, cursor.position());
-    if (children.length === 0) throw parseError('`attempt` needs a body', cursor.position());
+    if (children.length === 0) throw incompleteError('`attempt` needs a body', cursor.position());
     attempt.body = this.parseBlock(children);
     return attempt;
   }
@@ -327,7 +328,7 @@ class Parser {
     if (previous === undefined || previous.kind !== 'conditional') throw parseError('`:` without a preceding `?` at the same depth', colon.position);
     if (previous.otherwise !== null) throw parseError('this conditional already has a final `:` branch', colon.position);
     if (isStop(cursor, EMPTY)) {
-      if (line.children.length === 0) throw parseError('`:` needs a body', cursor.position());
+      if (line.children.length === 0) throw incompleteError('`:` needs a body', cursor.position());
       previous.otherwise = this.parseBlock(line.children);
       return;
     }
@@ -404,7 +405,8 @@ class Parser {
     } else if (cursor.isOp('(')) {
       callee = this.parseParen(cursor);
     } else {
-      throw parseError(`expected a procedure name after \`->\`, found ${describe(cursor.peek())}`, cursor.position());
+      const problem = cursor.atEnd() ? incompleteError : parseError;
+      throw problem(`expected a procedure name after \`->\`, found ${describe(cursor.peek())}`, cursor.position());
     }
     const inputs: Expression[] = [];
     while (canStartExpression(cursor.peek())) inputs.push(this.parseExpression(cursor));
@@ -500,7 +502,7 @@ class Parser {
 
   private parsePrimary(cursor: Cursor): Expression {
     const token = cursor.peek();
-    if (token === undefined) throw parseError('expected a value, found end of line', cursor.position());
+    if (token === undefined) throw incompleteError('expected a value, found end of line', cursor.position());
     switch (token.kind) {
       case 'int':
         cursor.next();

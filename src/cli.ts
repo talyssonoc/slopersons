@@ -1,16 +1,13 @@
 import { readFileSync, readSync, writeSync } from 'node:fs';
 import { Worker, isMainThread } from 'node:worker_threads';
+import { BrokenPipe, EXIT_INTERNAL, EXIT_OK, EXIT_PROGRAM_ERROR, EXIT_USAGE, INTERNAL_ERROR_LINE, describeUnexpected, type CliIo } from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
 import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
 import { parse } from './parser.ts';
+import { Repl } from './repl.ts';
 import { registerStdlib } from './stdlib/registry.ts';
 
 const VERSION = '0.1.0';
-
-export const EXIT_OK = 0;
-export const EXIT_PROGRAM_ERROR = 1;
-export const EXIT_USAGE = 2;
-export const EXIT_INTERNAL = 70;
 
 const WORKER_STACK_MB = 256;
 const DEFAULT_WORKER_HEAP_MB = 1024;
@@ -21,18 +18,10 @@ function workerHeapMb(): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_WORKER_HEAP_MB;
 }
 
-export interface CliIo extends Io {
-  writeError(text: string): void;
-}
-
 export function createInterpreter(io: Io): Interpreter {
   const interpreter = new Interpreter(io);
   registerStdlib(interpreter);
   return interpreter;
-}
-
-function isStackOverflow(error: unknown): boolean {
-  return error instanceof RangeError && /call stack/i.test(error.message);
 }
 
 export function runProgram(source: string, file: string, io: CliIo, interpreter: Interpreter = createInterpreter(io)): number {
@@ -46,15 +35,12 @@ export function runProgram(source: string, file: string, io: CliIo, interpreter:
       io.writeError(`${error.withFile(file).format()}\n`);
       return EXIT_PROGRAM_ERROR;
     }
-    if (isStackOverflow(error)) {
-      io.writeError('error: the program recursed too deeply for the interpreter to continue\n');
+    const unexpected = describeUnexpected(error);
+    if (unexpected !== null) {
+      io.writeError(unexpected);
       return EXIT_PROGRAM_ERROR;
     }
-    if (error instanceof RangeError) {
-      io.writeError('error: a value grew too large for the interpreter to hold\n');
-      return EXIT_PROGRAM_ERROR;
-    }
-    io.writeError('error: internal interpreter error; this is a bug in slopersons, not in your program\n');
+    io.writeError(INTERNAL_ERROR_LINE);
     if (process.env['SLOPERSONS_DEBUG'] === '1') {
       io.writeError(`${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
     }
@@ -69,8 +55,6 @@ function isBrokenPipe(error: unknown): boolean {
 function isWouldBlock(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'EAGAIN';
 }
-
-export class BrokenPipe {}
 
 const sleepCell = new Int32Array(new SharedArrayBuffer(4));
 
@@ -131,12 +115,16 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
     return EXIT_OK;
   }
   if (argv.includes('--help') || argv.includes('-h')) {
-    io.write('usage: slopersons <file.slop>\n       slopersons --version\n');
+    io.write('usage: slopersons <file.slop>\n       slopersons --repl\n       slopersons --version\n');
     return EXIT_OK;
+  }
+  if (argv.includes('--repl')) {
+    if (io !== nodeIo) return new Repl(io, createInterpreter(io)).run();
+    return runInWorker({ mode: 'repl' });
   }
   const path = argv[0];
   if (path === undefined) {
-    io.writeError('usage: slopersons <file.slop>\n');
+    io.writeError('usage: slopersons <file.slop>\n       slopersons --repl\n');
     return EXIT_USAGE;
   }
   let source: string;
@@ -147,13 +135,15 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
     return EXIT_USAGE;
   }
   if (io !== nodeIo) return runProgram(source, path, io);
-  return runInWorker(source, path);
+  return runInWorker({ mode: 'program', source, file: path });
 }
 
-function runInWorker(source: string, file: string): Promise<number> {
+export type WorkerData = { mode: 'program'; source: string; file: string } | { mode: 'repl' };
+
+function runInWorker(data: WorkerData): Promise<number> {
   return new Promise((resolve) => {
     const worker = new Worker(new URL('./worker.ts', import.meta.url), {
-      workerData: { source, file },
+      workerData: data,
       resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() },
     });
     let code = EXIT_INTERNAL;
@@ -176,7 +166,7 @@ function runInWorker(source: string, file: string): Promise<number> {
         code = EXIT_PROGRAM_ERROR;
         return;
       }
-      process.stderr.write('error: internal interpreter error; this is a bug in slopersons, not in your program\n');
+      process.stderr.write(INTERNAL_ERROR_LINE);
       code = EXIT_INTERNAL;
     });
     worker.on('exit', () => resolve(code));

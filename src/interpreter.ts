@@ -180,9 +180,17 @@ export class Interpreter {
     return method.implementation(inputs, context);
   }
 
-  run(program: Statement[]): Value {
+  createTopLevelEnvironment(): Environment {
     const environment = new Environment(null, this.newActivation());
     this.topActivation = environment.activation;
+    return environment;
+  }
+
+  run(program: Statement[]): Value {
+    return this.runIn(program, this.createTopLevelEnvironment());
+  }
+
+  runIn(program: Statement[], environment: Environment): Value {
     try {
       return this.execBlock(program, environment);
     } catch (signal) {

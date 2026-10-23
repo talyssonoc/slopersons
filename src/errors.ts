@@ -9,13 +9,15 @@ export class SlopersonsError extends Error {
   kind: ErrorKind;
   position: Position | null;
   file: string | null;
+  incomplete: boolean;
 
   constructor(kind: ErrorKind, message: string, location: Position | null = null) {
     super(message);
-    this.name = 'SloError';
+    this.name = 'SlopersonsError';
     this.kind = kind;
     this.position = location;
     this.file = null;
+    this.incomplete = false;
   }
 
   withFile(file: string): SlopersonsError {
@@ -31,6 +33,12 @@ export class SlopersonsError extends Error {
 
 export function parseError(message: string, position: Position | null): SlopersonsError {
   return new SlopersonsError('parse', message, position);
+}
+
+export function incompleteError(message: string, position: Position | null): SlopersonsError {
+  const error = new SlopersonsError('parse', message, position);
+  error.incomplete = true;
+  return error;
 }
 
 export function runtimeError(message: string, position: Position | null): SlopersonsError {
