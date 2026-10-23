@@ -1,26 +1,27 @@
-import type { Expr, Lambda, Statement, Step } from './ast.ts';
-import { runtimeError, type Pos } from './errors.ts';
+import type { Expression, Lambda, Statement, Step } from './ast.ts';
+import { SlopersonsError, runtimeError, type Position } from './errors.ts';
 import {
   NO,
   NOTHING,
   YES,
   array,
-  bool,
+  boolean,
   char,
   compareValues,
   describeType,
+  errorValue,
   float,
   formatValue,
   freshId,
   int,
   newMap,
-  str,
+  string,
   valuesEqual,
   typeName,
   type Arity,
-  type BuiltinFn,
+  type BuiltinImplementation,
   type BuiltinValue,
-  type ProcValue,
+  type ProcedureValue,
   type TypeName,
   type Value,
 } from './values.ts';
@@ -31,9 +32,9 @@ export interface Io {
 }
 
 export interface CallContext {
-  interp: Interpreter;
-  pos: Pos;
-  env: Env;
+  interpreter: Interpreter;
+  position: Position;
+  environment: Environment;
 }
 
 export class ExitSignal {
@@ -47,49 +48,49 @@ export class ExitSignal {
 export class OutSignal {
   readonly activation: number;
   readonly value: Value;
-  readonly pos: Pos;
+  readonly position: Position;
 
-  constructor(activation: number, value: Value, pos: Pos) {
+  constructor(activation: number, value: Value, location: Position) {
     this.activation = activation;
     this.value = value;
-    this.pos = pos;
+    this.position = location;
   }
 }
 
 export class StopSignal {
-  readonly pos: Pos;
+  readonly position: Position;
 
-  constructor(pos: Pos) {
-    this.pos = pos;
+  constructor(location: Position) {
+    this.position = location;
   }
 }
 
-export class Env {
+export class Environment {
   private readonly vars: Map<string, Value>;
-  readonly parent: Env | null;
+  readonly parent: Environment | null;
   readonly activation: number;
 
-  constructor(parent: Env | null, activation: number) {
+  constructor(parent: Environment | null, activation: number) {
     this.vars = new Map();
     this.parent = parent;
     this.activation = activation;
   }
 
   lookup(name: string): Value | undefined {
-    let env: Env | null = this;
-    while (env !== null) {
-      const value = env.vars.get(name);
+    let environment: Environment | null = this;
+    while (environment !== null) {
+      const value = environment.vars.get(name);
       if (value !== undefined) return value;
-      env = env.parent;
+      environment = environment.parent;
     }
     return undefined;
   }
 
   private sameActivationAncestorHas(name: string): boolean {
-    let env = this.parent;
-    while (env !== null && env.activation === this.activation) {
-      if (env.vars.has(name)) return true;
-      env = env.parent;
+    let environment = this.parent;
+    while (environment !== null && environment.activation === this.activation) {
+      if (environment.vars.has(name)) return true;
+      environment = environment.parent;
     }
     return false;
   }
@@ -98,23 +99,23 @@ export class Env {
     this.vars.set(name, value);
   }
 
-  bindLocal(name: string, value: Value, pos: Pos): void {
+  bindLocal(name: string, value: Value, position: Position): void {
     if (!this.vars.has(name) && this.sameActivationAncestorHas(name)) {
-      throw runtimeError(`\`${name}\` already exists in an enclosing scope; use \`=>> ${name}\` to update it or choose another name`, pos);
+      throw runtimeError(`\`${name}\` already exists in an enclosing scope; use \`=>> ${name}\` to update it or choose another name`, position);
     }
     this.vars.set(name, value);
   }
 
-  bindOuter(name: string, value: Value, pos: Pos): void {
-    let env: Env | null = this;
-    while (env !== null) {
-      if (env.vars.has(name)) {
-        env.vars.set(name, value);
+  bindOuter(name: string, value: Value, position: Position): void {
+    let environment: Environment | null = this;
+    while (environment !== null) {
+      if (environment.vars.has(name)) {
+        environment.vars.set(name, value);
         return;
       }
-      env = env.parent;
+      environment = environment.parent;
     }
-    throw runtimeError(`\`=>> ${name}\` found no existing binding named \`${name}\``, pos);
+    throw runtimeError(`\`=>> ${name}\` found no existing binding named \`${name}\``, position);
   }
 }
 
@@ -122,7 +123,7 @@ export const MAX_CALL_DEPTH = 10_000;
 
 interface MethodImpl {
   arity: Arity;
-  fn: BuiltinFn;
+  implementation: BuiltinImplementation;
 }
 
 export class Interpreter {
@@ -142,58 +143,58 @@ export class Interpreter {
     this.topActivation = -1;
   }
 
-  defineBuiltin(name: string, arity: number | Arity, fn: BuiltinFn): void {
+  defineBuiltin(name: string, arity: number | Arity, procedure: BuiltinImplementation): void {
     if (this.builtins.has(name)) throw new Error(`builtin \`${name}\` is registered twice`);
     const normalized: Arity = typeof arity === 'number' ? { min: arity, max: arity } : arity;
-    this.builtins.set(name, { t: 'builtin', id: freshId(), name, arity: normalized, fn });
+    this.builtins.set(name, { type: 'builtin', id: freshId(), name, arity: normalized, implementation: procedure });
   }
 
   builtin(name: string): BuiltinValue | undefined {
     return this.builtins.get(name);
   }
 
-  defineMethod(name: string, types: TypeName | TypeName[], arity: number | Arity, fn: BuiltinFn): void {
+  defineMethod(name: string, types: TypeName | TypeName[], arity: number | Arity, procedure: BuiltinImplementation): void {
     let table = this.methods.get(name);
     if (table === undefined) {
       if (this.builtins.has(name)) throw new Error(`\`${name}\` is already a plain builtin and cannot also dispatch on a type`);
       table = new Map();
       this.methods.set(name, table);
-      this.defineBuiltin(name, { min: 1, max: null }, (args, ctx) => this.dispatch(name, args, ctx));
+      this.defineBuiltin(name, { min: 1, max: null }, (inputs, context) => this.dispatch(name, inputs, context));
     }
     const normalized: Arity = typeof arity === 'number' ? { min: arity, max: arity } : arity;
     for (const type of Array.isArray(types) ? types : [types]) {
       if (table.has(type)) throw new Error(`\`${name}\` is registered twice for ${type}`);
-      table.set(type, { arity: normalized, fn });
+      table.set(type, { arity: normalized, implementation: procedure });
     }
   }
 
-  private dispatch(name: string, args: Value[], ctx: CallContext): Value {
-    const receiver = args[0] ?? NOTHING;
+  private dispatch(name: string, inputs: Value[], context: CallContext): Value {
+    const receiver = inputs[0] ?? NOTHING;
     const table = this.methods.get(name);
-    const impl = table?.get(typeName(receiver));
-    if (table === undefined || impl === undefined) {
+    const method = table?.get(typeName(receiver));
+    if (table === undefined || method === undefined) {
       const supported = table === undefined ? '' : `; it works on ${[...table.keys()].join(', ')}`;
-      throw runtimeError(`\`${name}\` cannot be used with ${describeType(receiver)}${supported}`, ctx.pos);
+      throw runtimeError(`\`${name}\` cannot be used with ${describeType(receiver)}${supported}`, context.position);
     }
-    this.checkArity(name, impl.arity, args.length, ctx.pos);
-    return impl.fn(args, ctx);
+    this.checkArity(name, method.arity, inputs.length, context.position);
+    return method.implementation(inputs, context);
   }
 
   run(program: Statement[]): Value {
-    const env = new Env(null, this.newActivation());
-    this.topActivation = env.activation;
+    const environment = new Environment(null, this.newActivation());
+    this.topActivation = environment.activation;
     try {
-      return this.execBlock(program, env);
+      return this.execBlock(program, environment);
     } catch (signal) {
       throw this.escapedSignalError(signal);
     }
   }
 
   private escapedSignalError(signal: unknown): unknown {
-    if (signal instanceof StopSignal) return runtimeError('`stop` outside of a loop', signal.pos);
+    if (signal instanceof StopSignal) return runtimeError('`stop` outside of a loop', signal.position);
     if (signal instanceof OutSignal) {
-      if (signal.activation === this.topActivation) return runtimeError('`out` outside of a procedure', signal.pos);
-      return runtimeError('`out` was reached from a lambda whose procedure has already returned', signal.pos);
+      if (signal.activation === this.topActivation) return runtimeError('`out` outside of a procedure', signal.position);
+      return runtimeError('`out` was reached from a lambda whose procedure has already returned', signal.position);
     }
     return signal;
   }
@@ -202,152 +203,166 @@ export class Interpreter {
     return this.nextActivation++;
   }
 
-  execBlock(statements: Statement[], env: Env): Value {
+  execBlock(statements: Statement[], environment: Environment): Value {
     let result: Value = NOTHING;
-    for (const statement of statements) result = this.execStatement(statement, env);
+    for (const statement of statements) result = this.execStatement(statement, environment);
     return result;
   }
 
-  execStatement(statement: Statement, env: Env): Value {
+  execStatement(statement: Statement, environment: Environment): Value {
     switch (statement.kind) {
-      case 'flowstmt':
-        return this.evalExpr(statement.expr, env);
+      case 'flow-statement':
+        return this.evaluateExpression(statement.expression, environment);
       case 'proc': {
-        const proc: ProcValue = {
-          t: 'proc',
+        const procedure: ProcedureValue = {
+          type: 'proc',
           id: freshId(),
           name: statement.name,
-          params: statement.params,
+          parameters: statement.parameters,
           body: statement.body,
-          env,
+          environment,
           isProc: true,
         };
-        env.bindLocal(statement.name, proc, statement.pos);
+        environment.bindLocal(statement.name, procedure, statement.position);
         return NOTHING;
       }
       case 'while':
-        while (this.evalCondition(statement.cond, env)) {
+        while (this.evalCondition(statement.condition, environment)) {
           try {
-            this.execBlock(statement.body, env);
+            this.execBlock(statement.body, environment);
           } catch (signal) {
             if (signal instanceof StopSignal) break;
             throw signal;
           }
         }
         return NOTHING;
-      case 'cond':
-        return this.evalConditional(statement, env);
+      case 'conditional':
+        return this.evalConditional(statement, environment);
       case 'stop':
-        throw new StopSignal(statement.pos);
+        throw new StopSignal(statement.position);
+      case 'attempt':
+        return this.execAttempt(statement, environment);
     }
   }
 
-  private evalConditional(expr: Expr & { kind: 'cond' }, env: Env): Value {
-    for (const branch of expr.branches) {
-      if (this.evalCondition(branch.cond, env)) return this.execBlock(branch.body, env);
+  private execAttempt(statement: Expression & { kind: 'attempt' }, environment: Environment): Value {
+    try {
+      return this.execBlock(statement.body, environment);
+    } catch (error) {
+      if (!(error instanceof SlopersonsError) || error.kind !== 'runtime') throw error;
+      if (statement.errorName !== null) environment.defineParam(statement.errorName, errorValue(error));
+      return this.execBlock(statement.handler ?? [], environment);
     }
-    return expr.otherwise === null ? NOTHING : this.execBlock(expr.otherwise, env);
   }
 
-  private evalCondition(expr: Expr, env: Env): boolean {
-    const value = this.evalExpr(expr, env);
-    if (value.t !== 'bool') throw runtimeError(`a condition must be \`yes\` or \`no\`, got ${describeType(value)}`, expr.pos);
-    return value.v;
+  private evalConditional(expression: Expression & { kind: 'conditional' }, environment: Environment): Value {
+    for (const branch of expression.branches) {
+      if (this.evalCondition(branch.condition, environment)) return this.execBlock(branch.body, environment);
+    }
+    return expression.otherwise === null ? NOTHING : this.execBlock(expression.otherwise, environment);
   }
 
-  evalExpr(expr: Expr, env: Env): Value {
-    switch (expr.kind) {
+  private evalCondition(expression: Expression, environment: Environment): boolean {
+    const value = this.evaluateExpression(expression, environment);
+    if (value.type !== 'boolean') throw runtimeError(`a condition must be \`yes\` or \`no\`, got ${describeType(value)}`, expression.position);
+    return value.value;
+  }
+
+  evaluateExpression(expression: Expression, environment: Environment): Value {
+    switch (expression.kind) {
       case 'int':
-        return int(expr.value);
+        return int(expression.value);
       case 'float':
-        return float(expr.value);
+        return float(expression.value);
       case 'string':
-        return str(expr.value);
+        return string(expression.value);
       case 'char':
-        return char(expr.value);
-      case 'bool':
-        return expr.value ? YES : NO;
+        return char(expression.value);
+      case 'boolean':
+        return expression.value ? YES : NO;
       case 'nothing':
         return NOTHING;
       case 'name':
-        return this.lookup(expr.name, expr.pos, env);
-      case 'interp': {
+        return this.lookup(expression.name, expression.position, environment);
+      case 'interpolation': {
         let text = '';
-        for (const part of expr.parts) text += typeof part === 'string' ? part : formatValue(this.evalExpr(part, env), 'print');
-        return str(text);
+        for (const part of expression.parts) text += typeof part === 'string' ? part : formatValue(this.evaluateExpression(part, environment), 'print');
+        return string(text);
       }
       case 'array':
-        return array(expr.items.map((item) => this.evalExpr(item, env)));
+        return array(expression.items.map((item) => this.evaluateExpression(item, environment)));
       case 'map': {
         const map = newMap();
-        for (const entry of expr.entries) map.table.set(this.evalExpr(entry.key, env), this.evalExpr(entry.value, env));
+        for (const entry of expression.entries) map.table.set(this.evaluateExpression(entry.key, environment), this.evaluateExpression(entry.value, environment));
         return map;
       }
       case 'binary':
-        return this.evalBinary(expr, env);
+        return this.evalBinary(expression, environment);
       case 'unary': {
-        const operand = this.evalExpr(expr.operand, env);
-        if (expr.op === 'not') {
-          if (operand.t !== 'bool') throw runtimeError(`\`not\` needs a boolean, got ${describeType(operand)}`, expr.pos);
-          return bool(!operand.v);
+        const operand = this.evaluateExpression(expression.operand, environment);
+        if (expression.operator === 'not') {
+          if (operand.type !== 'boolean') throw runtimeError(`\`not\` needs a boolean, got ${describeType(operand)}`, expression.position);
+          return boolean(!operand.value);
         }
-        if (operand.t === 'int') return int(-operand.v);
-        if (operand.t === 'float') return float(-operand.v);
-        throw runtimeError(`cannot negate ${describeType(operand)}`, expr.pos);
+        if (operand.type === 'int') return int(-operand.value);
+        if (operand.type === 'float') return float(-operand.value);
+        throw runtimeError(`cannot negate ${describeType(operand)}`, expression.position);
       }
       case 'flow': {
-        let value = this.evalExpr(expr.head, env);
-        for (const step of expr.steps) value = this.evalStep(step, value, env);
+        let value = this.evaluateExpression(expression.head, environment);
+        for (const step of expression.steps) value = this.evalStep(step, value, environment);
         return value;
       }
       case 'lambda':
-        return this.makeLambda(expr, env);
-      case 'cond':
-        return this.evalConditional(expr, env);
+        return this.makeLambda(expression, environment);
+      case 'conditional':
+        return this.evalConditional(expression, environment);
+      case 'attempt':
+        return this.execAttempt(expression, environment);
     }
   }
 
-  private lookup(name: string, pos: Pos, env: Env): Value {
-    const value = env.lookup(name) ?? this.builtins.get(name);
-    if (value === undefined) throw runtimeError(`unknown name \`${name}\``, pos);
+  private lookup(name: string, position: Position, environment: Environment): Value {
+    const value = environment.lookup(name) ?? this.builtins.get(name);
+    if (value === undefined) throw runtimeError(`unknown name \`${name}\``, position);
     return value;
   }
 
-  private makeLambda(lambda: Lambda, env: Env): ProcValue {
-    return { t: 'proc', id: freshId(), name: null, params: lambda.params, body: lambda.body, env, isProc: false };
+  private makeLambda(lambda: Lambda, environment: Environment): ProcedureValue {
+    return { type: 'proc', id: freshId(), name: null, parameters: lambda.parameters, body: lambda.body, environment, isProc: false };
   }
 
-  private evalStep(step: Step, piped: Value, env: Env): Value {
+  private evalStep(step: Step, piped: Value, environment: Environment): Value {
     if (step.kind === 'bind') {
       if (step.outer) {
-        env.bindOuter(step.name, piped, step.pos);
+        environment.bindOuter(step.name, piped, step.position);
       } else {
-        env.bindLocal(step.name, piped, step.pos);
+        environment.bindLocal(step.name, piped, step.position);
       }
       return piped;
     }
-    const callee = this.evalExpr(step.callee, env);
-    const args: Value[] = [piped];
-    for (const arg of step.args) args.push(this.evalExpr(arg, env));
-    if (step.body !== null) args.push(this.makeLambda(step.body, env));
-    return this.callValue(callee, args, step.pos, env);
+    const callee = this.evaluateExpression(step.callee, environment);
+    const inputs: Value[] = [piped];
+    for (const argument of step.arguments) inputs.push(this.evaluateExpression(argument, environment));
+    if (step.body !== null) inputs.push(this.makeLambda(step.body, environment));
+    return this.callValue(callee, inputs, step.position, environment);
   }
 
-  callValue(callee: Value, args: Value[], pos: Pos, env: Env): Value {
-    if (callee.t === 'builtin') {
-      this.checkArity(callee.name, callee.arity, args.length, pos);
-      return callee.fn(args, { interp: this, pos, env });
+  callValue(callee: Value, inputs: Value[], location: Position, environment: Environment): Value {
+    if (callee.type === 'builtin') {
+      this.checkArity(callee.name, callee.arity, inputs.length, location);
+      return callee.implementation(inputs, { interpreter: this, position: location, environment });
     }
-    if (callee.t !== 'proc') throw runtimeError(`cannot call ${describeType(callee)}; only procedures can be called`, pos);
+    if (callee.type !== 'proc') throw runtimeError(`cannot call ${describeType(callee)}; only procedures can be called`, location);
     const label = callee.name ?? 'lambda';
-    this.checkArity(label, { min: callee.params.length, max: callee.params.length }, args.length, pos);
+    this.checkArity(label, { min: callee.parameters.length, max: callee.parameters.length }, inputs.length, location);
     if (this.depth >= MAX_CALL_DEPTH) {
-      throw runtimeError(`too many nested procedure calls (the limit is ${MAX_CALL_DEPTH})`, pos);
+      throw runtimeError(`too many nested procedure calls (the limit is ${MAX_CALL_DEPTH})`, location);
     }
-    const frame = new Env(callee.env, callee.isProc ? this.newActivation() : callee.env.activation);
-    for (let i = 0; i < callee.params.length; i++) {
-      const name = callee.params[i];
-      const value = args[i];
+    const frame = new Environment(callee.environment, callee.isProc ? this.newActivation() : callee.environment.activation);
+    for (let i = 0; i < callee.parameters.length; i++) {
+      const name = callee.parameters[i];
+      const value = inputs[i];
       if (name !== undefined && value !== undefined) frame.defineParam(name, value);
     }
     this.depth++;
@@ -357,7 +372,7 @@ export class Interpreter {
       if (callee.isProc) {
         if (signal instanceof OutSignal && signal.activation === frame.activation) return signal.value;
         if (signal instanceof StopSignal) {
-          throw runtimeError('`stop` cannot leave a procedure; it only exits the loop it is written in', signal.pos);
+          throw runtimeError('`stop` cannot leave a procedure; it only exits the loop it is written in', signal.position);
         }
       }
       throw signal;
@@ -366,94 +381,94 @@ export class Interpreter {
     }
   }
 
-  private checkArity(name: string, arity: Arity, count: number, pos: Pos): void {
+  private checkArity(name: string, arity: Arity, count: number, position: Position): void {
     const ok = count >= arity.min && (arity.max === null || count <= arity.max);
     if (ok) return;
     const expected = arity.max === null ? `at least ${arity.min}` : arity.min === arity.max ? `${arity.min}` : `${arity.min} to ${arity.max}`;
     const noun = expected === '1' ? 'argument' : 'arguments';
-    throw runtimeError(`\`${name}\` expects ${expected} ${noun}, got ${count}`, pos);
+    throw runtimeError(`\`${name}\` expects ${expected} ${noun}, got ${count}`, position);
   }
 
-  private evalBinary(expr: Expr & { kind: 'binary' }, env: Env): Value {
-    if (expr.op === 'and' || expr.op === 'or') {
-      const left = this.evalExpr(expr.left, env);
-      if (left.t !== 'bool') throw runtimeError(`\`${expr.op}\` needs booleans, got ${describeType(left)}`, expr.left.pos);
-      if (expr.op === 'and' && !left.v) return NO;
-      if (expr.op === 'or' && left.v) return YES;
-      const right = this.evalExpr(expr.right, env);
-      if (right.t !== 'bool') throw runtimeError(`\`${expr.op}\` needs booleans, got ${describeType(right)}`, expr.right.pos);
+  private evalBinary(expression: Expression & { kind: 'binary' }, environment: Environment): Value {
+    if (expression.operator === 'and' || expression.operator === 'or') {
+      const left = this.evaluateExpression(expression.left, environment);
+      if (left.type !== 'boolean') throw runtimeError(`\`${expression.operator}\` needs booleans, got ${describeType(left)}`, expression.left.position);
+      if (expression.operator === 'and' && !left.value) return NO;
+      if (expression.operator === 'or' && left.value) return YES;
+      const right = this.evaluateExpression(expression.right, environment);
+      if (right.type !== 'boolean') throw runtimeError(`\`${expression.operator}\` needs booleans, got ${describeType(right)}`, expression.right.position);
       return right;
     }
-    const left = this.evalExpr(expr.left, env);
-    const right = this.evalExpr(expr.right, env);
-    switch (expr.op) {
+    const left = this.evaluateExpression(expression.left, environment);
+    const right = this.evaluateExpression(expression.right, environment);
+    switch (expression.operator) {
       case '=':
-        return bool(valuesEqual(left, right));
+        return boolean(valuesEqual(left, right));
       case '/=':
-        return bool(!valuesEqual(left, right));
+        return boolean(!valuesEqual(left, right));
       case '<':
-        return bool(compareValues(left, right, expr.pos) < 0);
+        return boolean(compareValues(left, right, expression.position) < 0);
       case '>':
-        return bool(compareValues(left, right, expr.pos) > 0);
+        return boolean(compareValues(left, right, expression.position) > 0);
       case '<=':
-        return bool(compareValues(left, right, expr.pos) <= 0);
+        return boolean(compareValues(left, right, expression.position) <= 0);
       case '>=':
-        return bool(compareValues(left, right, expr.pos) >= 0);
+        return boolean(compareValues(left, right, expression.position) >= 0);
       default:
-        return arithmetic(expr.op, left, right, expr.pos);
+        return arithmetic(expression.operator, left, right, expression.position);
     }
   }
 }
 
 type ArithOp = '+' | '-' | '*' | '/' | 'mod';
 
-function floorDiv(a: bigint, b: bigint): bigint {
-  const q = a / b;
-  const r = a % b;
-  return r !== 0n && (r < 0n) !== (b < 0n) ? q - 1n : q;
+function floorDiv(dividend: bigint, divisor: bigint): bigint {
+  const quotient = dividend / divisor;
+  const remainder = dividend % divisor;
+  return remainder !== 0n && (remainder < 0n) !== (divisor < 0n) ? quotient - 1n : quotient;
 }
 
-function floorMod(a: bigint, b: bigint): bigint {
-  const r = a % b;
-  return r !== 0n && (r < 0n) !== (b < 0n) ? r + b : r;
+function floorMod(dividend: bigint, divisor: bigint): bigint {
+  const remainder = dividend % divisor;
+  return remainder !== 0n && (remainder < 0n) !== (divisor < 0n) ? remainder + divisor : remainder;
 }
 
-export function arithmetic(op: ArithOp, left: Value, right: Value, pos: Pos): Value {
-  if (left.t === 'int' && right.t === 'int') {
-    switch (op) {
+export function arithmetic(operator: ArithOp, left: Value, right: Value, position: Position): Value {
+  if (left.type === 'int' && right.type === 'int') {
+    switch (operator) {
       case '+':
-        return int(left.v + right.v);
+        return int(left.value + right.value);
       case '-':
-        return int(left.v - right.v);
+        return int(left.value - right.value);
       case '*':
-        return int(left.v * right.v);
+        return int(left.value * right.value);
       case '/':
-        if (right.v === 0n) throw runtimeError('division by zero', pos);
-        return int(floorDiv(left.v, right.v));
+        if (right.value === 0n) throw runtimeError('division by zero', position);
+        return int(floorDiv(left.value, right.value));
       case 'mod':
-        if (right.v === 0n) throw runtimeError('`mod` by zero', pos);
-        return int(floorMod(left.v, right.v));
+        if (right.value === 0n) throw runtimeError('`mod` by zero', position);
+        return int(floorMod(left.value, right.value));
     }
   }
-  if ((left.t === 'int' || left.t === 'float') && (right.t === 'int' || right.t === 'float')) {
-    const a = left.t === 'int' ? Number(left.v) : left.v;
-    const b = right.t === 'int' ? Number(right.v) : right.v;
-    switch (op) {
+  if ((left.type === 'int' || left.type === 'float') && (right.type === 'int' || right.type === 'float')) {
+    const first = left.type === 'int' ? Number(left.value) : left.value;
+    const second = right.type === 'int' ? Number(right.value) : right.value;
+    switch (operator) {
       case '+':
-        return float(a + b);
+        return float(first + second);
       case '-':
-        return float(a - b);
+        return float(first - second);
       case '*':
-        return float(a * b);
+        return float(first * second);
       case '/':
-        if (b === 0) throw runtimeError('division by zero', pos);
-        return float(a / b);
+        if (second === 0) throw runtimeError('division by zero', position);
+        return float(first / second);
       case 'mod':
-        if (b === 0) throw runtimeError('`mod` by zero', pos);
-        return float(a - b * Math.floor(a / b));
+        if (second === 0) throw runtimeError('`mod` by zero', position);
+        return float(first - second * Math.floor(first / second));
     }
   }
-  if (op === '+' && left.t === 'string' && right.t === 'string') return str(left.v + right.v);
-  const verb = op === '+' ? 'add' : op === '-' ? 'subtract' : op === '*' ? 'multiply' : op === '/' ? 'divide' : 'take `mod` of';
-  throw runtimeError(`cannot ${verb} ${describeType(left)} and ${describeType(right)}`, pos);
+  if (operator === '+' && left.type === 'string' && right.type === 'string') return string(left.value + right.value);
+  const verb = operator === '+' ? 'add' : operator === '-' ? 'subtract' : operator === '*' ? 'multiply' : operator === '/' ? 'divide' : 'take `mod` of';
+  throw runtimeError(`cannot ${verb} ${describeType(left)} and ${describeType(right)}`, position);
 }

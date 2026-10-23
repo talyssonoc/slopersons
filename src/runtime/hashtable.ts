@@ -1,12 +1,12 @@
-export interface KeyOps<K> {
-  hash: (key: K) => number;
-  equals: (a: K, b: K) => boolean;
+export interface KeyOperations<Key> {
+  hash: (key: Key) => number;
+  equals: (left: Key, right: Key) => boolean;
 }
 
-interface Entry<K, V> {
+interface Entry<Key, Value> {
   hash: number;
-  key: K;
-  value: V;
+  key: Key;
+  value: Value;
 }
 
 const EMPTY = -1;
@@ -18,16 +18,16 @@ function newIndex(capacity: number): Int32Array {
   return new Int32Array(capacity).fill(EMPTY);
 }
 
-export class HashTable<K, V> {
-  private readonly ops: KeyOps<K>;
-  private slots: Array<Entry<K, V> | null>;
+export class HashTable<Key, Value> {
+  private readonly operations: KeyOperations<Key>;
+  private slots: Array<Entry<Key, Value> | null>;
   private index: Int32Array;
   private capacity: number;
   private live: number;
   private deleted: number;
 
-  constructor(ops: KeyOps<K>) {
-    this.ops = ops;
+  constructor(operations: KeyOperations<Key>) {
+    this.operations = operations;
     this.slots = [];
     this.capacity = INITIAL_CAPACITY;
     this.index = newIndex(INITIAL_CAPACITY);
@@ -39,16 +39,16 @@ export class HashTable<K, V> {
     return this.live;
   }
 
-  get(key: K): V | undefined {
+  get(key: Key): Value | undefined {
     const entry = this.entryAtSlot(this.findSlot(this.hashOf(key), key));
     return entry === null ? undefined : entry.value;
   }
 
-  has(key: K): boolean {
+  has(key: Key): boolean {
     return this.findSlot(this.hashOf(key), key) >= 0;
   }
 
-  set(key: K, value: V): void {
+  set(key: Key, value: Value): void {
     const hash = this.hashOf(key);
     const existing = this.entryAtSlot(this.findSlot(hash, key));
     if (existing !== null) {
@@ -68,14 +68,14 @@ export class HashTable<K, V> {
     this.live++;
   }
 
-  delete(key: K): boolean {
+  delete(key: Key): boolean {
     const slot = this.findSlot(this.hashOf(key), key);
     if (slot < 0) {
       return false;
     }
-    const pos = this.index[slot] ?? EMPTY;
+    const position = this.index[slot] ?? EMPTY;
     this.index[slot] = DELETED;
-    this.slots[pos] = null;
+    this.slots[position] = null;
     this.live--;
     this.deleted++;
     return true;
@@ -89,8 +89,8 @@ export class HashTable<K, V> {
     this.deleted = 0;
   }
 
-  keys(): K[] {
-    const out: K[] = [];
+  keys(): Key[] {
+    const out: Key[] = [];
     for (const entry of this.slots) {
       if (entry !== null) {
         out.push(entry.key);
@@ -99,8 +99,8 @@ export class HashTable<K, V> {
     return out;
   }
 
-  values(): V[] {
-    const out: V[] = [];
+  values(): Value[] {
+    const out: Value[] = [];
     for (const entry of this.slots) {
       if (entry !== null) {
         out.push(entry.value);
@@ -109,8 +109,8 @@ export class HashTable<K, V> {
     return out;
   }
 
-  entries(): Array<[K, V]> {
-    const out: Array<[K, V]> = [];
+  entries(): Array<[Key, Value]> {
+    const out: Array<[Key, Value]> = [];
     for (const entry of this.slots) {
       if (entry !== null) {
         out.push([entry.key, entry.value]);
@@ -119,8 +119,8 @@ export class HashTable<K, V> {
     return out;
   }
 
-  clone(): HashTable<K, V> {
-    const copy = new HashTable<K, V>(this.ops);
+  clone(): HashTable<Key, Value> {
+    const copy = new HashTable<Key, Value>(this.operations);
     copy.slots = this.slots.map((entry) => (entry === null ? null : { ...entry }));
     copy.index = this.index.slice();
     copy.capacity = this.capacity;
@@ -129,7 +129,7 @@ export class HashTable<K, V> {
     return copy;
   }
 
-  *[Symbol.iterator](): IterableIterator<[K, V]> {
+  *[Symbol.iterator](): IterableIterator<[Key, Value]> {
     for (const entry of this.slots) {
       if (entry !== null) {
         yield [entry.key, entry.value];
@@ -137,30 +137,30 @@ export class HashTable<K, V> {
     }
   }
 
-  private hashOf(key: K): number {
-    return this.ops.hash(key) >>> 0;
+  private hashOf(key: Key): number {
+    return this.operations.hash(key) >>> 0;
   }
 
-  private entryAt(pos: number): Entry<K, V> | null {
-    return this.slots[pos] ?? null;
+  private entryAt(position: number): Entry<Key, Value> | null {
+    return this.slots[position] ?? null;
   }
 
-  private entryAtSlot(slot: number): Entry<K, V> | null {
+  private entryAtSlot(slot: number): Entry<Key, Value> | null {
     return slot < 0 ? null : this.entryAt(this.index[slot] ?? EMPTY);
   }
 
-  private findSlot(hash: number, key: K): number {
+  private findSlot(hash: number, key: Key): number {
     const mask = this.capacity - 1;
     let slot = hash & mask;
     let perturb = hash;
     for (;;) {
-      const pos = this.index[slot] ?? EMPTY;
-      if (pos === EMPTY) {
+      const position = this.index[slot] ?? EMPTY;
+      if (position === EMPTY) {
         return -1;
       }
-      if (pos !== DELETED) {
-        const entry = this.entryAt(pos);
-        if (entry !== null && entry.hash === hash && this.ops.equals(entry.key, key)) {
+      if (position !== DELETED) {
+        const entry = this.entryAt(position);
+        if (entry !== null && entry.hash === hash && this.operations.equals(entry.key, key)) {
           return slot;
         }
       }
@@ -174,8 +174,8 @@ export class HashTable<K, V> {
     let slot = hash & mask;
     let perturb = hash;
     for (;;) {
-      const pos = this.index[slot] ?? EMPTY;
-      if (pos === EMPTY || pos === DELETED) {
+      const position = this.index[slot] ?? EMPTY;
+      if (position === EMPTY || position === DELETED) {
         return slot;
       }
       perturb >>>= PERTURB_SHIFT;
@@ -188,7 +188,7 @@ export class HashTable<K, V> {
     while (capacity < minimumLive * 3) {
       capacity *= 2;
     }
-    const compacted: Array<Entry<K, V>> = [];
+    const compacted: Array<Entry<Key, Value>> = [];
     for (const entry of this.slots) {
       if (entry !== null) {
         compacted.push(entry);
@@ -198,8 +198,8 @@ export class HashTable<K, V> {
     this.capacity = capacity;
     this.index = newIndex(capacity);
     this.deleted = 0;
-    compacted.forEach((entry, pos) => {
-      this.index[this.findInsertSlot(entry.hash)] = pos;
+    compacted.forEach((entry, position) => {
+      this.index[this.findInsertSlot(entry.hash)] = position;
     });
   }
 }

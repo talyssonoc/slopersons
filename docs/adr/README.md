@@ -100,3 +100,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Write program output synchronously to the file descriptors](./202610231607-write-program-output-synchronously-to-the-file-descriptors.md) | Accepted |
 | 2026-10-23 | [Exempt the lexer, parser and CLI from the no-proxy rule](./202610231608-exempt-the-front-end-and-cli-from-the-no-proxy-rule.md) | Accepted |
 | 2026-10-23 | [Add time and datetime types](./202610231609-add-time-and-datetime-types.md) | Accepted |
+| 2026-10-23 | [Handle errors with `attempt` and `recover`](./202610231610-handle-errors-with-attempt-and-recover.md) | Accepted |

@@ -12,17 +12,17 @@ import { registerSet } from './set.ts';
 import { registerString } from './string.ts';
 import { registerTime } from './time.ts';
 
-export function registerStdlib(interp: Interpreter): void {
-  registerCore(interp);
-  registerInt(interp);
-  registerFloat(interp);
-  registerChar(interp);
-  registerBoolean(interp);
-  registerString(interp);
-  registerArray(interp);
-  registerHashmap(interp);
-  registerSet(interp);
-  registerDate(interp);
-  registerTime(interp);
-  registerDatetime(interp);
+export function registerStdlib(interpreter: Interpreter): void {
+  registerCore(interpreter);
+  registerInt(interpreter);
+  registerFloat(interpreter);
+  registerChar(interpreter);
+  registerBoolean(interpreter);
+  registerString(interpreter);
+  registerArray(interpreter);
+  registerHashmap(interpreter);
+  registerSet(interpreter);
+  registerDate(interpreter);
+  registerTime(interpreter);
+  registerDatetime(interpreter);
 }

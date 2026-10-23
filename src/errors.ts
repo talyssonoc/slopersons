@@ -1,38 +1,38 @@
-export interface Pos {
+export interface Position {
   line: number;
   col: number;
 }
 
 export type ErrorKind = 'parse' | 'runtime';
 
-export class SloError extends Error {
+export class SlopersonsError extends Error {
   kind: ErrorKind;
-  pos: Pos | null;
+  position: Position | null;
   file: string | null;
 
-  constructor(kind: ErrorKind, message: string, pos: Pos | null = null) {
+  constructor(kind: ErrorKind, message: string, location: Position | null = null) {
     super(message);
     this.name = 'SloError';
     this.kind = kind;
-    this.pos = pos;
+    this.position = location;
     this.file = null;
   }
 
-  withFile(file: string): SloError {
+  withFile(file: string): SlopersonsError {
     this.file = file;
     return this;
   }
 
   format(): string {
-    const where = this.pos === null ? '' : `\n  at ${this.file ?? '<input>'}:${this.pos.line}:${this.pos.col}`;
+    const where = this.position === null ? '' : `\n  at ${this.file ?? '<input>'}:${this.position.line}:${this.position.col}`;
     return `error: ${this.message}${where}`;
   }
 }
 
-export function parseError(message: string, pos: Pos | null): SloError {
-  return new SloError('parse', message, pos);
+export function parseError(message: string, position: Position | null): SlopersonsError {
+  return new SlopersonsError('parse', message, position);
 }
 
-export function runtimeError(message: string, pos: Pos | null): SloError {
-  return new SloError('runtime', message, pos);
+export function runtimeError(message: string, position: Position | null): SlopersonsError {
+  return new SlopersonsError('runtime', message, position);
 }

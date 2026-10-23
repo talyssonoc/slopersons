@@ -1,0 +1,8 @@
+12 -> 12
+x -> nothing
+-3 -> -3
+missing: key "b" not found in hashmap
+at line 9
+-1
+CUSTOM
+wrapped: division by zero

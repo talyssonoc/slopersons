@@ -12,7 +12,7 @@ test('at returns the value under a key, comparing keys structurally', () => {
 test('at on a missing key is an error naming the key in show form', () => {
   const missing = failure('{"a": 1} -> at "zip"');
   assert.equal(missing.message, 'key "zip" not found in hashmap');
-  assert.deepEqual(missing.pos, { line: 1, col: 10 });
+  assert.deepEqual(missing.position, { line: 1, col: 10 });
   assert.equal(failure('{"a": 1} -> at 7').message, 'key 7 not found in hashmap');
   assert.equal(failure('{"a": 1} -> at [1 2]').message, 'key [1 2] not found in hashmap');
 });

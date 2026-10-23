@@ -11,14 +11,14 @@ function mulberry32(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    let item = state;
+    item = Math.imul(item ^ (item >>> 15), item | 1);
+    item ^= item + Math.imul(item ^ (item >>> 7), item | 61);
+    return ((item ^ (item >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-const byNumber = (a: number, b: number): number => a - b;
+const byNumber = (left: number, right: number): number => left - right;
 
 test('equal keys keep their original relative order', () => {
   const records: Record[] = [
@@ -30,9 +30,9 @@ test('equal keys keep their original relative order', () => {
     { key: 2, id: 5 },
     { key: 1, id: 6 },
   ];
-  const sorted = stableSort(records, (a, b) => a.key - b.key);
+  const sorted = stableSort(records, (left, right) => left.key - right.key);
   assert.deepEqual(
-    sorted.map((r) => [r.key, r.id]),
+    sorted.map((result) => [result.key, result.id]),
     [
       [0, 4],
       [1, 1],
@@ -51,14 +51,14 @@ test('stability holds for 1 000 records over 10 distinct keys', () => {
   for (let id = 0; id < 1000; id++) {
     records.push({ key: Math.floor(random() * 10), id });
   }
-  const sorted = stableSort(records, (a, b) => a.key - b.key);
+  const sorted = stableSort(records, (left, right) => left.key - right.key);
   for (let i = 1; i < sorted.length; i++) {
-    const prev = sorted[i - 1];
+    const previous = sorted[i - 1];
     const curr = sorted[i];
-    assert.ok(prev !== undefined && curr !== undefined);
-    assert.ok(prev.key <= curr.key, `keys out of order at ${i}`);
-    if (prev.key === curr.key) {
-      assert.ok(prev.id < curr.id, `equal keys reordered at ${i}`);
+    assert.ok(previous !== undefined && curr !== undefined);
+    assert.ok(previous.key <= curr.key, `keys out of order at ${i}`);
+    if (previous.key === curr.key) {
+      assert.ok(previous.id < curr.id, `equal keys reordered at ${i}`);
     }
   }
 });
@@ -96,7 +96,7 @@ test('odd lengths and already-sorted or reversed inputs match the oracle', () =>
 });
 
 test('a descending comparator sorts descending', () => {
-  assert.deepEqual(stableSort([3, 1, 2], (a, b) => b - a), [3, 2, 1]);
+  assert.deepEqual(stableSort([3, 1, 2], (left, right) => right - left), [3, 2, 1]);
 });
 
 test('the input array is not mutated and the result is a different array', () => {

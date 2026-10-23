@@ -16,7 +16,7 @@ import {
 } from '../../src/runtime/calendar.ts';
 
 const RANGE_DAYS = 150_000;
-const MS_PER_DAY = 86_400_000;
+const MILLISECONDS_PER_DAY = 86_400_000;
 
 test('1970-01-01 is day 0 and 1969-12-31 is day -1', () => {
   assert.equal(daysFromCivil(1970, 1, 1), 0);
@@ -101,7 +101,7 @@ test('civilFromDays and daysFromCivil round-trip for every day in a 300000-day r
 
 test('civilFromDays matches the JS Date oracle for every day in the range', () => {
   for (let days = -RANGE_DAYS; days <= RANGE_DAYS; days++) {
-    const oracle = new Date(days * MS_PER_DAY);
+    const oracle = new Date(days * MILLISECONDS_PER_DAY);
     const expected = {
       year: oracle.getUTCFullYear(),
       month: oracle.getUTCMonth() + 1,
@@ -116,7 +116,7 @@ test('civilFromDays matches the JS Date oracle for every day in the range', () =
 
 test('daysFromCivil matches Date.UTC for every day in the range', () => {
   for (let days = -RANGE_DAYS; days <= RANGE_DAYS; days++) {
-    const oracle = new Date(days * MS_PER_DAY);
+    const oracle = new Date(days * MILLISECONDS_PER_DAY);
     const year = oracle.getUTCFullYear();
     const month = oracle.getUTCMonth() + 1;
     const day = oracle.getUTCDate();
@@ -129,7 +129,7 @@ test('daysFromCivil matches Date.UTC for every day in the range', () => {
 
 test('weekday matches the JS Date oracle for every day in the range', () => {
   for (let days = -RANGE_DAYS; days <= RANGE_DAYS; days++) {
-    const utcDay = new Date(days * MS_PER_DAY).getUTCDay();
+    const utcDay = new Date(days * MILLISECONDS_PER_DAY).getUTCDay();
     const expected = utcDay === 0 ? 7 : utcDay;
     const actual = weekday(days);
     if (actual !== expected) {

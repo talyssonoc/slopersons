@@ -1,31 +1,31 @@
 import { runtimeError } from '../errors.ts';
 import type { CallContext, Interpreter } from '../interpreter.ts';
-import { bool, describeType, int, type Value } from '../values.ts';
-import { arg } from './core.ts';
+import { boolean, describeType, int, type Value } from '../values.ts';
+import { input } from './core.ts';
 
-function expectFloat(value: Value, what: string, ctx: CallContext): number {
-  if (value.t !== 'float') throw runtimeError(`${what} must be a float, got ${describeType(value)}`, ctx.pos);
-  return value.v;
+function expectFloat(value: Value, what: string, context: CallContext): number {
+  if (value.type !== 'float') throw runtimeError(`${what} must be a float, got ${describeType(value)}`, context.position);
+  return value.value;
 }
 
-function finiteInput(args: Value[], name: string, ctx: CallContext): number {
-  const n = expectFloat(arg(args, 0), `the input of \`${name}\``, ctx);
-  if (!Number.isFinite(n)) throw runtimeError(`the input of \`${name}\` is not a finite float`, ctx.pos);
-  return n;
+function finiteInput(inputs: Value[], name: string, context: CallContext): number {
+  const value = expectFloat(input(inputs, 0), `the input of \`${name}\``, context);
+  if (!Number.isFinite(value)) throw runtimeError(`the input of \`${name}\` is not a finite float`, context.position);
+  return value;
 }
 
-function roundHalfAwayFromZero(n: number): number {
-  return n < 0 ? -Math.round(-n) : Math.round(n);
+function roundHalfAwayFromZero(value: number): number {
+  return value < 0 ? -Math.round(-value) : Math.round(value);
 }
 
-export function registerFloat(interp: Interpreter): void {
-  interp.defineMethod('round', 'float', 1, (args, ctx) => int(BigInt(roundHalfAwayFromZero(finiteInput(args, 'round', ctx)))));
+export function registerFloat(interpreter: Interpreter): void {
+  interpreter.defineMethod('round', 'float', 1, (inputs, context) => int(BigInt(roundHalfAwayFromZero(finiteInput(inputs, 'round', context)))));
 
-  interp.defineMethod('floor', 'float', 1, (args, ctx) => int(BigInt(Math.floor(finiteInput(args, 'floor', ctx)))));
+  interpreter.defineMethod('floor', 'float', 1, (inputs, context) => int(BigInt(Math.floor(finiteInput(inputs, 'floor', context)))));
 
-  interp.defineMethod('ceil', 'float', 1, (args, ctx) => int(BigInt(Math.ceil(finiteInput(args, 'ceil', ctx)))));
+  interpreter.defineMethod('ceil', 'float', 1, (inputs, context) => int(BigInt(Math.ceil(finiteInput(inputs, 'ceil', context)))));
 
-  interp.defineMethod('to-int', 'float', 1, (args, ctx) => int(BigInt(Math.trunc(finiteInput(args, 'to-int', ctx)))));
+  interpreter.defineMethod('to-int', 'float', 1, (inputs, context) => int(BigInt(Math.trunc(finiteInput(inputs, 'to-int', context)))));
 
-  interp.defineMethod('is-integer', 'float', 1, (args, ctx) => bool(Number.isInteger(expectFloat(arg(args, 0), 'the input of `is-integer`', ctx))));
+  interpreter.defineMethod('is-integer', 'float', 1, (inputs, context) => boolean(Number.isInteger(expectFloat(input(inputs, 0), 'the input of `is-integer`', context))));
 }

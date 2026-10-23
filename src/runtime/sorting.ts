@@ -1,6 +1,6 @@
-export type Comparator<T> = (a: T, b: T) => number;
+export type Comparator<Item> = (left: Item, right: Item) => number;
 
-export function stableSort<T>(items: readonly T[], compare: Comparator<T>): T[] {
+export function stableSort<Item>(items: readonly Item[], compare: Comparator<Item>): Item[] {
   const result = items.slice();
   if (result.length < 2) {
     return result;
@@ -10,39 +10,39 @@ export function stableSort<T>(items: readonly T[], compare: Comparator<T>): T[] 
   return result;
 }
 
-function sortInto<T>(src: T[], dst: T[], lo: number, hi: number, compare: Comparator<T>): void {
-  if (hi - lo < 2) {
+function sortInto<Item>(source: Item[], dst: Item[], low: number, high: number, compare: Comparator<Item>): void {
+  if (high - low < 2) {
     return;
   }
-  const mid = (lo + hi) >>> 1;
-  sortInto(dst, src, lo, mid, compare);
-  sortInto(dst, src, mid, hi, compare);
-  merge(src, dst, lo, mid, hi, compare);
+  const middle = (low + high) >>> 1;
+  sortInto(dst, source, low, middle, compare);
+  sortInto(dst, source, middle, high, compare);
+  merge(source, dst, low, middle, high, compare);
 }
 
-function merge<T>(src: T[], dst: T[], lo: number, mid: number, hi: number, compare: Comparator<T>): void {
-  let left = lo;
-  let right = mid;
-  let out = lo;
-  while (left < mid && right < hi) {
-    const a = src[left] as T;
-    const b = src[right] as T;
-    if (compare(a, b) <= 0) {
-      dst[out] = a;
+function merge<Item>(source: Item[], dst: Item[], low: number, middle: number, high: number, compare: Comparator<Item>): void {
+  let left = low;
+  let right = middle;
+  let out = low;
+  while (left < middle && right < high) {
+    const first = source[left] as Item;
+    const second = source[right] as Item;
+    if (compare(first, second) <= 0) {
+      dst[out] = first;
       left++;
     } else {
-      dst[out] = b;
+      dst[out] = second;
       right++;
     }
     out++;
   }
-  while (left < mid) {
-    dst[out] = src[left] as T;
+  while (left < middle) {
+    dst[out] = source[left] as Item;
     left++;
     out++;
   }
-  while (right < hi) {
-    dst[out] = src[right] as T;
+  while (right < high) {
+    dst[out] = source[right] as Item;
     right++;
     out++;
   }

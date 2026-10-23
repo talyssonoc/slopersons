@@ -1,6 +1,6 @@
 import { readFileSync, readSync, writeSync } from 'node:fs';
 import { Worker, isMainThread } from 'node:worker_threads';
-import { SloError } from './errors.ts';
+import { SlopersonsError } from './errors.ts';
 import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
 import { parse } from './parser.ts';
 import { registerStdlib } from './stdlib/registry.ts';
@@ -26,23 +26,23 @@ export interface CliIo extends Io {
 }
 
 export function createInterpreter(io: Io): Interpreter {
-  const interp = new Interpreter(io);
-  registerStdlib(interp);
-  return interp;
+  const interpreter = new Interpreter(io);
+  registerStdlib(interpreter);
+  return interpreter;
 }
 
 function isStackOverflow(error: unknown): boolean {
   return error instanceof RangeError && /call stack/i.test(error.message);
 }
 
-export function runProgram(source: string, file: string, io: CliIo, interp: Interpreter = createInterpreter(io)): number {
+export function runProgram(source: string, file: string, io: CliIo, interpreter: Interpreter = createInterpreter(io)): number {
   try {
-    interp.run(parse(source));
+    interpreter.run(parse(source));
     return EXIT_OK;
   } catch (error) {
     if (error instanceof ExitSignal) return error.code;
     if (error instanceof BrokenPipe) return EXIT_OK;
-    if (error instanceof SloError) {
+    if (error instanceof SlopersonsError) {
       io.writeError(`${error.withFile(file).format()}\n`);
       return EXIT_PROGRAM_ERROR;
     }
@@ -78,12 +78,12 @@ function pauseBriefly(): void {
   if (!isMainThread) Atomics.wait(sleepCell, 0, 0, 1);
 }
 
-function writeAll(fd: number, text: string): void {
+function writeAll(fileDescriptor: number, text: string): void {
   const bytes = Buffer.from(text, 'utf8');
   let offset = 0;
   while (offset < bytes.length) {
     try {
-      offset += writeSync(fd, bytes, offset, bytes.length - offset);
+      offset += writeSync(fileDescriptor, bytes, offset, bytes.length - offset);
     } catch (error) {
       if (isWouldBlock(error)) {
         pauseBriefly();
@@ -111,9 +111,9 @@ function readLineFromStdin(): string | null {
       else throw error;
     }
     if (read === 0) return line.length === 0 ? null : line;
-    const ch = buffer.toString('utf8');
-    if (ch === '\n') return line.endsWith('\r') ? line.slice(0, -1) : line;
-    line += ch;
+    const character = buffer.toString('utf8');
+    if (character === '\n') return line.endsWith('\r') ? line.slice(0, -1) : line;
+    line += character;
   }
 }
 

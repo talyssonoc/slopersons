@@ -1,116 +1,116 @@
 import { runtimeError } from '../errors.ts';
 import { arithmetic, type CallContext, type Interpreter } from '../interpreter.ts';
 import { stableSort } from '../runtime/sorting.ts';
-import { NOTHING, array, bool, compareValues, describeType, int, newSet, str, valuesEqual, type Value } from '../values.ts';
-import { arg, callLambda, expectArray, expectDecision, expectInt, expectProc, expectString, toIndex } from './core.ts';
+import { NOTHING, array, boolean, compareValues, describeType, int, newSet, string, valuesEqual, type Value } from '../values.ts';
+import { input, callLambda, expectArray, expectDecision, expectInt, expectProc, expectString, toIndex } from './core.ts';
 
-function items(args: Value[], name: string, ctx: CallContext): Value[] {
-  return expectArray(arg(args, 0), `the input of \`${name}\``, ctx);
+function items(inputs: Value[], name: string, context: CallContext): Value[] {
+  return expectArray(input(inputs, 0), `the input of \`${name}\``, context);
 }
 
-function body(args: Value[], index: number, name: string, ctx: CallContext): Value {
-  return expectProc(arg(args, index), `the body of \`${name}\``, ctx);
+function body(inputs: Value[], index: number, name: string, context: CallContext): Value {
+  return expectProc(input(inputs, index), `the body of \`${name}\``, context);
 }
 
-function matches(fn: Value, item: Value, name: string, ctx: CallContext): boolean {
-  return expectDecision(callLambda(fn, [item], ctx), `the condition in \`${name}\``, ctx);
+function matches(procedure: Value, item: Value, name: string, context: CallContext): boolean {
+  return expectDecision(callLambda(procedure, [item], context), `the condition in \`${name}\``, context);
 }
 
-function indexInto(xs: Value[], value: Value, name: string, ctx: CallContext, allowEnd = false): number {
-  const index = toIndex(value, `the index of \`${name}\``, ctx);
-  const limit = allowEnd ? xs.length : xs.length - 1;
-  if (index > limit) throw runtimeError(`index ${index} is out of range for an array of length ${xs.length}`, ctx.pos);
+function indexInto(items: Value[], value: Value, name: string, context: CallContext, allowEnd = false): number {
+  const index = toIndex(value, `the index of \`${name}\``, context);
+  const limit = allowEnd ? items.length : items.length - 1;
+  if (index > limit) throw runtimeError(`index ${index} is out of range for an array of length ${items.length}`, context.position);
   return index;
 }
 
-function clampBound(value: Value, what: string, length: number, ctx: CallContext): number {
-  const big = expectInt(value, what, ctx);
+function clampBound(value: Value, what: string, length: number, context: CallContext): number {
+  const big = expectInt(value, what, context);
   if (big < 0n) return 0;
   if (big > BigInt(length)) return length;
   return Number(big);
 }
 
-function nonEmpty(xs: Value[], name: string, ctx: CallContext): void {
-  if (xs.length === 0) throw runtimeError(`cannot take \`${name}\` of an empty array`, ctx.pos);
+function nonEmpty(items: Value[], name: string, context: CallContext): void {
+  if (items.length === 0) throw runtimeError(`cannot take \`${name}\` of an empty array`, context.position);
 }
 
-function extreme(xs: Value[], name: string, keepWhen: (comparison: number) => boolean, ctx: CallContext): Value {
-  nonEmpty(xs, name, ctx);
+function extreme(items: Value[], name: string, keepWhen: (comparison: number) => boolean, context: CallContext): Value {
+  nonEmpty(items, name, context);
   let best: Value | undefined;
-  for (const item of xs) {
-    if (best === undefined || keepWhen(compareValues(item, best, ctx.pos))) best = item;
+  for (const item of items) {
+    if (best === undefined || keepWhen(compareValues(item, best, context.position))) best = item;
   }
   return best ?? NOTHING;
 }
 
-export function registerArray(interp: Interpreter): void {
-  interp.defineMethod('length', 'array', 1, (args, ctx) => int(BigInt(items(args, 'length', ctx).length)));
+export function registerArray(interpreter: Interpreter): void {
+  interpreter.defineMethod('length', 'array', 1, (inputs, context) => int(BigInt(items(inputs, 'length', context).length)));
 
-  interp.defineMethod('is-empty', 'array', 1, (args, ctx) => bool(items(args, 'is-empty', ctx).length === 0));
+  interpreter.defineMethod('is-empty', 'array', 1, (inputs, context) => boolean(items(inputs, 'is-empty', context).length === 0));
 
-  interp.defineMethod('at', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'at', ctx);
-    return xs[indexInto(xs, arg(args, 1), 'at', ctx)] ?? NOTHING;
+  interpreter.defineMethod('at', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'at', context);
+    return elements[indexInto(elements, input(inputs, 1), 'at', context)] ?? NOTHING;
   });
 
-  interp.defineMethod('put', 'array', 3, (args, ctx) => {
-    const xs = items(args, 'put', ctx);
-    xs[indexInto(xs, arg(args, 1), 'put', ctx)] = arg(args, 2);
-    return arg(args, 0);
+  interpreter.defineMethod('put', 'array', 3, (inputs, context) => {
+    const elements = items(inputs, 'put', context);
+    elements[indexInto(elements, input(inputs, 1), 'put', context)] = input(inputs, 2);
+    return input(inputs, 0);
   });
 
-  interp.defineMethod('push', 'array', 2, (args, ctx) => {
-    items(args, 'push', ctx).push(arg(args, 1));
-    return arg(args, 0);
+  interpreter.defineMethod('push', 'array', 2, (inputs, context) => {
+    items(inputs, 'push', context).push(input(inputs, 1));
+    return input(inputs, 0);
   });
 
-  interp.defineMethod('pop', 'array', 1, (args, ctx) => {
-    const xs = items(args, 'pop', ctx);
-    if (xs.length === 0) throw runtimeError('cannot pop from an empty array', ctx.pos);
-    return xs.pop() ?? NOTHING;
+  interpreter.defineMethod('pop', 'array', 1, (inputs, context) => {
+    const elements = items(inputs, 'pop', context);
+    if (elements.length === 0) throw runtimeError('cannot pop from an empty array', context.position);
+    return elements.pop() ?? NOTHING;
   });
 
-  interp.defineMethod('insert', 'array', 3, (args, ctx) => {
-    const xs = items(args, 'insert', ctx);
-    xs.splice(indexInto(xs, arg(args, 1), 'insert', ctx, true), 0, arg(args, 2));
-    return arg(args, 0);
+  interpreter.defineMethod('insert', 'array', 3, (inputs, context) => {
+    const elements = items(inputs, 'insert', context);
+    elements.splice(indexInto(elements, input(inputs, 1), 'insert', context, true), 0, input(inputs, 2));
+    return input(inputs, 0);
   });
 
-  interp.defineMethod('remove-at', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'remove-at', ctx);
-    xs.splice(indexInto(xs, arg(args, 1), 'remove-at', ctx), 1);
-    return arg(args, 0);
+  interpreter.defineMethod('remove-at', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'remove-at', context);
+    elements.splice(indexInto(elements, input(inputs, 1), 'remove-at', context), 1);
+    return input(inputs, 0);
   });
 
-  interp.defineMethod('first', 'array', 1, (args, ctx) => {
-    const xs = items(args, 'first', ctx);
-    nonEmpty(xs, 'first', ctx);
-    return xs[0] ?? NOTHING;
+  interpreter.defineMethod('first', 'array', 1, (inputs, context) => {
+    const elements = items(inputs, 'first', context);
+    nonEmpty(elements, 'first', context);
+    return elements[0] ?? NOTHING;
   });
 
-  interp.defineMethod('last', 'array', 1, (args, ctx) => {
-    const xs = items(args, 'last', ctx);
-    nonEmpty(xs, 'last', ctx);
-    return xs[xs.length - 1] ?? NOTHING;
+  interpreter.defineMethod('last', 'array', 1, (inputs, context) => {
+    const elements = items(inputs, 'last', context);
+    nonEmpty(elements, 'last', context);
+    return elements[elements.length - 1] ?? NOTHING;
   });
 
-  interp.defineMethod('slice', 'array', 3, (args, ctx) => {
-    const xs = items(args, 'slice', ctx);
-    const start = clampBound(arg(args, 1), 'the start of `slice`', xs.length, ctx);
-    const end = clampBound(arg(args, 2), 'the end of `slice`', xs.length, ctx);
-    return array(end <= start ? [] : xs.slice(start, end));
+  interpreter.defineMethod('slice', 'array', 3, (inputs, context) => {
+    const elements = items(inputs, 'slice', context);
+    const start = clampBound(input(inputs, 1), 'the start of `slice`', elements.length, context);
+    const end = clampBound(input(inputs, 2), 'the end of `slice`', elements.length, context);
+    return array(end <= start ? [] : elements.slice(start, end));
   });
 
-  interp.defineMethod('concat', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'concat', ctx);
-    const other = expectArray(arg(args, 1), 'the argument of `concat`', ctx);
-    return array([...xs, ...other]);
+  interpreter.defineMethod('concat', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'concat', context);
+    const other = expectArray(input(inputs, 1), 'the argument of `concat`', context);
+    return array([...elements, ...other]);
   });
 
-  interp.defineMethod('flatten', 'array', 1, (args, ctx) => {
+  interpreter.defineMethod('flatten', 'array', 1, (inputs, context) => {
     const out: Value[] = [];
-    for (const item of items(args, 'flatten', ctx)) {
-      if (item.t === 'array') {
+    for (const item of items(inputs, 'flatten', context)) {
+      if (item.type === 'array') {
         for (const inner of item.items) out.push(inner);
       } else {
         out.push(item);
@@ -119,53 +119,53 @@ export function registerArray(interp: Interpreter): void {
     return array(out);
   });
 
-  interp.defineMethod('zip', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'zip', ctx);
-    const other = expectArray(arg(args, 1), 'the argument of `zip`', ctx);
+  interpreter.defineMethod('zip', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'zip', context);
+    const other = expectArray(input(inputs, 1), 'the argument of `zip`', context);
     const out: Value[] = [];
-    const n = Math.min(xs.length, other.length);
-    for (let i = 0; i < n; i++) {
-      const left = xs[i];
+    const count = Math.min(elements.length, other.length);
+    for (let i = 0; i < count; i++) {
+      const left = elements[i];
       const right = other[i];
       if (left !== undefined && right !== undefined) out.push(array([left, right]));
     }
     return array(out);
   });
 
-  interp.defineMethod('contains', 'array', 2, (args, ctx) => {
-    const target = arg(args, 1);
-    return bool(items(args, 'contains', ctx).some((item) => valuesEqual(item, target)));
+  interpreter.defineMethod('contains', 'array', 2, (inputs, context) => {
+    const target = input(inputs, 1);
+    return boolean(items(inputs, 'contains', context).some((item) => valuesEqual(item, target)));
   });
 
-  interp.defineMethod('index-of', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'index-of', ctx);
-    const target = arg(args, 1);
-    for (let i = 0; i < xs.length; i++) {
-      const item = xs[i];
+  interpreter.defineMethod('index-of', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'index-of', context);
+    const target = input(inputs, 1);
+    for (let i = 0; i < elements.length; i++) {
+      const item = elements[i];
       if (item !== undefined && valuesEqual(item, target)) return int(BigInt(i));
     }
     return NOTHING;
   });
 
-  interp.defineMethod('sum', 'array', 1, (args, ctx) => {
+  interpreter.defineMethod('sum', 'array', 1, (inputs, context) => {
     let total: Value = int(0n);
-    for (const item of items(args, 'sum', ctx)) {
-      if (item.t !== 'int' && item.t !== 'float') {
-        throw runtimeError(`\`sum\` needs an array of numbers, but found ${describeType(item)}`, ctx.pos);
+    for (const item of items(inputs, 'sum', context)) {
+      if (item.type !== 'int' && item.type !== 'float') {
+        throw runtimeError(`\`sum\` needs an array of numbers, but found ${describeType(item)}`, context.position);
       }
-      total = arithmetic('+', total, item, ctx.pos);
+      total = arithmetic('+', total, item, context.position);
     }
     return total;
   });
 
-  interp.defineMethod('min', 'array', 1, (args, ctx) => extreme(items(args, 'min', ctx), 'min', (c) => c < 0, ctx));
+  interpreter.defineMethod('min', 'array', 1, (inputs, context) => extreme(items(inputs, 'min', context), 'min', (cursor) => cursor < 0, context));
 
-  interp.defineMethod('max', 'array', 1, (args, ctx) => extreme(items(args, 'max', ctx), 'max', (c) => c > 0, ctx));
+  interpreter.defineMethod('max', 'array', 1, (inputs, context) => extreme(items(inputs, 'max', context), 'max', (cursor) => cursor > 0, context));
 
-  interp.defineMethod('unique', 'array', 1, (args, ctx) => {
+  interpreter.defineMethod('unique', 'array', 1, (inputs, context) => {
     const seen = newSet();
     const out: Value[] = [];
-    for (const item of items(args, 'unique', ctx)) {
+    for (const item of items(inputs, 'unique', context)) {
       if (seen.table.has(item)) continue;
       seen.table.set(item, true);
       out.push(item);
@@ -173,103 +173,103 @@ export function registerArray(interp: Interpreter): void {
     return array(out);
   });
 
-  interp.defineMethod('reverse', 'array', 1, (args, ctx) => {
-    const xs = items(args, 'reverse', ctx);
+  interpreter.defineMethod('reverse', 'array', 1, (inputs, context) => {
+    const elements = items(inputs, 'reverse', context);
     const out: Value[] = [];
-    for (let i = xs.length - 1; i >= 0; i--) {
-      const item = xs[i];
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const item = elements[i];
       if (item !== undefined) out.push(item);
     }
     return array(out);
   });
 
-  interp.defineMethod('join', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'join', ctx);
-    const separator = expectString(arg(args, 1), 'the separator of `join`', ctx);
+  interpreter.defineMethod('join', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'join', context);
+    const separator = expectString(input(inputs, 1), 'the separator of `join`', context);
     let out = '';
-    for (let i = 0; i < xs.length; i++) {
-      const item = xs[i];
+    for (let i = 0; i < elements.length; i++) {
+      const item = elements[i];
       if (item === undefined) continue;
-      if (item.t !== 'string') throw runtimeError(`\`join\` needs an array of strings, but found ${describeType(item)}`, ctx.pos);
+      if (item.type !== 'string') throw runtimeError(`\`join\` needs an array of strings, but found ${describeType(item)}`, context.position);
       if (i > 0) out += separator;
-      out += item.v;
+      out += item.value;
     }
-    return str(out);
+    return string(out);
   });
 
-  interp.defineMethod('sort', 'array', 1, (args, ctx) => array(stableSort(items(args, 'sort', ctx), (a, b) => compareValues(a, b, ctx.pos))));
+  interpreter.defineMethod('sort', 'array', 1, (inputs, context) => array(stableSort(items(inputs, 'sort', context), (left, right) => compareValues(left, right, context.position))));
 
-  interp.defineMethod('sort-by', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'sort-by', ctx);
-    const fn = body(args, 1, 'sort-by', ctx);
-    const before = (a: Value, b: Value): boolean => expectDecision(callLambda(fn, [a, b], ctx), 'the comparison in `sort-by`', ctx);
-    return array(stableSort(xs, (a, b) => (before(a, b) ? -1 : before(b, a) ? 1 : 0)));
+  interpreter.defineMethod('sort-by', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'sort-by', context);
+    const procedure = body(inputs, 1, 'sort-by', context);
+    const before = (left: Value, right: Value): boolean => expectDecision(callLambda(procedure, [left, right], context), 'the comparison in `sort-by`', context);
+    return array(stableSort(elements, (left, right) => (before(left, right) ? -1 : before(right, left) ? 1 : 0)));
   });
 
-  interp.defineMethod('map', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'map', ctx);
-    const fn = body(args, 1, 'map', ctx);
-    return array(xs.slice().map((item) => callLambda(fn, [item], ctx)));
+  interpreter.defineMethod('map', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'map', context);
+    const procedure = body(inputs, 1, 'map', context);
+    return array(elements.slice().map((item) => callLambda(procedure, [item], context)));
   });
 
-  interp.defineMethod('keep', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'keep', ctx);
-    const fn = body(args, 1, 'keep', ctx);
-    return array(xs.slice().filter((item) => matches(fn, item, 'keep', ctx)));
+  interpreter.defineMethod('keep', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'keep', context);
+    const procedure = body(inputs, 1, 'keep', context);
+    return array(elements.slice().filter((item) => matches(procedure, item, 'keep', context)));
   });
 
-  interp.defineMethod('reject', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'reject', ctx);
-    const fn = body(args, 1, 'reject', ctx);
-    return array(xs.slice().filter((item) => !matches(fn, item, 'reject', ctx)));
+  interpreter.defineMethod('reject', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'reject', context);
+    const procedure = body(inputs, 1, 'reject', context);
+    return array(elements.slice().filter((item) => !matches(procedure, item, 'reject', context)));
   });
 
-  interp.defineMethod('reduce', 'array', 3, (args, ctx) => {
-    const xs = items(args, 'reduce', ctx);
-    const fn = body(args, 2, 'reduce', ctx);
-    let acc = arg(args, 1);
-    for (const item of xs.slice()) acc = callLambda(fn, [acc, item], ctx);
-    return acc;
+  interpreter.defineMethod('reduce', 'array', 3, (inputs, context) => {
+    const elements = items(inputs, 'reduce', context);
+    const procedure = body(inputs, 2, 'reduce', context);
+    let accumulator = input(inputs, 1);
+    for (const item of elements.slice()) accumulator = callLambda(procedure, [accumulator, item], context);
+    return accumulator;
   });
 
-  interp.defineMethod('any', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'any', ctx);
-    const fn = body(args, 1, 'any', ctx);
-    for (const item of xs.slice()) {
-      if (matches(fn, item, 'any', ctx)) return bool(true);
+  interpreter.defineMethod('any', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'any', context);
+    const procedure = body(inputs, 1, 'any', context);
+    for (const item of elements.slice()) {
+      if (matches(procedure, item, 'any', context)) return boolean(true);
     }
-    return bool(false);
+    return boolean(false);
   });
 
-  interp.defineMethod('all', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'all', ctx);
-    const fn = body(args, 1, 'all', ctx);
-    for (const item of xs.slice()) {
-      if (!matches(fn, item, 'all', ctx)) return bool(false);
+  interpreter.defineMethod('all', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'all', context);
+    const procedure = body(inputs, 1, 'all', context);
+    for (const item of elements.slice()) {
+      if (!matches(procedure, item, 'all', context)) return boolean(false);
     }
-    return bool(true);
+    return boolean(true);
   });
 
-  interp.defineMethod('find', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'find', ctx);
-    const fn = body(args, 1, 'find', ctx);
-    for (const item of xs.slice()) {
-      if (matches(fn, item, 'find', ctx)) return item;
+  interpreter.defineMethod('find', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'find', context);
+    const procedure = body(inputs, 1, 'find', context);
+    for (const item of elements.slice()) {
+      if (matches(procedure, item, 'find', context)) return item;
     }
     return NOTHING;
   });
 
-  interp.defineMethod('count', 'array', 2, (args, ctx) => {
-    const xs = items(args, 'count', ctx);
-    const fn = body(args, 1, 'count', ctx);
+  interpreter.defineMethod('count', 'array', 2, (inputs, context) => {
+    const elements = items(inputs, 'count', context);
+    const procedure = body(inputs, 1, 'count', context);
     let total = 0n;
-    for (const item of xs.slice()) {
-      if (matches(fn, item, 'count', ctx)) total++;
+    for (const item of elements.slice()) {
+      if (matches(procedure, item, 'count', context)) total++;
     }
     return int(total);
   });
 
-  interp.defineMethod('with-index', 'array', 1, (args, ctx) => array(items(args, 'with-index', ctx).map((item, i) => array([int(BigInt(i)), item]))));
+  interpreter.defineMethod('with-index', 'array', 1, (inputs, context) => array(items(inputs, 'with-index', context).map((item, i) => array([int(BigInt(i)), item]))));
 
-  interp.defineMethod('copy', 'array', 1, (args, ctx) => array(items(args, 'copy', ctx).slice()));
+  interpreter.defineMethod('copy', 'array', 1, (inputs, context) => array(items(inputs, 'copy', context).slice()));
 }

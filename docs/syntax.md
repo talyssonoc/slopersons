@@ -196,6 +196,31 @@ while i < 3
 | n -> print-ln
 ```
 
+## Error handling
+
+`attempt` runs a body; if a runtime error happens inside it, the `recover` body runs instead, with the error bound to the name after `recover`. The name is optional.
+
+```
+attempt
+| line -> to-int => n
+recover e
+| "not a number: {e}" -> print-ln
+| 0 => n
+```
+
+Both bodies share the surrounding scope, like the branches of a conditional, so `n` is bound either way. The error name is bound in the surrounding scope too and stays bound after the handler.
+
+Inline bodies work as everywhere else, and `recover` ends an inline `attempt` body, so the whole statement fits on one line and can be used as an expression:
+
+```
+attempt | risky -> do
+recover e | "problem: {e}" -> print-ln
+
+(attempt | line -> to-int recover | 0) => n
+```
+
+An `attempt` without a `recover` is a parse error. `out`, `stop` and `exit` are not errors and pass through an `attempt` untouched. See `semantics.md` for what an error value carries and which failures cannot be caught.
+
 ## Literals
 
 | Kind | Examples | Notes |
@@ -230,7 +255,7 @@ Names start with a letter and continue with letters, digits and single hyphens: 
 
 Because `a-b` is a name, binary operators need spaces on both sides: `a - b`. Writing `a -b` is a parse error, reported as a missing operator, not a silent subtraction.
 
-Reserved words: `proc`, `while`, `stop`, `yes`, `no`, `nothing`, `and`, `or`, `not`, `mod`.
+Reserved words: `proc`, `while`, `stop`, `attempt`, `recover`, `yes`, `no`, `nothing`, `and`, `or`, `not`, `mod`.
 
 ## Operators
 
@@ -258,6 +283,7 @@ Each of these produces an error rather than a silent misparse.
 - **A then-branch ends at the first `:`** that is not inside brackets.
 - **A line of bare names followed by a block is a lambda.** `n` on one line and `| n + k` below it is `n | n + k`.
 - **A literal cannot take a block.**
+- **`recover` ends any inline body.** It can only follow an `attempt`, so no inline body can legitimately contain it.
 
 ## Grammar
 
@@ -266,6 +292,7 @@ program     := statement*
 statement   := 'proc' NAME NAME* body
              | 'while' flow body
              | 'stop'
+             | 'attempt' body 'recover' NAME? body
              | flow '?' then-body (':' flow '?' then-body)* (':' body)?
              | flow
 body        := '|' statement | margin-block

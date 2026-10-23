@@ -1,29 +1,30 @@
 import type {
+  AttemptStatement,
   BinaryOp,
   CallStep,
   Conditional,
-  Expr,
+  Expression,
   Flow,
   Lambda,
   Name,
-  ProcDef,
+  ProcedureDefinition,
   Statement,
   Step,
-  WhileStmt,
+  WhileStatement,
 } from './ast.ts';
-import { parseError, type Pos } from './errors.ts';
+import { parseError, type Position } from './errors.ts';
 import { lex, type OpToken, type StringPart, type Token } from './lexer.ts';
 import { buildLineTree, type Line } from './line-tree.ts';
 
 class Cursor {
   readonly tokens: Token[];
   i: number;
-  readonly endPos: Pos;
+  readonly endPosition: Position;
 
-  constructor(tokens: Token[], endPos: Pos) {
+  constructor(tokens: Token[], endPosition: Position) {
     this.tokens = tokens;
     this.i = 0;
-    this.endPos = endPos;
+    this.endPosition = endPosition;
   }
 
   peek(offset = 0): Token | undefined {
@@ -32,7 +33,7 @@ class Cursor {
 
   next(): Token {
     const token = this.tokens[this.i];
-    if (token === undefined) throw parseError('unexpected end of line', this.endPos);
+    if (token === undefined) throw parseError('unexpected end of line', this.endPosition);
     this.i++;
     return token;
   }
@@ -41,13 +42,13 @@ class Cursor {
     return this.i >= this.tokens.length;
   }
 
-  pos(): Pos {
-    return this.peek()?.pos ?? this.endPos;
+  position(): Position {
+    return this.peek()?.position ?? this.endPosition;
   }
 
-  isOp(op: string, offset = 0): boolean {
+  isOp(operator: string, offset = 0): boolean {
     const token = this.peek(offset);
-    return token !== undefined && token.kind === 'op' && token.op === op;
+    return token !== undefined && token.kind === 'op' && token.operator === operator;
   }
 
   isKeyword(word: string, offset = 0): boolean {
@@ -59,10 +60,10 @@ class Cursor {
     return this.peek(offset)?.kind === 'name';
   }
 
-  expectOp(op: string, what: string): OpToken {
+  expectOp(operator: string, what: string): OpToken {
     const token = this.peek();
-    if (token === undefined || token.kind !== 'op' || token.op !== op) {
-      throw parseError(`expected ${what}`, this.pos());
+    if (token === undefined || token.kind !== 'op' || token.operator !== operator) {
+      throw parseError(`expected ${what}`, this.position());
     }
     this.i++;
     return token;
@@ -70,9 +71,9 @@ class Cursor {
 
   expectName(what: string): Name {
     const token = this.peek();
-    if (token === undefined || token.kind !== 'name') throw parseError(`expected ${what}`, this.pos());
+    if (token === undefined || token.kind !== 'name') throw parseError(`expected ${what}`, this.position());
     this.i++;
-    return { kind: 'name', name: token.name, pos: token.pos };
+    return { kind: 'name', name: token.name, position: token.position };
   }
 }
 
@@ -83,7 +84,7 @@ function describe(token: Token | undefined): string {
   if (token === undefined) return 'end of line';
   switch (token.kind) {
     case 'op':
-      return `\`${token.op}\``;
+      return `\`${token.operator}\``;
     case 'keyword':
       return `\`${token.word}\``;
     case 'name':
@@ -99,7 +100,7 @@ function describe(token: Token | undefined): string {
   }
 }
 
-function canStartExpr(token: Token | undefined): boolean {
+function canStartExpression(token: Token | undefined): boolean {
   if (token === undefined) return false;
   switch (token.kind) {
     case 'int':
@@ -111,33 +112,33 @@ function canStartExpr(token: Token | undefined): boolean {
     case 'keyword':
       return token.word === 'yes' || token.word === 'no' || token.word === 'nothing' || token.word === 'not';
     case 'op':
-      return token.op === '(' || token.op === '[' || token.op === '{' || (token.op === '-' && token.unary);
+      return token.operator === '(' || token.operator === '[' || token.operator === '{' || (token.operator === '-' && token.unary);
   }
 }
 
-function isStop(c: Cursor, stopAt: ReadonlySet<string>): boolean {
-  if (c.atEnd() || c.isOp(')')) return true;
-  const token = c.peek();
-  return token !== undefined && token.kind === 'op' && stopAt.has(token.op);
+function isStop(cursor: Cursor, stopAt: ReadonlySet<string>): boolean {
+  if (cursor.atEnd() || cursor.isOp(')') || cursor.isKeyword('recover')) return true;
+  const token = cursor.peek();
+  return token !== undefined && token.kind === 'op' && stopAt.has(token.operator);
 }
 
-function asFlow(expr: Expr): Flow {
-  return expr.kind === 'flow' ? expr : { kind: 'flow', head: expr, steps: [], pos: expr.pos };
+function asFlow(expression: Expression): Flow {
+  return expression.kind === 'flow' ? expression : { kind: 'flow', head: expression, steps: [], position: expression.position };
 }
 
-function simplify(flow: Flow): Expr {
+function simplify(flow: Flow): Expression {
   return flow.steps.length === 0 ? flow.head : flow;
 }
 
-function popTrailingNames(args: Expr[]): string[] {
-  const params: string[] = [];
-  while (args.length > 0) {
-    const last = args[args.length - 1];
+function popTrailingNames(inputs: Expression[]): string[] {
+  const parameters: string[] = [];
+  while (inputs.length > 0) {
+    const last = inputs[inputs.length - 1];
     if (last === undefined || last.kind !== 'name') break;
-    params.unshift(last.name);
-    args.pop();
+    parameters.unshift(last.name);
+    inputs.pop();
   }
-  return params;
+  return parameters;
 }
 
 const EMPTY: ReadonlySet<string> = new Set();
@@ -147,411 +148,458 @@ class Parser {
   parseBlock(lines: Line[]): Statement[] {
     const statements: Statement[] = [];
     for (const line of lines) {
-      const c = new Cursor(line.tokens, line.endPos);
-      if (c.isOp(':')) {
-        this.mergeElse(c, line, statements);
-      } else if (c.isOp('->') || c.isOp('=>') || c.isOp('=>>')) {
-        this.mergeContinuation(c, line, statements);
+      const cursor = new Cursor(line.tokens, line.endPosition);
+      if (cursor.isOp(':')) {
+        this.mergeElse(cursor, line, statements);
+      } else if (cursor.isKeyword('recover')) {
+        this.mergeRecover(cursor, line, statements);
+      } else if (cursor.isOp('->') || cursor.isOp('=>') || cursor.isOp('=>>')) {
+        this.mergeContinuation(cursor, line, statements);
       } else {
-        statements.push(this.parseStatement(c, line.children, EMPTY));
+        statements.push(this.parseStatement(cursor, line.children, EMPTY));
       }
+      if (!cursor.atEnd()) {
+        if (cursor.isKeyword('recover')) throw parseError('`recover` must follow an `attempt` body on the same line or an `attempt` block', cursor.position());
+        throw parseError(`unexpected ${describe(cursor.peek())}`, cursor.position());
+      }
+    }
+    for (const statement of statements) {
+      if (statement.kind === 'attempt' && statement.handler === null) throw parseError('`attempt` needs a `recover`', statement.position);
     }
     return statements;
   }
 
-  private parseStatement(c: Cursor, children: Line[], stopAt: ReadonlySet<string>): Statement {
-    if (c.isKeyword('proc')) return this.parseProc(c, children);
-    if (c.isKeyword('while')) return this.parseWhile(c, children);
-    if (c.isKeyword('stop')) {
-      const pos = c.next().pos;
-      this.requireStop(c, stopAt);
-      if (children.length > 0) throw parseError('`stop` cannot take a block', pos);
-      return { kind: 'stop', pos };
+  private parseStatement(cursor: Cursor, children: Line[], stopAt: ReadonlySet<string>): Statement {
+    if (cursor.isKeyword('proc')) return this.parseProc(cursor, children);
+    if (cursor.isKeyword('while')) return this.parseWhile(cursor, children);
+    if (cursor.isKeyword('attempt')) return this.parseAttempt(cursor, children);
+    if (cursor.isKeyword('stop')) {
+      const location = cursor.next().position;
+      this.requireStop(cursor, stopAt);
+      if (children.length > 0) throw parseError('`stop` cannot take a block', location);
+      return { kind: 'stop', position: location };
     }
-    const start = this.parseFlowStart(c, children);
+    const start = this.parseFlowStart(cursor, children);
     if (start.consumedChildren) {
-      this.requireStop(c, stopAt);
-      return { kind: 'flowstmt', expr: simplify(start.flow) };
+      this.requireStop(cursor, stopAt);
+      return { kind: 'flow-statement', expression: simplify(start.flow) };
     }
-    return this.finishFlowStatement(start.flow, c, children, stopAt);
+    return this.finishFlowStatement(start.flow, cursor, children, stopAt);
   }
 
-  private finishFlowStatement(flow: Flow, c: Cursor, children: Line[], stopAt: ReadonlySet<string>): Statement {
-    if (c.isOp('?')) {
-      const conditional = this.parseConditional(flow, c, children);
-      this.requireStop(c, stopAt);
+  private finishFlowStatement(flow: Flow, cursor: Cursor, children: Line[], stopAt: ReadonlySet<string>): Statement {
+    if (cursor.isOp('?')) {
+      const conditional = this.parseConditional(flow, cursor, children);
+      this.requireStop(cursor, stopAt);
       return conditional;
     }
-    this.requireStop(c, stopAt);
+    this.requireStop(cursor, stopAt);
     if (children.length > 0) this.attachBlock(flow, children);
-    return { kind: 'flowstmt', expr: flow.steps.length === 0 ? flow.head : flow };
+    return { kind: 'flow-statement', expression: flow.steps.length === 0 ? flow.head : flow };
   }
 
-  private requireStop(c: Cursor, stopAt: ReadonlySet<string>): void {
-    if (isStop(c, stopAt)) return;
-    const token = c.peek();
-    if (token !== undefined && token.kind === 'op' && token.op === ':') {
-      throw parseError('unexpected `:`; if an inline lambda comes before it, wrap the lambda in parentheses or use margin lines, since an inline lambda body runs to the end of the line', token.pos);
+  private requireStop(cursor: Cursor, stopAt: ReadonlySet<string>): void {
+    if (isStop(cursor, stopAt)) return;
+    const token = cursor.peek();
+    if (token !== undefined && token.kind === 'op' && token.operator === ':') {
+      throw parseError('unexpected `:`; if an inline lambda comes before it, wrap the lambda in parentheses or use margin lines, since an inline lambda body runs to the end of the line', token.position);
     }
-    if (token !== undefined && token.kind === 'op' && token.op === '|') {
-      throw parseError('unexpected `|`; a lambda needs parameters before the bar or must follow a procedure call', token.pos);
+    if (token !== undefined && token.kind === 'op' && token.operator === '|') {
+      throw parseError('unexpected `|`; a lambda needs parameters before the bar or must follow a procedure call', token.position);
     }
-    if (token !== undefined && token.kind === 'op' && token.op === '-' && token.unary) {
-      throw parseError('unexpected `-`; binary operators need spaces on both sides', token.pos);
+    if (token !== undefined && token.kind === 'op' && token.operator === '-' && token.unary) {
+      throw parseError('unexpected `-`; binary operators need spaces on both sides', token.position);
     }
-    throw parseError(`unexpected ${describe(token)}`, c.pos());
+    throw parseError(`unexpected ${describe(token)}`, cursor.position());
   }
 
   private attachBlock(flow: Flow, children: Line[]): void {
     const last = flow.steps[flow.steps.length - 1];
     if (last === undefined) {
-      throw parseError('this line cannot take a block; only procedure calls, conditionals, loops and lambdas can', flow.pos);
+      throw parseError('this line cannot take a block; only procedure calls, conditionals, loops and lambdas can', flow.position);
     }
-    if (last.kind !== 'call') throw parseError('a binding cannot take a block', last.pos);
-    if (last.body !== null) throw parseError('this call already has an inline lambda, so it cannot take a block', last.pos);
-    const params = popTrailingNames(last.args);
-    last.body = { kind: 'lambda', params, body: this.parseBlock(children), pos: last.pos };
+    if (last.kind !== 'call') throw parseError('a binding cannot take a block', last.position);
+    if (last.body !== null) throw parseError('this call already has an inline lambda, so it cannot take a block', last.position);
+    const parameters = popTrailingNames(last.arguments);
+    last.body = { kind: 'lambda', parameters, body: this.parseBlock(children), position: last.position };
   }
 
-  private parseProc(c: Cursor, children: Line[]): ProcDef {
-    const pos = c.next().pos;
-    const name = c.expectName('a procedure name after `proc`');
-    const params: string[] = [];
-    while (c.isName()) params.push(c.expectName('parameter').name);
-    const body = this.parseBody(c, children, 'procedure');
-    return { kind: 'proc', name: name.name, params, body, pos };
+  private parseProc(cursor: Cursor, children: Line[]): ProcedureDefinition {
+    const location = cursor.next().position;
+    const name = cursor.expectName('a procedure name after `proc`');
+    const parameters: string[] = [];
+    while (cursor.isName()) parameters.push(cursor.expectName('parameter').name);
+    const body = this.parseBody(cursor, children, 'procedure');
+    return { kind: 'proc', name: name.name, parameters, body, position: location };
   }
 
-  private parseWhile(c: Cursor, children: Line[]): WhileStmt {
-    const pos = c.next().pos;
-    const cond = simplify(this.parseFlow(c));
-    const body = this.parseBody(c, children, '`while`');
-    return { kind: 'while', cond, body, pos };
+  private parseWhile(cursor: Cursor, children: Line[]): WhileStatement {
+    const location = cursor.next().position;
+    const condition = simplify(this.parseFlow(cursor));
+    const body = this.parseBody(cursor, children, '`while`');
+    return { kind: 'while', condition, body, position: location };
   }
 
-  private parseBody(c: Cursor, children: Line[], what: string): Statement[] {
-    if (c.isOp('|')) {
-      c.next();
-      if (children.length > 0) throw parseError(`${what} has an inline body, so it cannot also take a block`, c.pos());
-      return [this.parseStatement(c, NO_CHILDREN, EMPTY)];
+  private parseBody(cursor: Cursor, children: Line[], what: string): Statement[] {
+    if (cursor.isOp('|')) {
+      cursor.next();
+      if (children.length > 0) throw parseError(`${what} has an inline body, so it cannot also take a block`, cursor.position());
+      return [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
     }
-    if (!isStop(c, EMPTY)) throw parseError(`unexpected ${describe(c.peek())} in ${what} header`, c.pos());
-    if (children.length === 0) throw parseError(`${what} needs a body`, c.pos());
+    if (!isStop(cursor, EMPTY)) throw parseError(`unexpected ${describe(cursor.peek())} in ${what} header`, cursor.position());
+    if (children.length === 0) throw parseError(`${what} needs a body`, cursor.position());
     return this.parseBlock(children);
   }
 
-  private parseConditional(cond: Flow, c: Cursor, children: Line[]): Conditional {
-    const pos = c.expectOp('?', '`?`').pos;
-    const conditional: Conditional = { kind: 'cond', branches: [], otherwise: null, pos };
-    this.parseBranchBody(conditional, simplify(cond), c, children);
+  private parseConditional(condition: Flow, cursor: Cursor, children: Line[]): Conditional {
+    const location = cursor.expectOp('?', '`?`').position;
+    const conditional: Conditional = { kind: 'conditional', branches: [], otherwise: null, position: location };
+    this.parseBranchBody(conditional, simplify(condition), cursor, children);
     return conditional;
   }
 
-  private parseBranchBody(conditional: Conditional, cond: Expr, c: Cursor, children: Line[]): void {
-    if (isStop(c, EMPTY)) {
-      if (children.length === 0) throw parseError('`?` needs a body', c.pos());
-      conditional.branches.push({ cond, body: this.parseBlock(children) });
+  private parseBranchBody(conditional: Conditional, condition: Expression, cursor: Cursor, children: Line[]): void {
+    if (isStop(cursor, EMPTY)) {
+      if (children.length === 0) throw parseError('`?` needs a body', cursor.position());
+      conditional.branches.push({ condition, body: this.parseBlock(children) });
       return;
     }
-    if (children.length > 0) throw parseError('a conditional with an inline body cannot also take a block', c.pos());
-    conditional.branches.push({ cond, body: [this.parseStatement(c, NO_CHILDREN, COLON)] });
-    this.parseInlineElseChain(conditional, c);
+    if (children.length > 0) throw parseError('a conditional with an inline body cannot also take a block', cursor.position());
+    conditional.branches.push({ condition, body: [this.parseStatement(cursor, NO_CHILDREN, COLON)] });
+    this.parseInlineElseChain(conditional, cursor);
   }
 
-  private parseInlineElseChain(conditional: Conditional, c: Cursor): void {
-    while (c.isOp(':')) {
-      c.next();
-      if (isStop(c, EMPTY)) throw parseError('`:` needs a body', c.pos());
-      const save = c.i;
-      const cond = simplify(this.parseFlow(c));
-      if (c.isOp('?')) {
-        c.next();
-        if (isStop(c, EMPTY)) throw parseError('`?` needs a body', c.pos());
-        conditional.branches.push({ cond, body: [this.parseStatement(c, NO_CHILDREN, COLON)] });
+  private parseInlineElseChain(conditional: Conditional, cursor: Cursor): void {
+    while (cursor.isOp(':')) {
+      cursor.next();
+      if (isStop(cursor, EMPTY)) throw parseError('`:` needs a body', cursor.position());
+      const save = cursor.i;
+      const condition = simplify(this.parseFlow(cursor));
+      if (cursor.isOp('?')) {
+        cursor.next();
+        if (isStop(cursor, EMPTY)) throw parseError('`?` needs a body', cursor.position());
+        conditional.branches.push({ condition, body: [this.parseStatement(cursor, NO_CHILDREN, COLON)] });
         continue;
       }
-      c.i = save;
-      conditional.otherwise = [this.parseStatement(c, NO_CHILDREN, COLON)];
+      cursor.i = save;
+      conditional.otherwise = [this.parseStatement(cursor, NO_CHILDREN, COLON)];
       return;
     }
   }
 
-  private mergeElse(c: Cursor, line: Line, statements: Statement[]): void {
-    const colon = c.next();
-    const prev = statements[statements.length - 1];
-    if (prev === undefined || prev.kind !== 'cond') throw parseError('`:` without a preceding `?` at the same depth', colon.pos);
-    if (prev.otherwise !== null) throw parseError('this conditional already has a final `:` branch', colon.pos);
-    if (isStop(c, EMPTY)) {
-      if (line.children.length === 0) throw parseError('`:` needs a body', c.pos());
-      prev.otherwise = this.parseBlock(line.children);
-      return;
+  private parseAttempt(cursor: Cursor, children: Line[]): AttemptStatement {
+    const location = cursor.next().position;
+    const attempt: AttemptStatement = { kind: 'attempt', body: [], errorName: null, handler: null, position: location };
+    if (cursor.isOp('|')) {
+      cursor.next();
+      attempt.body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
+      if (cursor.isKeyword('recover')) {
+        this.parseRecover(cursor, attempt, children);
+      } else if (children.length > 0) {
+        throw parseError('an inline `attempt` body cannot take a block; put `recover` on the same line or use a block body', cursor.position());
+      }
+      return attempt;
     }
-    const save = c.i;
-    const cond = simplify(this.parseFlow(c));
-    if (c.isOp('?')) {
-      c.next();
-      this.parseBranchBody(prev, cond, c, line.children);
-      return;
-    }
-    c.i = save;
-    if (line.children.length > 0) throw parseError('an inline `:` body cannot also take a block', c.pos());
-    prev.otherwise = [this.parseStatement(c, NO_CHILDREN, EMPTY)];
+    if (!isStop(cursor, EMPTY)) throw parseError(`unexpected ${describe(cursor.peek())} after \`attempt\``, cursor.position());
+    if (children.length === 0) throw parseError('`attempt` needs a body', cursor.position());
+    attempt.body = this.parseBlock(children);
+    return attempt;
   }
 
-  private mergeContinuation(c: Cursor, line: Line, statements: Statement[]): void {
-    const prev = statements[statements.length - 1];
-    if (prev === undefined || prev.kind !== 'flowstmt') {
-      throw parseError('a line starting with `->` continues the flow above it, but there is none at this depth', c.pos());
-    }
-    const flow = asFlow(prev.expr);
-    this.parseSteps(c, flow);
-    statements[statements.length - 1] = this.finishFlowStatement(flow, c, line.children, EMPTY);
+  private parseRecover(cursor: Cursor, attempt: AttemptStatement, children: Line[]): void {
+    const location = cursor.next().position;
+    if (attempt.handler !== null) throw parseError('this `attempt` already has a `recover`', location);
+    if (cursor.isName()) attempt.errorName = cursor.expectName('error name').name;
+    attempt.handler = this.parseBody(cursor, children, '`recover`');
   }
 
-  private parseFlowStart(c: Cursor, children: Line[]): { flow: Flow; consumedChildren: boolean } {
+  private mergeRecover(cursor: Cursor, line: Line, statements: Statement[]): void {
+    const previous = statements[statements.length - 1];
+    if (previous === undefined || previous.kind !== 'attempt') {
+      throw parseError('`recover` without a preceding `attempt` at the same depth', cursor.position());
+    }
+    this.parseRecover(cursor, previous, line.children);
+  }
+
+  private mergeElse(cursor: Cursor, line: Line, statements: Statement[]): void {
+    const colon = cursor.next();
+    const previous = statements[statements.length - 1];
+    if (previous === undefined || previous.kind !== 'conditional') throw parseError('`:` without a preceding `?` at the same depth', colon.position);
+    if (previous.otherwise !== null) throw parseError('this conditional already has a final `:` branch', colon.position);
+    if (isStop(cursor, EMPTY)) {
+      if (line.children.length === 0) throw parseError('`:` needs a body', cursor.position());
+      previous.otherwise = this.parseBlock(line.children);
+      return;
+    }
+    const save = cursor.i;
+    const condition = simplify(this.parseFlow(cursor));
+    if (cursor.isOp('?')) {
+      cursor.next();
+      this.parseBranchBody(previous, condition, cursor, line.children);
+      return;
+    }
+    cursor.i = save;
+    if (line.children.length > 0) throw parseError('an inline `:` body cannot also take a block', cursor.position());
+    previous.otherwise = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
+  }
+
+  private mergeContinuation(cursor: Cursor, line: Line, statements: Statement[]): void {
+    const previous = statements[statements.length - 1];
+    if (previous === undefined || previous.kind !== 'flow-statement') {
+      throw parseError('a line starting with `->` continues the flow above it, but there is none at this depth', cursor.position());
+    }
+    const flow = asFlow(previous.expression);
+    this.parseSteps(cursor, flow);
+    statements[statements.length - 1] = this.finishFlowStatement(flow, cursor, line.children, EMPTY);
+  }
+
+  private parseFlowStart(cursor: Cursor, children: Line[]): { flow: Flow; consumedChildren: boolean } {
     let names = 0;
-    while (c.isName(names)) names++;
-    if (names > 0 && c.isOp('|', names)) {
-      const pos = c.pos();
-      const params: string[] = [];
-      for (let n = 0; n < names; n++) params.push(c.expectName('parameter').name);
-      c.next();
-      const body = [this.parseStatement(c, NO_CHILDREN, EMPTY)];
-      const lambda: Lambda = { kind: 'lambda', params, body, pos };
+    while (cursor.isName(names)) names++;
+    if (names > 0 && cursor.isOp('|', names)) {
+      const location = cursor.position();
+      const parameters: string[] = [];
+      for (let index = 0; index < names; index++) parameters.push(cursor.expectName('parameter').name);
+      cursor.next();
+      const body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
+      const lambda: Lambda = { kind: 'lambda', parameters, body, position: location };
       return { flow: asFlow(lambda), consumedChildren: false };
     }
-    if (names > 0 && c.peek(names) === undefined && children.length > 0) {
-      const pos = c.pos();
-      const params: string[] = [];
-      for (let n = 0; n < names; n++) params.push(c.expectName('parameter').name);
-      const lambda: Lambda = { kind: 'lambda', params, body: this.parseBlock(children), pos };
+    if (names > 0 && cursor.peek(names) === undefined && children.length > 0) {
+      const position = cursor.position();
+      const parameterNames: string[] = [];
+      for (let offset = 0; offset < names; offset++) parameterNames.push(cursor.expectName('parameter').name);
+      const lambda: Lambda = { kind: 'lambda', parameters: parameterNames, body: this.parseBlock(children), position };
       return { flow: asFlow(lambda), consumedChildren: true };
     }
-    return { flow: this.parseFlow(c), consumedChildren: false };
+    return { flow: this.parseFlow(cursor), consumedChildren: false };
   }
 
-  private parseFlow(c: Cursor): Flow {
-    const head = this.parseExpr(c);
-    const flow: Flow = { kind: 'flow', head, steps: [], pos: head.pos };
-    this.parseSteps(c, flow);
+  private parseFlow(cursor: Cursor): Flow {
+    const head = this.parseExpression(cursor);
+    const flow: Flow = { kind: 'flow', head, steps: [], position: head.position };
+    this.parseSteps(cursor, flow);
     return flow;
   }
 
-  private parseSteps(c: Cursor, flow: Flow): void {
+  private parseSteps(cursor: Cursor, flow: Flow): void {
     while (true) {
-      if (c.isOp('->')) {
-        flow.steps.push(this.parseCallStep(c));
-      } else if (c.isOp('=>') || c.isOp('=>>')) {
-        const arrow = c.next() as OpToken;
-        const name = c.expectName(`a name after \`${arrow.op}\``);
-        flow.steps.push({ kind: 'bind', name: name.name, outer: arrow.op === '=>>', pos: arrow.pos });
+      if (cursor.isOp('->')) {
+        flow.steps.push(this.parseCallStep(cursor));
+      } else if (cursor.isOp('=>') || cursor.isOp('=>>')) {
+        const arrow = cursor.next() as OpToken;
+        const name = cursor.expectName(`a name after \`${arrow.operator}\``);
+        flow.steps.push({ kind: 'bind', name: name.name, outer: arrow.operator === '=>>', position: arrow.position });
       } else {
         return;
       }
     }
   }
 
-  private parseCallStep(c: Cursor): Step {
-    const pos = c.expectOp('->', '`->`').pos;
-    let callee: Expr;
-    if (c.isName()) {
-      callee = c.expectName('procedure');
-    } else if (c.isOp('(')) {
-      callee = this.parseParen(c);
+  private parseCallStep(cursor: Cursor): Step {
+    const location = cursor.expectOp('->', '`->`').position;
+    let callee: Expression;
+    if (cursor.isName()) {
+      callee = cursor.expectName('procedure');
+    } else if (cursor.isOp('(')) {
+      callee = this.parseParen(cursor);
     } else {
-      throw parseError(`expected a procedure name after \`->\`, found ${describe(c.peek())}`, c.pos());
+      throw parseError(`expected a procedure name after \`->\`, found ${describe(cursor.peek())}`, cursor.position());
     }
-    const args: Expr[] = [];
-    while (canStartExpr(c.peek())) args.push(this.parseExpr(c));
-    const step: CallStep = { kind: 'call', callee, args, body: null, pos };
-    if (c.isOp('|')) {
-      const barPos = c.next().pos;
-      const params = popTrailingNames(args);
-      const body = [this.parseStatement(c, NO_CHILDREN, EMPTY)];
-      step.body = { kind: 'lambda', params, body, pos: barPos };
+    const inputs: Expression[] = [];
+    while (canStartExpression(cursor.peek())) inputs.push(this.parseExpression(cursor));
+    const step: CallStep = { kind: 'call', callee, arguments: inputs, body: null, position: location };
+    if (cursor.isOp('|')) {
+      const barPosition = cursor.next().position;
+      const parameters = popTrailingNames(inputs);
+      const body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
+      step.body = { kind: 'lambda', parameters, body, position: barPosition };
     }
     return step;
   }
 
-  private parseExpr(c: Cursor): Expr {
-    return this.parseOr(c);
+  private parseExpression(cursor: Cursor): Expression {
+    return this.parseOr(cursor);
   }
 
-  private parseOr(c: Cursor): Expr {
-    let left = this.parseAnd(c);
-    while (c.isKeyword('or')) {
-      const pos = c.next().pos;
-      left = { kind: 'binary', op: 'or', left, right: this.parseAnd(c), pos };
+  private parseOr(cursor: Cursor): Expression {
+    let left = this.parseAnd(cursor);
+    while (cursor.isKeyword('or')) {
+      const location = cursor.next().position;
+      left = { kind: 'binary', operator: 'or', left, right: this.parseAnd(cursor), position: location };
     }
     return left;
   }
 
-  private parseAnd(c: Cursor): Expr {
-    let left = this.parseNot(c);
-    while (c.isKeyword('and')) {
-      const pos = c.next().pos;
-      left = { kind: 'binary', op: 'and', left, right: this.parseNot(c), pos };
+  private parseAnd(cursor: Cursor): Expression {
+    let left = this.parseNot(cursor);
+    while (cursor.isKeyword('and')) {
+      const location = cursor.next().position;
+      left = { kind: 'binary', operator: 'and', left, right: this.parseNot(cursor), position: location };
     }
     return left;
   }
 
-  private parseNot(c: Cursor): Expr {
-    if (c.isKeyword('not')) {
-      const pos = c.next().pos;
-      return { kind: 'unary', op: 'not', operand: this.parseNot(c), pos };
+  private parseNot(cursor: Cursor): Expression {
+    if (cursor.isKeyword('not')) {
+      const location = cursor.next().position;
+      return { kind: 'unary', operator: 'not', operand: this.parseNot(cursor), position: location };
     }
-    return this.parseComparison(c);
+    return this.parseComparison(cursor);
   }
 
-  private parseComparison(c: Cursor): Expr {
-    const left = this.parseAdditive(c);
-    const token = c.peek();
-    if (token === undefined || token.kind !== 'op' || !CMP_OPS.has(token.op)) return left;
-    c.next();
-    const right = this.parseAdditive(c);
-    const again = c.peek();
-    if (again !== undefined && again.kind === 'op' && CMP_OPS.has(again.op)) {
-      throw parseError('comparisons cannot be chained; combine them with `and`', again.pos);
+  private parseComparison(cursor: Cursor): Expression {
+    const left = this.parseAdditive(cursor);
+    const token = cursor.peek();
+    if (token === undefined || token.kind !== 'op' || !CMP_OPS.has(token.operator)) return left;
+    cursor.next();
+    const right = this.parseAdditive(cursor);
+    const again = cursor.peek();
+    if (again !== undefined && again.kind === 'op' && CMP_OPS.has(again.operator)) {
+      throw parseError('comparisons cannot be chained; combine them with `and`', again.position);
     }
-    return { kind: 'binary', op: token.op as BinaryOp, left, right, pos: token.pos };
+    return { kind: 'binary', operator: token.operator as BinaryOp, left, right, position: token.position };
   }
 
-  private parseAdditive(c: Cursor): Expr {
-    let left = this.parseMultiplicative(c);
+  private parseAdditive(cursor: Cursor): Expression {
+    let left = this.parseMultiplicative(cursor);
     while (true) {
-      const token = c.peek();
+      const token = cursor.peek();
       if (token === undefined || token.kind !== 'op') return left;
-      if (token.op !== '+' && !(token.op === '-' && !token.unary)) return left;
-      c.next();
-      left = { kind: 'binary', op: token.op as BinaryOp, left, right: this.parseMultiplicative(c), pos: token.pos };
+      if (token.operator !== '+' && !(token.operator === '-' && !token.unary)) return left;
+      cursor.next();
+      left = { kind: 'binary', operator: token.operator as BinaryOp, left, right: this.parseMultiplicative(cursor), position: token.position };
     }
   }
 
-  private parseMultiplicative(c: Cursor): Expr {
-    let left = this.parseUnary(c);
+  private parseMultiplicative(cursor: Cursor): Expression {
+    let left = this.parseUnary(cursor);
     while (true) {
-      const token = c.peek();
+      const token = cursor.peek();
       if (token === undefined) return left;
-      let op: BinaryOp;
-      if (token.kind === 'op' && (token.op === '*' || token.op === '/')) {
-        op = token.op;
+      let operator: BinaryOp;
+      if (token.kind === 'op' && (token.operator === '*' || token.operator === '/')) {
+        operator = token.operator;
       } else if (token.kind === 'keyword' && token.word === 'mod') {
-        op = 'mod';
+        operator = 'mod';
       } else {
         return left;
       }
-      c.next();
-      left = { kind: 'binary', op, left, right: this.parseUnary(c), pos: token.pos };
+      cursor.next();
+      left = { kind: 'binary', operator, left, right: this.parseUnary(cursor), position: token.position };
     }
   }
 
-  private parseUnary(c: Cursor): Expr {
-    if (c.isOp('-')) {
-      const pos = c.next().pos;
-      return { kind: 'unary', op: '-', operand: this.parseUnary(c), pos };
+  private parseUnary(cursor: Cursor): Expression {
+    if (cursor.isOp('-')) {
+      const location = cursor.next().position;
+      return { kind: 'unary', operator: '-', operand: this.parseUnary(cursor), position: location };
     }
-    return this.parsePrimary(c);
+    return this.parsePrimary(cursor);
   }
 
-  private parsePrimary(c: Cursor): Expr {
-    const token = c.peek();
-    if (token === undefined) throw parseError('expected a value, found end of line', c.pos());
+  private parsePrimary(cursor: Cursor): Expression {
+    const token = cursor.peek();
+    if (token === undefined) throw parseError('expected a value, found end of line', cursor.position());
     switch (token.kind) {
       case 'int':
-        c.next();
-        return { kind: 'int', value: token.value, pos: token.pos };
+        cursor.next();
+        return { kind: 'int', value: token.value, position: token.position };
       case 'float':
-        c.next();
-        return { kind: 'float', value: token.value, pos: token.pos };
+        cursor.next();
+        return { kind: 'float', value: token.value, position: token.position };
       case 'char':
-        c.next();
-        return { kind: 'char', value: token.value, pos: token.pos };
+        cursor.next();
+        return { kind: 'char', value: token.value, position: token.position };
       case 'string':
-        c.next();
-        return this.buildString(token.parts, token.pos);
+        cursor.next();
+        return this.buildString(token.parts, token.position);
       case 'name':
-        c.next();
-        return { kind: 'name', name: token.name, pos: token.pos };
+        cursor.next();
+        return { kind: 'name', name: token.name, position: token.position };
       case 'keyword':
-        c.next();
-        if (token.word === 'yes') return { kind: 'bool', value: true, pos: token.pos };
-        if (token.word === 'no') return { kind: 'bool', value: false, pos: token.pos };
-        if (token.word === 'nothing') return { kind: 'nothing', pos: token.pos };
-        throw parseError(`unexpected keyword \`${token.word}\``, token.pos);
+        cursor.next();
+        if (token.word === 'yes') return { kind: 'boolean', value: true, position: token.position };
+        if (token.word === 'no') return { kind: 'boolean', value: false, position: token.position };
+        if (token.word === 'nothing') return { kind: 'nothing', position: token.position };
+        throw parseError(`unexpected keyword \`${token.word}\``, token.position);
       case 'op':
-        if (token.op === '(') return this.parseParen(c);
-        if (token.op === '[') return this.parseArray(c);
-        if (token.op === '{') return this.parseMap(c);
-        if (token.op === '|') throw parseError('unexpected `|`; a lambda used as a value must be wrapped in parentheses', token.pos);
-        throw parseError(`expected a value, found ${describe(token)}`, token.pos);
+        if (token.operator === '(') return this.parseParen(cursor);
+        if (token.operator === '[') return this.parseArray(cursor);
+        if (token.operator === '{') return this.parseMap(cursor);
+        if (token.operator === '|') throw parseError('unexpected `|`; a lambda used as a value must be wrapped in parentheses', token.position);
+        throw parseError(`expected a value, found ${describe(token)}`, token.position);
     }
   }
 
-  private buildString(parts: StringPart[], pos: Pos): Expr {
-    if (parts.length === 0) return { kind: 'string', value: '', pos };
+  private buildString(parts: StringPart[], location: Position): Expression {
+    if (parts.length === 0) return { kind: 'string', value: '', position: location };
     const only = parts[0];
-    if (parts.length === 1 && only !== undefined && only.kind === 'text') return { kind: 'string', value: only.text, pos };
-    const built: Array<string | Expr> = [];
+    if (parts.length === 1 && only !== undefined && only.kind === 'text') return { kind: 'string', value: only.text, position: location };
+    const built: Array<string | Expression> = [];
     for (const part of parts) {
       if (part.kind === 'text') {
         built.push(part.text);
       } else {
-        const c = new Cursor(part.tokens, part.pos);
-        built.push(this.parseEnclosed(c, 'interpolation', false));
-        if (!c.atEnd()) throw parseError(`unexpected ${describe(c.peek())} in interpolation`, c.pos());
+        const cursor = new Cursor(part.tokens, part.position);
+        built.push(this.parseEnclosed(cursor, 'interpolation', false));
+        if (!cursor.atEnd()) throw parseError(`unexpected ${describe(cursor.peek())} in interpolation`, cursor.position());
       }
     }
-    return { kind: 'interp', parts: built, pos };
+    return { kind: 'interpolation', parts: built, position: location };
   }
 
-  private parseParen(c: Cursor): Expr {
-    c.expectOp('(', '`(`');
-    const expr = this.parseEnclosed(c, 'parentheses', true);
-    c.expectOp(')', '`)`');
-    return expr;
+  private parseParen(cursor: Cursor): Expression {
+    cursor.expectOp('(', '`(`');
+    const expression = this.parseEnclosed(cursor, 'parentheses', true);
+    cursor.expectOp(')', '`)`');
+    return expression;
   }
 
-  private parseEnclosed(c: Cursor, what: string, wrapNames: boolean): Expr {
-    const pos = c.pos();
-    if (c.isOp('|')) {
-      c.next();
-      const body = [this.parseStatement(c, NO_CHILDREN, EMPTY)];
-      return { kind: 'lambda', params: [], body, pos };
+  private parseEnclosed(cursor: Cursor, what: string, wrapNames: boolean): Expression {
+    const location = cursor.position();
+    if (cursor.isOp('|')) {
+      cursor.next();
+      const body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
+      return { kind: 'lambda', parameters: [], body, position: location };
     }
-    const statement = this.parseStatement(c, NO_CHILDREN, EMPTY);
+    const statement = this.parseStatement(cursor, NO_CHILDREN, EMPTY);
     switch (statement.kind) {
-      case 'flowstmt':
-        return wrapNames && statement.expr.kind === 'name' ? asFlow(statement.expr) : statement.expr;
-      case 'cond':
+      case 'flow-statement':
+        return wrapNames && statement.expression.kind === 'name' ? asFlow(statement.expression) : statement.expression;
+      case 'conditional':
+        return statement;
+      case 'attempt':
+        if (statement.handler === null) throw parseError('`attempt` needs a `recover` on the same line when used as a value', location);
         return statement;
       default:
-        throw parseError(`\`${statement.kind}\` is not a value and cannot appear in ${what}`, pos);
+        throw parseError(`\`${statement.kind}\` is not a value and cannot appear in ${what}`, location);
     }
   }
 
-  private parseArray(c: Cursor): Expr {
-    const pos = c.expectOp('[', '`[`').pos;
-    const items: Expr[] = [];
-    while (!c.isOp(']')) {
-      if (c.atEnd()) throw parseError('unclosed `[`', pos);
-      items.push(this.parseExpr(c));
+  private parseArray(cursor: Cursor): Expression {
+    const location = cursor.expectOp('[', '`[`').position;
+    const items: Expression[] = [];
+    while (!cursor.isOp(']')) {
+      if (cursor.atEnd()) throw parseError('unclosed `[`', location);
+      items.push(this.parseExpression(cursor));
     }
-    c.next();
-    return { kind: 'array', items, pos };
+    cursor.next();
+    return { kind: 'array', items, position: location };
   }
 
-  private parseMap(c: Cursor): Expr {
-    const pos = c.expectOp('{', '`{`').pos;
+  private parseMap(cursor: Cursor): Expression {
+    const location = cursor.expectOp('{', '`{`').position;
     const entries = [];
-    while (!c.isOp('}')) {
-      if (c.atEnd()) throw parseError('unclosed `{`', pos);
-      const key = this.parseExpr(c);
-      c.expectOp(':', '`:` between a key and its value');
-      const value = this.parseExpr(c);
+    while (!cursor.isOp('}')) {
+      if (cursor.atEnd()) throw parseError('unclosed `{`', location);
+      const key = this.parseExpression(cursor);
+      cursor.expectOp(':', '`:` between a key and its value');
+      const value = this.parseExpression(cursor);
       entries.push({ key, value });
     }
-    c.next();
-    return { kind: 'map', entries, pos };
+    cursor.next();
+    return { kind: 'map', entries, position: location };
   }
 }
 

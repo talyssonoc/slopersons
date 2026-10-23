@@ -7,10 +7,10 @@ import { dirname, join, relative } from 'node:path';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(root, 'src');
 
-function listSources(dir: string): string[] {
+function listSources(directory: string): string[] {
   const out: string[] = [];
-  for (const name of readdirSync(dir)) {
-    const path = join(dir, name);
+  for (const name of readdirSync(directory)) {
+    const path = join(directory, name);
     if (statSync(path).isDirectory()) out.push(...listSources(path));
     else if (name.endsWith('.ts')) out.push(path);
   }
@@ -46,11 +46,11 @@ for (const rule of rules) {
   test(`src/ does not use ${rule.pattern} outside ${rule.allowedIn.length === 0 ? 'anywhere' : rule.allowedIn.join(', ')} (${rule.reason})`, () => {
     const offenders: string[] = [];
     for (const path of sources) {
-      const rel = relative(root, path);
-      if (rule.allowedIn.includes(rel)) continue;
+      const relativePath = relative(root, path);
+      if (rule.allowedIn.includes(relativePath)) continue;
       const lines = readFileSync(path, 'utf8').split('\n');
       lines.forEach((line, index) => {
-        if (rule.pattern.test(line)) offenders.push(`${rel}:${index + 1}: ${line.trim()}`);
+        if (rule.pattern.test(line)) offenders.push(`${relativePath}:${index + 1}: ${line.trim()}`);
       });
     }
     assert.deepEqual(offenders, []);

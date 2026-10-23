@@ -2,13 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { daysFromCivil } from '../../src/runtime/calendar.ts';
 import {
-  MS_PER_DAY,
+  MILLISECONDS_PER_DAY,
   formatDateTime,
   formatTime,
   isValidTime,
   isoDateTime,
   isoTime,
-  msFromTimeParts,
+  millisecondsFromTimeParts,
   parseIsoDateTime,
   parseIsoTime,
   splitEpochMs,
@@ -18,9 +18,9 @@ import {
 
 test('time parts round-trip through milliseconds since midnight', () => {
   const parts = { hour: 23, minute: 59, second: 58, millisecond: 7 };
-  assert.deepEqual(timePartsFromMs(msFromTimeParts(parts)), parts);
-  assert.equal(msFromTimeParts({ hour: 0, minute: 0, second: 0, millisecond: 0 }), 0);
-  assert.equal(msFromTimeParts({ hour: 23, minute: 59, second: 59, millisecond: 999 }), MS_PER_DAY - 1);
+  assert.deepEqual(timePartsFromMs(millisecondsFromTimeParts(parts)), parts);
+  assert.equal(millisecondsFromTimeParts({ hour: 0, minute: 0, second: 0, millisecond: 0 }), 0);
+  assert.equal(millisecondsFromTimeParts({ hour: 23, minute: 59, second: 59, millisecond: 999 }), MILLISECONDS_PER_DAY - 1);
 });
 
 test('isValidTime enforces every component range', () => {
@@ -35,10 +35,10 @@ test('isValidTime enforces every component range', () => {
 });
 
 test('wrapIntoDay and splitEpochMs floor negative values', () => {
-  assert.equal(wrapIntoDay(-1), MS_PER_DAY - 1);
-  assert.equal(wrapIntoDay(MS_PER_DAY + 5), 5);
-  assert.deepEqual(splitEpochMs(-1), { days: -1, msOfDay: MS_PER_DAY - 1 });
-  assert.deepEqual(splitEpochMs(MS_PER_DAY * 3 + 42), { days: 3, msOfDay: 42 });
+  assert.equal(wrapIntoDay(-1), MILLISECONDS_PER_DAY - 1);
+  assert.equal(wrapIntoDay(MILLISECONDS_PER_DAY + 5), 5);
+  assert.deepEqual(splitEpochMs(-1), { days: -1, millisecondsOfDay: MILLISECONDS_PER_DAY - 1 });
+  assert.deepEqual(splitEpochMs(MILLISECONDS_PER_DAY * 3 + 42), { days: 3, millisecondsOfDay: 42 });
 });
 
 test('parseIsoTime accepts HH:MM, HH:MM:SS and up to three fraction digits', () => {
@@ -54,7 +54,7 @@ test('parseIsoTime accepts HH:MM, HH:MM:SS and up to three fraction digits', () 
 });
 
 test('parseIsoDateTime accepts T or space, an optional Z, and validates both halves', () => {
-  const base = daysFromCivil(2026, 10, 23) * MS_PER_DAY;
+  const base = daysFromCivil(2026, 10, 23) * MILLISECONDS_PER_DAY;
   assert.equal(parseIsoDateTime('2026-10-23T15:16:00'), base + (15 * 3600 + 16 * 60) * 1000);
   assert.equal(parseIsoDateTime('2026-10-23T15:16'), base + (15 * 3600 + 16 * 60) * 1000);
   assert.equal(parseIsoDateTime('2026-10-23 15:16:00.250'), base + (15 * 3600 + 16 * 60) * 1000 + 250);
@@ -66,18 +66,18 @@ test('parseIsoDateTime accepts T or space, an optional Z, and validates both hal
 });
 
 test('formatTime renders uppercase tokens and leaves other text alone', () => {
-  const ms = msFromTimeParts({ hour: 9, minute: 5, second: 7, millisecond: 42 });
-  assert.equal(formatTime(ms, 'HH:MM:SS.SSS'), '09:05:07.042');
-  assert.equal(formatTime(ms, 'H:M:S'), '9:5:7');
-  assert.equal(formatTime(ms, 'at HH past M'), 'at 09 past 5');
-  assert.equal(formatTime(ms, 'yyyy-mm-dd'), 'yyyy-mm-dd');
+  const milliseconds = millisecondsFromTimeParts({ hour: 9, minute: 5, second: 7, millisecond: 42 });
+  assert.equal(formatTime(milliseconds, 'HH:MM:SS.SSS'), '09:05:07.042');
+  assert.equal(formatTime(milliseconds, 'H:M:S'), '9:5:7');
+  assert.equal(formatTime(milliseconds, 'at HH past M'), 'at 09 past 5');
+  assert.equal(formatTime(milliseconds, 'yyyy-mm-dd'), 'yyyy-mm-dd');
 });
 
 test('formatDateTime mixes date and time tokens, with lowercase mm as month and uppercase MM as minute', () => {
-  const ms = daysFromCivil(2024, 12, 25) * MS_PER_DAY + msFromTimeParts({ hour: 18, minute: 30, second: 0, millisecond: 0 });
-  assert.equal(formatDateTime(ms, 'yyyy-mm-dd HH:MM'), '2024-12-25 18:30');
-  assert.equal(formatDateTime(ms, 'dddd, mmmm d at H:MM'), 'Wednesday, December 25 at 18:30');
-  assert.equal(formatDateTime(ms, 'mm/MM'), '12/30');
+  const milliseconds = daysFromCivil(2024, 12, 25) * MILLISECONDS_PER_DAY + millisecondsFromTimeParts({ hour: 18, minute: 30, second: 0, millisecond: 0 });
+  assert.equal(formatDateTime(milliseconds, 'yyyy-mm-dd HH:MM'), '2024-12-25 18:30');
+  assert.equal(formatDateTime(milliseconds, 'dddd, mmmm d at H:MM'), 'Wednesday, December 25 at 18:30');
+  assert.equal(formatDateTime(milliseconds, 'mm/MM'), '12/30');
 });
 
 test('iso forms omit the fraction when it is zero', () => {
@@ -85,5 +85,5 @@ test('iso forms omit the fraction when it is zero', () => {
   assert.equal(isoTime(45_015_250), '12:30:15.250');
   assert.equal(isoDateTime(0), '1970-01-01T00:00:00');
   assert.equal(isoDateTime(-1), '1969-12-31T23:59:59.999');
-  assert.equal(isoDateTime(daysFromCivil(2026, 10, 23) * MS_PER_DAY + 55_000_000), '2026-10-23T15:16:40');
+  assert.equal(isoDateTime(daysFromCivil(2026, 10, 23) * MILLISECONDS_PER_DAY + 55_000_000), '2026-10-23T15:16:40');
 });

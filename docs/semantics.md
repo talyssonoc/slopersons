@@ -75,4 +75,14 @@ Within a flow, the head is evaluated first, then each step left to right. Within
 
 ## Errors
 
-Any error ends the program. The CLI prints `error: <message>` and `  at <file>:<line>:<col>` to standard error and exits with code 1. There is no way to catch an error in this version of the language. `message -> fail` raises an error with a custom message.
+A runtime error that nothing handles ends the program: the CLI prints `error: <message>` and `  at <file>:<line>:<col>` to standard error and exits with code 1. `message -> fail` raises an error with a custom message at the position of the call.
+
+`attempt` and `recover` handle errors. When a runtime error happens anywhere inside the `attempt` body, including inside procedures it calls, control moves to the `recover` body with the error bound to the given name as a value of type `error`. The value of the statement is the value of whichever body finished. Neither body is a new scope.
+
+An error value carries the message and the position where it was raised: `e -> message`, `e -> line`, `e -> column`. It prints as its message. `e -> fail` raises it again unchanged, which is how a handler passes on an error it does not want.
+
+Catchable: every runtime error, whether raised by the interpreter (division by zero, a type mismatch, a missing key, an arity mismatch, an unknown name, the call depth limit, a size limit) or by `fail`.
+
+Not catchable: parse errors, since they happen before the program runs; `exit`, `out` and `stop`, which are control flow rather than errors; running out of memory or outgrowing what the interpreter can hold; and interpreter bugs. These pass through `attempt` untouched.
+
+There is no `finally`: the language has no resources that need releasing.

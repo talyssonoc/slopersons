@@ -51,27 +51,27 @@ export function isValidDate(year: number, month: number, day: number): boolean {
 }
 
 export function daysFromCivil(year: number, month: number, day: number): number {
-  const y = month <= 2 ? year - 1 : year;
-  const era = Math.floor(y / 400);
-  const yoe = y - era * 400;
-  const mp = month > 2 ? month - 3 : month + 9;
-  const doy = Math.floor((153 * mp + 2) / 5) + day - 1;
-  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy;
-  return era * DAYS_PER_ERA + doe - DAYS_FROM_ERA_START_TO_EPOCH;
+  const shiftedYear = month <= 2 ? year - 1 : year;
+  const era = Math.floor(shiftedYear / 400);
+  const yearOfEra = shiftedYear - era * 400;
+  const monthFromMarch = month > 2 ? month - 3 : month + 9;
+  const dayOfYearFromMarch = Math.floor((153 * monthFromMarch + 2) / 5) + day - 1;
+  const dayOfEra = yearOfEra * 365 + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100) + dayOfYearFromMarch;
+  return era * DAYS_PER_ERA + dayOfEra - DAYS_FROM_ERA_START_TO_EPOCH;
 }
 
 export function civilFromDays(days: number): CivilDate {
-  const z = days + DAYS_FROM_ERA_START_TO_EPOCH;
-  const era = Math.floor(z / DAYS_PER_ERA);
-  const doe = z - era * DAYS_PER_ERA;
-  const yoe = Math.floor(
-    (doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365,
+  const daysFromEraStart = days + DAYS_FROM_ERA_START_TO_EPOCH;
+  const era = Math.floor(daysFromEraStart / DAYS_PER_ERA);
+  const dayOfEra = daysFromEraStart - era * DAYS_PER_ERA;
+  const yearOfEra = Math.floor(
+    (dayOfEra - Math.floor(dayOfEra / 1460) + Math.floor(dayOfEra / 36524) - Math.floor(dayOfEra / 146096)) / 365,
   );
-  const doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100));
-  const mp = Math.floor((5 * doy + 2) / 153);
-  const day = doy - Math.floor((153 * mp + 2) / 5) + 1;
-  const month = mp < 10 ? mp + 3 : mp - 9;
-  const year = yoe + era * 400 + (month <= 2 ? 1 : 0);
+  const dayOfYearFromMarch = dayOfEra - (365 * yearOfEra + Math.floor(yearOfEra / 4) - Math.floor(yearOfEra / 100));
+  const monthFromMarch = Math.floor((5 * dayOfYearFromMarch + 2) / 153);
+  const day = dayOfYearFromMarch - Math.floor((153 * monthFromMarch + 2) / 5) + 1;
+  const month = monthFromMarch < 10 ? monthFromMarch + 3 : monthFromMarch - 9;
+  const year = yearOfEra + era * 400 + (month <= 2 ? 1 : 0);
   return { year, month, day };
 }
 

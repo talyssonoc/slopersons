@@ -3,115 +3,115 @@ import type { CallContext, Interpreter } from '../interpreter.ts';
 import { WEEKDAY_NAMES, civilFromDays, weekday } from '../runtime/calendar.ts';
 import { lower } from '../runtime/text.ts';
 import {
-  MS_PER_DAY,
-  MS_PER_HOUR,
-  MS_PER_MINUTE,
-  MS_PER_SECOND,
+  MILLISECONDS_PER_DAY,
+  MILLISECONDS_PER_HOUR,
+  MILLISECONDS_PER_MINUTE,
+  MILLISECONDS_PER_SECOND,
   formatDateTime,
   isoDateTime,
   parseIsoDateTime,
   splitEpochMs,
   timePartsFromMs,
 } from '../runtime/time.ts';
-import { date, datetime, describeType, formatValue, int, str, time, type DateTimeValue, type Value } from '../values.ts';
-import { arg, expectInt, expectString } from './core.ts';
+import { date, datetime, describeType, formatValue, int, string, time, type DateTimeValue, type Value } from '../values.ts';
+import { input, expectInt, expectString } from './core.ts';
 import { expectDate } from './date.ts';
 import { expectCount, expectTime } from './time.ts';
 
-const MAX_EPOCH_MS = 1_000_000_000_000_000;
+const MAX_EPOCH_MILLISECONDS = 1_000_000_000_000_000;
 
-function expectDateTime(value: Value, what: string, ctx: CallContext): DateTimeValue {
-  if (value.t !== 'datetime') throw runtimeError(`${what} must be a datetime, got ${describeType(value)}`, ctx.pos);
+function expectDateTime(value: Value, what: string, context: CallContext): DateTimeValue {
+  if (value.type !== 'datetime') throw runtimeError(`${what} must be a datetime, got ${describeType(value)}`, context.position);
   return value;
 }
 
-function receiver(args: Value[], name: string, ctx: CallContext): DateTimeValue {
-  return expectDateTime(arg(args, 0), `the input of \`${name}\``, ctx);
+function receiver(inputs: Value[], name: string, context: CallContext): DateTimeValue {
+  return expectDateTime(input(inputs, 0), `the input of \`${name}\``, context);
 }
 
-function inRange(ms: number, ctx: CallContext): DateTimeValue {
-  if (ms > MAX_EPOCH_MS || ms < -MAX_EPOCH_MS) throw runtimeError('the resulting datetime is out of range', ctx.pos);
-  return datetime(ms);
+function inRange(milliseconds: number, context: CallContext): DateTimeValue {
+  if (milliseconds > MAX_EPOCH_MILLISECONDS || milliseconds < -MAX_EPOCH_MILLISECONDS) throw runtimeError('the resulting datetime is out of range', context.position);
+  return datetime(milliseconds);
 }
 
-function calendarPart(value: DateTimeValue): { year: number; month: number; day: number; days: number; msOfDay: number } {
-  const { days, msOfDay } = splitEpochMs(value.ms);
+function calendarPart(value: DateTimeValue): { year: number; month: number; day: number; days: number; millisecondsOfDay: number } {
+  const { days, millisecondsOfDay: dayMilliseconds } = splitEpochMs(value.milliseconds);
   const civil = civilFromDays(days);
-  return { ...civil, days, msOfDay };
+  return { ...civil, days, millisecondsOfDay: dayMilliseconds };
 }
 
-function shift(name: string, unit: number, interp: Interpreter): void {
-  interp.defineMethod(name, 'datetime', 2, (args, ctx) => {
-    const value = receiver(args, name, ctx);
-    const count = expectCount(arg(args, 1), `the count of \`${name}\``, `${name.slice(4, -1)} count`, ctx);
-    return inRange(value.ms + count * unit, ctx);
-  });
-}
-
-function between(name: string, unit: number, interp: Interpreter): void {
-  interp.defineMethod(name, 'datetime', 2, (args, ctx) => {
-    const start = receiver(args, name, ctx);
-    const end = expectDateTime(arg(args, 1), `the end of \`${name}\``, ctx);
-    return int(BigInt(Math.floor((end.ms - start.ms) / unit)));
+function shift(name: string, unit: number, interpreter: Interpreter): void {
+  interpreter.defineMethod(name, 'datetime', 2, (inputs, context) => {
+    const value = receiver(inputs, name, context);
+    const count = expectCount(input(inputs, 1), `the count of \`${name}\``, `${name.slice(4, -1)} count`, context);
+    return inRange(value.milliseconds + count * unit, context);
   });
 }
 
-export function registerDatetime(interp: Interpreter): void {
-  interp.defineBuiltin('now', 0, () => datetime(Date.now()));
+function between(name: string, unit: number, interpreter: Interpreter): void {
+  interpreter.defineMethod(name, 'datetime', 2, (inputs, context) => {
+    const start = receiver(inputs, name, context);
+    const end = expectDateTime(input(inputs, 1), `the end of \`${name}\``, context);
+    return int(BigInt(Math.floor((end.milliseconds - start.milliseconds) / unit)));
+  });
+}
 
-  interp.defineMethod('at-time', 'date', 2, (args, ctx) => {
-    const day = expectDate(arg(args, 0), 'the input of `at-time`', ctx);
-    const clock = expectTime(arg(args, 1), 'the time of `at-time`', ctx);
-    return inRange(day.days * MS_PER_DAY + clock.ms, ctx);
+export function registerDatetime(interpreter: Interpreter): void {
+  interpreter.defineBuiltin('now', 0, () => datetime(Date.now()));
+
+  interpreter.defineMethod('at-time', 'date', 2, (inputs, context) => {
+    const day = expectDate(input(inputs, 0), 'the input of `at-time`', context);
+    const clock = expectTime(input(inputs, 1), 'the time of `at-time`', context);
+    return inRange(day.days * MILLISECONDS_PER_DAY + clock.milliseconds, context);
   });
 
-  interp.defineMethod('to-datetime', 'string', 1, (args, ctx) => {
-    const text = expectString(arg(args, 0), 'the input of `to-datetime`', ctx);
-    const ms = parseIsoDateTime(text);
-    if (ms === null) throw runtimeError(`cannot convert ${formatValue(arg(args, 0), 'show')} to a datetime`, ctx.pos);
-    return inRange(ms, ctx);
+  interpreter.defineMethod('to-datetime', 'string', 1, (inputs, context) => {
+    const text = expectString(input(inputs, 0), 'the input of `to-datetime`', context);
+    const milliseconds = parseIsoDateTime(text);
+    if (milliseconds === null) throw runtimeError(`cannot convert ${formatValue(input(inputs, 0), 'show')} to a datetime`, context.position);
+    return inRange(milliseconds, context);
   });
 
-  interp.defineMethod('to-datetime', 'int', 1, (args, ctx) => {
-    const ms = expectInt(arg(args, 0), 'the input of `to-datetime`', ctx);
-    if (ms > BigInt(MAX_EPOCH_MS) || ms < -BigInt(MAX_EPOCH_MS)) throw runtimeError(`epoch milliseconds ${ms} is out of range`, ctx.pos);
-    return datetime(Number(ms));
+  interpreter.defineMethod('to-datetime', 'int', 1, (inputs, context) => {
+    const milliseconds = expectInt(input(inputs, 0), 'the input of `to-datetime`', context);
+    if (milliseconds > BigInt(MAX_EPOCH_MILLISECONDS) || milliseconds < -BigInt(MAX_EPOCH_MILLISECONDS)) throw runtimeError(`epoch milliseconds ${milliseconds} is out of range`, context.position);
+    return datetime(Number(milliseconds));
   });
 
-  interp.defineMethod('date', 'datetime', 1, (args, ctx) => date(splitEpochMs(receiver(args, 'date', ctx).ms).days));
-  interp.defineMethod('time', 'datetime', 1, (args, ctx) => time(splitEpochMs(receiver(args, 'time', ctx).ms).msOfDay));
-  interp.defineMethod('start-of-day', 'datetime', 1, (args, ctx) => datetime(splitEpochMs(receiver(args, 'start-of-day', ctx).ms).days * MS_PER_DAY));
-  interp.defineMethod('epoch-milliseconds', 'datetime', 1, (args, ctx) => int(BigInt(receiver(args, 'epoch-milliseconds', ctx).ms)));
+  interpreter.defineMethod('date', 'datetime', 1, (inputs, context) => date(splitEpochMs(receiver(inputs, 'date', context).milliseconds).days));
+  interpreter.defineMethod('time', 'datetime', 1, (inputs, context) => time(splitEpochMs(receiver(inputs, 'time', context).milliseconds).millisecondsOfDay));
+  interpreter.defineMethod('start-of-day', 'datetime', 1, (inputs, context) => datetime(splitEpochMs(receiver(inputs, 'start-of-day', context).milliseconds).days * MILLISECONDS_PER_DAY));
+  interpreter.defineMethod('epoch-milliseconds', 'datetime', 1, (inputs, context) => int(BigInt(receiver(inputs, 'epoch-milliseconds', context).milliseconds)));
 
-  interp.defineMethod('year', 'datetime', 1, (args, ctx) => int(BigInt(calendarPart(receiver(args, 'year', ctx)).year)));
-  interp.defineMethod('month', 'datetime', 1, (args, ctx) => int(BigInt(calendarPart(receiver(args, 'month', ctx)).month)));
-  interp.defineMethod('day', 'datetime', 1, (args, ctx) => int(BigInt(calendarPart(receiver(args, 'day', ctx)).day)));
-  interp.defineMethod('weekday', 'datetime', 1, (args, ctx) => {
-    const name = WEEKDAY_NAMES[weekday(calendarPart(receiver(args, 'weekday', ctx)).days) - 1];
-    if (name === undefined) throw runtimeError('internal: weekday out of range', ctx.pos);
-    return str(lower(name));
+  interpreter.defineMethod('year', 'datetime', 1, (inputs, context) => int(BigInt(calendarPart(receiver(inputs, 'year', context)).year)));
+  interpreter.defineMethod('month', 'datetime', 1, (inputs, context) => int(BigInt(calendarPart(receiver(inputs, 'month', context)).month)));
+  interpreter.defineMethod('day', 'datetime', 1, (inputs, context) => int(BigInt(calendarPart(receiver(inputs, 'day', context)).day)));
+  interpreter.defineMethod('weekday', 'datetime', 1, (inputs, context) => {
+    const name = WEEKDAY_NAMES[weekday(calendarPart(receiver(inputs, 'weekday', context)).days) - 1];
+    if (name === undefined) throw runtimeError('internal: weekday out of range', context.position);
+    return string(lower(name));
   });
-  interp.defineMethod('weekday-number', 'datetime', 1, (args, ctx) => int(BigInt(weekday(calendarPart(receiver(args, 'weekday-number', ctx)).days))));
-  interp.defineMethod('hour', 'datetime', 1, (args, ctx) => int(BigInt(timePartsFromMs(calendarPart(receiver(args, 'hour', ctx)).msOfDay).hour)));
-  interp.defineMethod('minute', 'datetime', 1, (args, ctx) => int(BigInt(timePartsFromMs(calendarPart(receiver(args, 'minute', ctx)).msOfDay).minute)));
-  interp.defineMethod('second', 'datetime', 1, (args, ctx) => int(BigInt(timePartsFromMs(calendarPart(receiver(args, 'second', ctx)).msOfDay).second)));
-  interp.defineMethod('millisecond', 'datetime', 1, (args, ctx) => int(BigInt(timePartsFromMs(calendarPart(receiver(args, 'millisecond', ctx)).msOfDay).millisecond)));
+  interpreter.defineMethod('weekday-number', 'datetime', 1, (inputs, context) => int(BigInt(weekday(calendarPart(receiver(inputs, 'weekday-number', context)).days))));
+  interpreter.defineMethod('hour', 'datetime', 1, (inputs, context) => int(BigInt(timePartsFromMs(calendarPart(receiver(inputs, 'hour', context)).millisecondsOfDay).hour)));
+  interpreter.defineMethod('minute', 'datetime', 1, (inputs, context) => int(BigInt(timePartsFromMs(calendarPart(receiver(inputs, 'minute', context)).millisecondsOfDay).minute)));
+  interpreter.defineMethod('second', 'datetime', 1, (inputs, context) => int(BigInt(timePartsFromMs(calendarPart(receiver(inputs, 'second', context)).millisecondsOfDay).second)));
+  interpreter.defineMethod('millisecond', 'datetime', 1, (inputs, context) => int(BigInt(timePartsFromMs(calendarPart(receiver(inputs, 'millisecond', context)).millisecondsOfDay).millisecond)));
 
-  shift('add-days', MS_PER_DAY, interp);
-  shift('add-hours', MS_PER_HOUR, interp);
-  shift('add-minutes', MS_PER_MINUTE, interp);
-  shift('add-seconds', MS_PER_SECOND, interp);
-  shift('add-milliseconds', 1, interp);
+  shift('add-days', MILLISECONDS_PER_DAY, interpreter);
+  shift('add-hours', MILLISECONDS_PER_HOUR, interpreter);
+  shift('add-minutes', MILLISECONDS_PER_MINUTE, interpreter);
+  shift('add-seconds', MILLISECONDS_PER_SECOND, interpreter);
+  shift('add-milliseconds', 1, interpreter);
 
-  between('days-between', MS_PER_DAY, interp);
-  between('seconds-between', MS_PER_SECOND, interp);
-  between('milliseconds-between', 1, interp);
+  between('days-between', MILLISECONDS_PER_DAY, interpreter);
+  between('seconds-between', MILLISECONDS_PER_SECOND, interpreter);
+  between('milliseconds-between', 1, interpreter);
 
-  interp.defineMethod('format', 'datetime', 2, (args, ctx) => {
-    const value = receiver(args, 'format', ctx);
-    const pattern = expectString(arg(args, 1), 'the pattern of `format`', ctx);
-    return str(formatDateTime(value.ms, pattern));
+  interpreter.defineMethod('format', 'datetime', 2, (inputs, context) => {
+    const value = receiver(inputs, 'format', context);
+    const pattern = expectString(input(inputs, 1), 'the pattern of `format`', context);
+    return string(formatDateTime(value.milliseconds, pattern));
   });
 
-  interp.defineMethod('to-string', 'datetime', 1, (args, ctx) => str(isoDateTime(receiver(args, 'to-string', ctx).ms)));
+  interpreter.defineMethod('to-string', 'datetime', 1, (inputs, context) => string(isoDateTime(receiver(inputs, 'to-string', context).milliseconds)));
 }

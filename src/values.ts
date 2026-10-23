@@ -1,79 +1,85 @@
 import type { Statement } from './ast.ts';
-import type { Pos } from './errors.ts';
-import { runtimeError } from './errors.ts';
-import type { CallContext, Env } from './interpreter.ts';
+import type { Position } from './errors.ts';
+import { runtimeError, type SlopersonsError } from './errors.ts';
+import type { CallContext, Environment } from './interpreter.ts';
 import { civilFromDays, formatDate } from './runtime/calendar.ts';
 import { hashBigInt, hashBoolean, hashCombine, hashNumber, hashString } from './runtime/hashing.ts';
-import { HashTable, type KeyOps } from './runtime/hashtable.ts';
+import { HashTable, type KeyOperations } from './runtime/hashtable.ts';
 import { codePoints, formatFloat } from './runtime/text.ts';
 import { isoDateTime, isoTime } from './runtime/time.ts';
 
 export interface IntValue {
-  t: 'int';
-  v: bigint;
+  type: 'int';
+  value: bigint;
 }
 
 export interface FloatValue {
-  t: 'float';
-  v: number;
+  type: 'float';
+  value: number;
 }
 
 export interface CharValue {
-  t: 'char';
-  v: string;
+  type: 'char';
+  value: string;
 }
 
-export interface BoolValue {
-  t: 'bool';
-  v: boolean;
+export interface BooleanValue {
+  type: 'boolean';
+  value: boolean;
 }
 
 export interface StringValue {
-  t: 'string';
-  v: string;
+  type: 'string';
+  value: string;
 }
 
 export interface NothingValue {
-  t: 'nothing';
+  type: 'nothing';
 }
 
 export interface ArrayValue {
-  t: 'array';
+  type: 'array';
   items: Value[];
 }
 
 export interface MapValue {
-  t: 'map';
+  type: 'map';
   table: HashTable<Value, Value>;
 }
 
 export interface SetValue {
-  t: 'set';
+  type: 'set';
   table: HashTable<Value, true>;
 }
 
 export interface DateValue {
-  t: 'date';
+  type: 'date';
   days: number;
 }
 
 export interface TimeValue {
-  t: 'time';
-  ms: number;
+  type: 'time';
+  milliseconds: number;
 }
 
 export interface DateTimeValue {
-  t: 'datetime';
-  ms: number;
+  type: 'datetime';
+  milliseconds: number;
 }
 
-export interface ProcValue {
-  t: 'proc';
+export interface ErrorValue {
+  type: 'error';
+  message: string;
+  position: Position | null;
+}
+
+export interface ProcedureValue {
+  type: 'proc';
   id: number;
   name: string | null;
-  params: string[];
+  parameters: string[];
   body: Statement[];
-  env: Env;
+  environment: Environment;
   isProc: boolean;
 }
 
@@ -82,21 +88,21 @@ export interface Arity {
   max: number | null;
 }
 
-export type BuiltinFn = (args: Value[], ctx: CallContext) => Value;
+export type BuiltinImplementation = (inputs: Value[], context: CallContext) => Value;
 
 export interface BuiltinValue {
-  t: 'builtin';
+  type: 'builtin';
   id: number;
   name: string;
   arity: Arity;
-  fn: BuiltinFn;
+  implementation: BuiltinImplementation;
 }
 
 export type Value =
   | IntValue
   | FloatValue
   | CharValue
-  | BoolValue
+  | BooleanValue
   | StringValue
   | NothingValue
   | ArrayValue
@@ -105,14 +111,15 @@ export type Value =
   | DateValue
   | TimeValue
   | DateTimeValue
-  | ProcValue
+  | ErrorValue
+  | ProcedureValue
   | BuiltinValue;
 
-export type TypeName = 'int' | 'float' | 'char' | 'boolean' | 'string' | 'nothing' | 'array' | 'hashmap' | 'set' | 'date' | 'time' | 'datetime' | 'proc';
+export type TypeName = 'int' | 'float' | 'char' | 'boolean' | 'string' | 'nothing' | 'array' | 'hashmap' | 'set' | 'date' | 'time' | 'datetime' | 'error' | 'proc';
 
-export const NOTHING: NothingValue = { t: 'nothing' };
-export const YES: BoolValue = { t: 'bool', v: true };
-export const NO: BoolValue = { t: 'bool', v: false };
+export const NOTHING: NothingValue = { type: 'nothing' };
+export const YES: BooleanValue = { type: 'boolean', value: true };
+export const NO: BooleanValue = { type: 'boolean', value: false };
 
 let nextId = 1;
 
@@ -120,112 +127,120 @@ export function freshId(): number {
   return nextId++;
 }
 
-export function int(v: bigint): IntValue {
-  return { t: 'int', v };
+export function int(item: bigint): IntValue {
+  return { type: 'int', value: item };
 }
 
-export function float(v: number): FloatValue {
-  return { t: 'float', v };
+export function float(item: number): FloatValue {
+  return { type: 'float', value: item };
 }
 
-export function char(v: string): CharValue {
-  return { t: 'char', v };
+export function char(item: string): CharValue {
+  return { type: 'char', value: item };
 }
 
-export function bool(v: boolean): BoolValue {
-  return v ? YES : NO;
+export function boolean(value: boolean): BooleanValue {
+  return value ? YES : NO;
 }
 
-export function str(v: string): StringValue {
-  return { t: 'string', v };
+export function string(item: string): StringValue {
+  return { type: 'string', value: item };
 }
 
 export function array(items: Value[]): ArrayValue {
-  return { t: 'array', items };
+  return { type: 'array', items };
 }
 
 export function date(days: number): DateValue {
-  return { t: 'date', days };
+  return { type: 'date', days };
 }
 
-export function time(ms: number): TimeValue {
-  return { t: 'time', ms };
+export function time(milliseconds: number): TimeValue {
+  return { type: 'time', milliseconds };
 }
 
-export function datetime(ms: number): DateTimeValue {
-  return { t: 'datetime', ms };
+export function datetime(milliseconds: number): DateTimeValue {
+  return { type: 'datetime', milliseconds };
+}
+
+export function errorValue(error: SlopersonsError): ErrorValue {
+  return { type: 'error', message: error.message, position: error.position };
 }
 
 export function typeName(value: Value): TypeName {
-  switch (value.t) {
-    case 'bool':
+  switch (value.type) {
+    case 'boolean':
       return 'boolean';
     case 'map':
       return 'hashmap';
     case 'builtin':
       return 'proc';
     default:
-      return value.t;
+      return value.type;
   }
 }
 
-export function valuesEqual(a: Value, b: Value): boolean {
-  if (a.t !== b.t) return false;
-  switch (a.t) {
+export function valuesEqual(first: Value, second: Value): boolean {
+  if (first.type !== second.type) return false;
+  switch (first.type) {
     case 'int':
-      return a.v === (b as IntValue).v;
+      return first.value === (second as IntValue).value;
     case 'float':
-      return a.v === (b as FloatValue).v;
+      return first.value === (second as FloatValue).value;
     case 'char':
     case 'string':
-      return a.v === (b as CharValue | StringValue).v;
-    case 'bool':
-      return a.v === (b as BoolValue).v;
+      return first.value === (second as CharValue | StringValue).value;
+    case 'boolean':
+      return first.value === (second as BooleanValue).value;
     case 'nothing':
       return true;
     case 'date':
-      return a.days === (b as DateValue).days;
+      return first.days === (second as DateValue).days;
     case 'time':
     case 'datetime':
-      return a.ms === (b as TimeValue | DateTimeValue).ms;
+      return first.milliseconds === (second as TimeValue | DateTimeValue).milliseconds;
+    case 'error': {
+      const other = second as ErrorValue;
+      return first.message === other.message && first.position?.line === other.position?.line && first.position?.col === other.position?.col;
+    }
     case 'array': {
-      const other = b as ArrayValue;
-      if (a.items.length !== other.items.length) return false;
-      for (let i = 0; i < a.items.length; i++) {
-        const left = a.items[i];
+      const other = second as ArrayValue;
+      if (first.items.length !== other.items.length) return false;
+      for (let i = 0; i < first.items.length; i++) {
+        const left = first.items[i];
         const right = other.items[i];
         if (left === undefined || right === undefined || !valuesEqual(left, right)) return false;
       }
       return true;
     }
     case 'map': {
-      const other = b as MapValue;
-      if (a.table.size !== other.table.size) return false;
-      for (const [key, value] of a.table.entries()) {
+      const other = second as MapValue;
+      if (first.table.size !== other.table.size) return false;
+      for (const [key, value] of first.table.entries()) {
         const found = other.table.get(key);
         if (found === undefined || !valuesEqual(value, found)) return false;
       }
       return true;
     }
     case 'set': {
-      const other = b as SetValue;
-      if (a.table.size !== other.table.size) return false;
-      for (const key of a.table.keys()) {
+      const other = second as SetValue;
+      if (first.table.size !== other.table.size) return false;
+      for (const key of first.table.keys()) {
         if (!other.table.has(key)) return false;
       }
       return true;
     }
     case 'proc':
     case 'builtin':
-      return a === b;
+      return first === second;
   }
 }
 
-const TAG_HASH: Record<Value['t'], number> = {
+const TAG_HASH: Record<Value['type'], number> = {
   int: 1,
   float: 2,
   char: 3,
-  bool: 4,
+  boolean: 4,
   string: 5,
   nothing: 6,
   array: 7,
@@ -236,31 +251,34 @@ const TAG_HASH: Record<Value['t'], number> = {
   builtin: 12,
   time: 13,
   datetime: 14,
+  error: 15,
 };
 
 export function hashValue(value: Value): number {
-  const tag = TAG_HASH[value.t];
-  switch (value.t) {
+  const tag = TAG_HASH[value.type];
+  switch (value.type) {
     case 'int':
-      return hashCombine(tag, hashBigInt(value.v));
+      return hashCombine(tag, hashBigInt(value.value));
     case 'float':
-      return hashCombine(tag, hashNumber(value.v));
+      return hashCombine(tag, hashNumber(value.value));
     case 'char':
     case 'string':
-      return hashCombine(tag, hashString(value.v));
-    case 'bool':
-      return hashCombine(tag, hashBoolean(value.v));
+      return hashCombine(tag, hashString(value.value));
+    case 'boolean':
+      return hashCombine(tag, hashBoolean(value.value));
     case 'nothing':
       return hashCombine(tag, 0);
     case 'date':
       return hashCombine(tag, hashNumber(value.days));
     case 'time':
     case 'datetime':
-      return hashCombine(tag, hashNumber(value.ms));
+      return hashCombine(tag, hashNumber(value.milliseconds));
+    case 'error':
+      return hashCombine(tag, hashString(value.message));
     case 'array': {
-      let h = tag;
-      for (const item of value.items) h = hashCombine(h, hashValue(item));
-      return h;
+      let hash = tag;
+      for (const item of value.items) hash = hashCombine(hash, hashValue(item));
+      return hash;
     }
     case 'map': {
       let sum = 0;
@@ -278,71 +296,71 @@ export function hashValue(value: Value): number {
   }
 }
 
-export const valueKeyOps: KeyOps<Value> = { hash: hashValue, equals: valuesEqual };
+export const valueKeyOperations: KeyOperations<Value> = { hash: hashValue, equals: valuesEqual };
 
 export function newMap(): MapValue {
-  return { t: 'map', table: new HashTable<Value, Value>(valueKeyOps) };
+  return { type: 'map', table: new HashTable<Value, Value>(valueKeyOperations) };
 }
 
 export function newSet(): SetValue {
-  return { t: 'set', table: new HashTable<Value, true>(valueKeyOps) };
+  return { type: 'set', table: new HashTable<Value, true>(valueKeyOperations) };
 }
 
-function compareNumbers(a: IntValue | FloatValue, b: IntValue | FloatValue): number {
-  if (a.t === 'int' && b.t === 'int') return a.v < b.v ? -1 : a.v > b.v ? 1 : 0;
-  if (a.t === 'float' && b.t === 'float') return a.v < b.v ? -1 : a.v > b.v ? 1 : 0;
-  const [i, f, sign] = a.t === 'int' ? [a.v, (b as FloatValue).v, 1] : [(b as IntValue).v, a.v, -1];
-  if (Number.isInteger(f)) {
-    const fb = BigInt(f);
-    return sign * (i < fb ? -1 : i > fb ? 1 : 0);
+function compareNumbers(left: IntValue | FloatValue, right: IntValue | FloatValue): number {
+  if (left.type === 'int' && right.type === 'int') return left.value < right.value ? -1 : left.value > right.value ? 1 : 0;
+  if (left.type === 'float' && right.type === 'float') return left.value < right.value ? -1 : left.value > right.value ? 1 : 0;
+  const [intOperand, floatOperand, sign] = left.type === 'int' ? [left.value, (right as FloatValue).value, 1] : [(right as IntValue).value, left.value, -1];
+  if (Number.isInteger(floatOperand)) {
+    const floatAsBigInt = BigInt(floatOperand);
+    return sign * (intOperand < floatAsBigInt ? -1 : intOperand > floatAsBigInt ? 1 : 0);
   }
-  const fi = Number(i);
-  return sign * (fi < f ? -1 : fi > f ? 1 : 0);
+  const intAsFloat = Number(intOperand);
+  return sign * (intAsFloat < floatOperand ? -1 : intAsFloat > floatOperand ? 1 : 0);
 }
 
-function compareStrings(a: string, b: string): number {
-  const left = codePoints(a);
-  const right = codePoints(b);
-  const n = Math.min(left.length, right.length);
-  for (let i = 0; i < n; i++) {
-    const l = left[i]?.codePointAt(0) ?? 0;
-    const r = right[i]?.codePointAt(0) ?? 0;
-    if (l !== r) return l < r ? -1 : 1;
+function compareStrings(first: string, second: string): number {
+  const left = codePoints(first);
+  const right = codePoints(second);
+  const shared = Math.min(left.length, right.length);
+  for (let i = 0; i < shared; i++) {
+    const leftCodePoint = left[i]?.codePointAt(0) ?? 0;
+    const rightCodePoint = right[i]?.codePointAt(0) ?? 0;
+    if (leftCodePoint !== rightCodePoint) return leftCodePoint < rightCodePoint ? -1 : 1;
   }
   return left.length < right.length ? -1 : left.length > right.length ? 1 : 0;
 }
 
-export function compareValues(a: Value, b: Value, pos: Pos | null): number {
-  if ((a.t === 'int' || a.t === 'float') && (b.t === 'int' || b.t === 'float')) return compareNumbers(a, b);
-  if (a.t === 'string' && b.t === 'string') return compareStrings(a.v, b.v);
-  if (a.t === 'char' && b.t === 'char') return compareStrings(a.v, b.v);
-  if (a.t === 'date' && b.t === 'date') return a.days < b.days ? -1 : a.days > b.days ? 1 : 0;
-  if ((a.t === 'time' && b.t === 'time') || (a.t === 'datetime' && b.t === 'datetime')) return a.ms < b.ms ? -1 : a.ms > b.ms ? 1 : 0;
-  if (a.t === 'array' && b.t === 'array') {
-    const n = Math.min(a.items.length, b.items.length);
-    for (let i = 0; i < n; i++) {
-      const left = a.items[i];
-      const right = b.items[i];
+export function compareValues(first: Value, second: Value, position: Position | null): number {
+  if ((first.type === 'int' || first.type === 'float') && (second.type === 'int' || second.type === 'float')) return compareNumbers(first, second);
+  if (first.type === 'string' && second.type === 'string') return compareStrings(first.value, second.value);
+  if (first.type === 'char' && second.type === 'char') return compareStrings(first.value, second.value);
+  if (first.type === 'date' && second.type === 'date') return first.days < second.days ? -1 : first.days > second.days ? 1 : 0;
+  if ((first.type === 'time' && second.type === 'time') || (first.type === 'datetime' && second.type === 'datetime')) return first.milliseconds < second.milliseconds ? -1 : first.milliseconds > second.milliseconds ? 1 : 0;
+  if (first.type === 'array' && second.type === 'array') {
+    const shared = Math.min(first.items.length, second.items.length);
+    for (let i = 0; i < shared; i++) {
+      const left = first.items[i];
+      const right = second.items[i];
       if (left === undefined || right === undefined) break;
-      const c = compareValues(left, right, pos);
-      if (c !== 0) return c;
+      const cursor = compareValues(left, right, position);
+      if (cursor !== 0) return cursor;
     }
-    return a.items.length < b.items.length ? -1 : a.items.length > b.items.length ? 1 : 0;
+    return first.items.length < second.items.length ? -1 : first.items.length > second.items.length ? 1 : 0;
   }
-  throw runtimeError(`cannot compare ${describeType(a)} with ${describeType(b)}`, pos);
+  throw runtimeError(`cannot compare ${describeType(first)} with ${describeType(second)}`, position);
 }
 
 export function describeType(value: Value): string {
   const name = typeName(value);
-  return name === 'int' || name === 'array' ? `an ${name}` : `a ${name}`;
+  return name === 'int' || name === 'array' || name === 'error' ? `an ${name}` : `a ${name}`;
 }
 
 export type FormatMode = 'print' | 'show';
 
-function escapeString(s: string): string {
+function escapeString(text: string): string {
   let out = '"';
-  for (const cp of s) {
-    switch (cp) {
+  for (const codePoint of text) {
+    switch (codePoint) {
       case '"':
         out += '\\"';
         break;
@@ -365,14 +383,14 @@ function escapeString(s: string): string {
         out += '\\}';
         break;
       default:
-        out += cp;
+        out += codePoint;
     }
   }
   return `${out}"`;
 }
 
-function escapeChar(c: string): string {
-  switch (c) {
+function escapeChar(cursor: string): string {
+  switch (cursor) {
     case '\n':
       return '`\\n`';
     case '\t':
@@ -384,7 +402,7 @@ function escapeChar(c: string): string {
     case '`':
       return '`\\``';
     default:
-      return `\`${c}\``;
+      return `\`${cursor}\``;
   }
 }
 
@@ -393,25 +411,27 @@ export function formatDateValue(value: DateValue): string {
 }
 
 export function formatValue(value: Value, mode: FormatMode): string {
-  switch (value.t) {
+  switch (value.type) {
     case 'int':
-      return value.v.toString();
+      return value.value.toString();
     case 'float':
-      return formatFloat(value.v);
+      return formatFloat(value.value);
     case 'char':
-      return mode === 'print' ? value.v : escapeChar(value.v);
-    case 'bool':
-      return value.v ? 'yes' : 'no';
+      return mode === 'print' ? value.value : escapeChar(value.value);
+    case 'boolean':
+      return value.value ? 'yes' : 'no';
     case 'string':
-      return mode === 'print' ? value.v : escapeString(value.v);
+      return mode === 'print' ? value.value : escapeString(value.value);
     case 'nothing':
       return 'nothing';
     case 'date':
       return formatDateValue(value);
     case 'time':
-      return isoTime(value.ms);
+      return isoTime(value.milliseconds);
     case 'datetime':
-      return isoDateTime(value.ms);
+      return isoDateTime(value.milliseconds);
+    case 'error':
+      return mode === 'print' ? value.message : `<error ${value.message}>`;
     case 'array':
       return `[${value.items.map((item) => formatValue(item, 'show')).join(' ')}]`;
     case 'map':

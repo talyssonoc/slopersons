@@ -1,17 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { HashTable } from '../../src/runtime/hashtable.ts';
-import type { KeyOps } from '../../src/runtime/hashtable.ts';
+import type { KeyOperations } from '../../src/runtime/hashtable.ts';
 import { hashCombine, hashNumber, hashString } from '../../src/runtime/hashing.ts';
 
-const numberOps: KeyOps<number> = {
+const numberOperations: KeyOperations<number> = {
   hash: hashNumber,
-  equals: (a, b) => a === b,
+  equals: (left, right) => left === right,
 };
 
-const stringOps: KeyOps<string> = {
+const stringOperations: KeyOperations<string> = {
   hash: hashString,
-  equals: (a, b) => a === b,
+  equals: (left, right) => left === right,
 };
 
 interface Point {
@@ -19,18 +19,18 @@ interface Point {
   y: number;
 }
 
-const pointOps: KeyOps<Point> = {
-  hash: (p) => hashCombine(hashNumber(p.x), hashNumber(p.y)),
-  equals: (a, b) => a.x === b.x && a.y === b.y,
+const pointOperations: KeyOperations<Point> = {
+  hash: (point) => hashCombine(hashNumber(point.x), hashNumber(point.y)),
+  equals: (left, right) => left.x === right.x && left.y === right.y,
 };
 
-const collidingOps: KeyOps<number> = {
+const collidingOperations: KeyOperations<number> = {
   hash: () => 7,
-  equals: (a, b) => a === b,
+  equals: (left, right) => left === right,
 };
 
 test('set, get, has and delete on a few numeric keys', () => {
-  const table = new HashTable<number, string>(numberOps);
+  const table = new HashTable<number, string>(numberOperations);
   table.set(1, 'one');
   table.set(2, 'two');
   table.set(3, 'three');
@@ -50,7 +50,7 @@ test('set, get, has and delete on a few numeric keys', () => {
 });
 
 test('overwriting a key replaces its value and keeps its insertion position', () => {
-  const table = new HashTable<string, number>(stringOps);
+  const table = new HashTable<string, number>(stringOperations);
   table.set('a', 1);
   table.set('b', 2);
   table.set('c', 3);
@@ -63,7 +63,7 @@ test('overwriting a key replaces its value and keeps its insertion position', ()
 });
 
 test('insertion order survives deletes and later inserts', () => {
-  const table = new HashTable<string, number>(stringOps);
+  const table = new HashTable<string, number>(stringOperations);
   for (const key of ['a', 'b', 'c', 'd', 'e']) {
     table.set(key, key.charCodeAt(0));
   }
@@ -86,7 +86,7 @@ test('insertion order survives deletes and later inserts', () => {
 });
 
 test('size counts live entries only', () => {
-  const table = new HashTable<number, number>(numberOps);
+  const table = new HashTable<number, number>(numberOperations);
   assert.equal(table.size, 0);
   table.set(1, 1);
   table.set(2, 2);
@@ -102,7 +102,7 @@ test('size counts live entries only', () => {
 });
 
 test('delete then reinsert of the same key moves it to the end', () => {
-  const table = new HashTable<string, number>(stringOps);
+  const table = new HashTable<string, number>(stringOperations);
   table.set('a', 1);
   table.set('b', 2);
   table.set('c', 3);
@@ -115,7 +115,7 @@ test('delete then reinsert of the same key moves it to the end', () => {
 });
 
 test('10 000 integer keys stay retrievable across several growths and keys() keeps insertion order', () => {
-  const table = new HashTable<number, number>(numberOps);
+  const table = new HashTable<number, number>(numberOperations);
   const count = 10_000;
   for (let i = 0; i < count; i++) {
     table.set(i, i * 2);
@@ -146,7 +146,7 @@ test('10 000 integer keys stay retrievable across several growths and keys() kee
 });
 
 test('a hash function that always returns 7 still yields a correct table for 500 keys', () => {
-  const table = new HashTable<number, string>(collidingOps);
+  const table = new HashTable<number, string>(collidingOperations);
   const count = 500;
   for (let i = 0; i < count; i++) {
     table.set(i, `v${i}`);
@@ -175,7 +175,7 @@ test('a hash function that always returns 7 still yields a correct table for 500
 });
 
 test('repeated insert and delete of fresh keys does not clog the index with tombstones', () => {
-  const table = new HashTable<number, number>(numberOps);
+  const table = new HashTable<number, number>(numberOperations);
   for (let i = 0; i < 5000; i++) {
     table.set(i, i);
     assert.equal(table.delete(i), true);
@@ -189,7 +189,7 @@ test('repeated insert and delete of fresh keys does not clog the index with tomb
 });
 
 test('clone() shares nothing with the original', () => {
-  const original = new HashTable<string, number>(stringOps);
+  const original = new HashTable<string, number>(stringOperations);
   original.set('a', 1);
   original.set('b', 2);
 
@@ -218,7 +218,7 @@ test('clone() shares nothing with the original', () => {
 });
 
 test('string keys with a real hash round-trip and distinguish near-identical strings', () => {
-  const table = new HashTable<string, number>(stringOps);
+  const table = new HashTable<string, number>(stringOperations);
   const words = ['apple', 'banana', 'cherry', 'apple ', 'Apple', 'bananas', ''];
   words.forEach((word, i) => table.set(word, i));
   assert.equal(table.size, words.length);
@@ -228,7 +228,7 @@ test('string keys with a real hash round-trip and distinguish near-identical str
 });
 
 test('object keys are matched structurally through the supplied equals, never by identity', () => {
-  const table = new HashTable<Point, string>(pointOps);
+  const table = new HashTable<Point, string>(pointOperations);
   table.set({ x: 1, y: 2 }, 'first');
   table.set({ x: 3, y: 4 }, 'second');
 
@@ -249,7 +249,7 @@ test('object keys are matched structurally through the supplied equals, never by
 });
 
 test('clear() empties the table and it can be reused afterwards', () => {
-  const table = new HashTable<number, number>(numberOps);
+  const table = new HashTable<number, number>(numberOperations);
   for (let i = 0; i < 100; i++) {
     table.set(i, i);
   }
@@ -264,7 +264,7 @@ test('clear() empties the table and it can be reused afterwards', () => {
 });
 
 test('keys(), values() and entries() return fresh arrays, not live views', () => {
-  const table = new HashTable<number, number>(numberOps);
+  const table = new HashTable<number, number>(numberOperations);
   table.set(1, 10);
   const keys = table.keys();
   const values = table.values();
@@ -278,7 +278,7 @@ test('keys(), values() and entries() return fresh arrays, not live views', () =>
 });
 
 test('the table is iterable in insertion order', () => {
-  const table = new HashTable<string, number>(stringOps);
+  const table = new HashTable<string, number>(stringOperations);
   table.set('x', 1);
   table.set('y', 2);
   table.delete('x');

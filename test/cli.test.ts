@@ -12,8 +12,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bin = join(root, 'bin/slopersons.mjs');
 
 function writeTemp(name: string, source: string): string {
-  const dir = mkdtempSync(join(tmpdir(), 'slopersons-'));
-  const path = join(dir, name);
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-'));
+  const path = join(directory, name);
   writeFileSync(path, source);
   return path;
 }
@@ -162,31 +162,47 @@ test('a prompt written with print reaches the reader before the program blocks o
   assert.equal(code, 0);
 });
 
+test('the call depth limit is an ordinary error that attempt can recover from', () => {
+  const path = writeTemp('deep-recover.slop', 'proc forever n | (n + 1) -> forever\nattempt | 0 -> forever recover e | e -> print-ln\n');
+  const result = spawnSync(bin, [path], { encoding: 'utf8' });
+  assert.equal(result.stderr, '');
+  assert.equal(result.stdout, 'too many nested procedure calls (the limit is 10000)\n');
+  assert.equal(result.status, 0);
+});
+
+test('a value that outgrows the interpreter is not catchable by attempt', () => {
+  const path = writeTemp('huge-recover.slop', 'attempt\n| "x" => s\n| while yes\n| | s + s => s\nrecover\n| "caught" -> print-ln\n');
+  const result = spawnSync(bin, [path], { encoding: 'utf8' });
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, 'error: a value grew too large for the interpreter to hold\n');
+  assert.equal(result.status, 1);
+});
+
 test('runProgram maps program errors to exit 1 and prints them in slopersons terms', () => {
   const { code, io } = runCli('1 / 0');
   assert.equal(code, EXIT_PROGRAM_ERROR);
-  assert.equal(io.err, 'error: division by zero\n  at test.slop:1:3\n');
+  assert.equal(io.error, 'error: division by zero\n  at test.slop:1:3\n');
 });
 
 test('an interpreter bug is reported without any JavaScript stack or message', () => {
   const io = fakeIo();
-  const interp = createInterpreter(io);
-  interp.defineBuiltin('boom', 1, () => {
+  const interpreter = createInterpreter(io);
+  interpreter.defineBuiltin('boom', 1, () => {
     throw new TypeError("Cannot read properties of undefined (reading 'x')");
   });
-  const code = runProgram('1 -> boom', 'test.slop', io, interp);
+  const code = runProgram('1 -> boom', 'test.slop', io, interpreter);
   assert.equal(code, EXIT_INTERNAL);
-  assert.equal(io.err, 'error: internal interpreter error; this is a bug in slopersons, not in your program\n');
-  assert.doesNotMatch(io.err, /TypeError|undefined|\n\s+at /);
+  assert.equal(io.error, 'error: internal interpreter error; this is a bug in slopersons, not in your program\n');
+  assert.doesNotMatch(io.error, /TypeError|undefined|\n\s+at /);
 });
 
 test('a JS stack overflow is reported as a slopersons error', () => {
   const io = fakeIo();
-  const interp = createInterpreter(io);
-  interp.defineBuiltin('overflow', 1, () => {
+  const interpreter = createInterpreter(io);
+  interpreter.defineBuiltin('overflow', 1, () => {
     throw new RangeError('Maximum call stack size exceeded');
   });
-  const code = runProgram('1 -> overflow', 'test.slop', io, interp);
+  const code = runProgram('1 -> overflow', 'test.slop', io, interpreter);
   assert.equal(code, EXIT_PROGRAM_ERROR);
-  assert.equal(io.err, 'error: the program recursed too deeply for the interpreter to continue\n');
+  assert.equal(io.error, 'error: the program recursed too deeply for the interpreter to continue\n');
 });

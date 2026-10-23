@@ -1,0 +1,24 @@
+proc parse-int text
+| attempt | text -> to-int
+| recover | nothing
+
+["12" "x" "-3"] -> each t
+| "{t} -> {t -> parse-int}" -> print-ln
+
+attempt
+| {"a": 1} -> at "b"
+recover e
+| "missing: {e}" -> print-ln
+| "at line {e -> line}" -> print-ln
+
+(attempt | 10 / 0 recover | -1) -> print-ln
+
+attempt
+| "custom" -> fail
+recover e
+| e -> message -> upper -> print-ln
+
+attempt
+| attempt | 1 / 0 recover e | "wrapped: {e}" -> fail
+recover outer
+| outer -> print-ln

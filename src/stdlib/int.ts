@@ -1,7 +1,7 @@
 import { runtimeError } from '../errors.ts';
 import type { CallContext, Interpreter } from '../interpreter.ts';
-import { bool, char, compareValues, describeType, float, formatValue, int, str, type FloatValue, type IntValue, type Value } from '../values.ts';
-import { arg, expectInt } from './core.ts';
+import { boolean, char, compareValues, describeType, float, formatValue, int, string, type FloatValue, type IntValue, type Value } from '../values.ts';
+import { input, expectInt } from './core.ts';
 
 type NumberValue = IntValue | FloatValue;
 
@@ -9,108 +9,108 @@ const MAX_CODE_POINT = 0x10ffffn;
 const SURROGATE_LOW = 0xd800n;
 const SURROGATE_HIGH = 0xdfffn;
 
-function expectNumber(value: Value, what: string, ctx: CallContext): NumberValue {
-  if (value.t !== 'int' && value.t !== 'float') throw runtimeError(`${what} must be an int or a float, got ${describeType(value)}`, ctx.pos);
+function expectNumber(value: Value, what: string, context: CallContext): NumberValue {
+  if (value.type !== 'int' && value.type !== 'float') throw runtimeError(`${what} must be an int or a float, got ${describeType(value)}`, context.position);
   return value;
 }
 
-function toFloat(value: NumberValue, what: string, ctx: CallContext): number {
-  if (value.t === 'float') return value.v;
-  const n = Number(value.v);
-  if (!Number.isFinite(n)) throw runtimeError(`${what} is too large for a float`, ctx.pos);
-  return n;
+function toFloat(value: NumberValue, what: string, context: CallContext): number {
+  if (value.type === 'float') return value.value;
+  const item = Number(value.value);
+  if (!Number.isFinite(item)) throw runtimeError(`${what} is too large for a float`, context.position);
+  return item;
 }
 
 function isNegative(value: NumberValue): boolean {
-  return value.t === 'int' ? value.v < 0n : value.v < 0;
+  return value.type === 'int' ? value.value < 0n : value.value < 0;
 }
 
-function intPow(base: bigint, exponent: bigint, ctx: CallContext): bigint {
+function intPow(base: bigint, exponent: bigint, context: CallContext): bigint {
   try {
     return base ** exponent;
   } catch (error) {
-    if (error instanceof RangeError) throw runtimeError('the result of `pow` is too large', ctx.pos);
+    if (error instanceof RangeError) throw runtimeError('the result of `pow` is too large', context.position);
     throw error;
   }
 }
 
-function floatPow(base: number, exponent: number, ctx: CallContext): number {
-  if (base === 0 && exponent < 0) throw runtimeError('`pow` of zero with a negative exponent', ctx.pos);
+function floatPow(base: number, exponent: number, context: CallContext): number {
+  if (base === 0 && exponent < 0) throw runtimeError('`pow` of zero with a negative exponent', context.position);
   const result = base ** exponent;
-  if (Number.isNaN(result)) throw runtimeError('`pow` of a negative number with a fractional exponent', ctx.pos);
-  if (!Number.isFinite(result)) throw runtimeError('the result of `pow` is too large for a float', ctx.pos);
+  if (Number.isNaN(result)) throw runtimeError('`pow` of a negative number with a fractional exponent', context.position);
+  if (!Number.isFinite(result)) throw runtimeError('the result of `pow` is too large for a float', context.position);
   return result;
 }
 
-export function registerInt(interp: Interpreter): void {
-  interp.defineMethod('abs', ['int', 'float'], 1, (args, ctx) => {
-    const value = expectNumber(arg(args, 0), 'the input of `abs`', ctx);
-    return value.t === 'int' ? int(value.v < 0n ? -value.v : value.v) : float(Math.abs(value.v));
+export function registerInt(interpreter: Interpreter): void {
+  interpreter.defineMethod('abs', ['int', 'float'], 1, (inputs, context) => {
+    const value = expectNumber(input(inputs, 0), 'the input of `abs`', context);
+    return value.type === 'int' ? int(value.value < 0n ? -value.value : value.value) : float(Math.abs(value.value));
   });
 
-  interp.defineMethod('pow', ['int', 'float'], 2, (args, ctx) => {
-    const base = expectNumber(arg(args, 0), 'the input of `pow`', ctx);
-    const exponent = expectNumber(arg(args, 1), 'the exponent of `pow`', ctx);
-    if (base.t === 'int' && exponent.t === 'int' && exponent.v >= 0n) return int(intPow(base.v, exponent.v, ctx));
-    return float(floatPow(toFloat(base, 'the input of `pow`', ctx), toFloat(exponent, 'the exponent of `pow`', ctx), ctx));
+  interpreter.defineMethod('pow', ['int', 'float'], 2, (inputs, context) => {
+    const base = expectNumber(input(inputs, 0), 'the input of `pow`', context);
+    const exponent = expectNumber(input(inputs, 1), 'the exponent of `pow`', context);
+    if (base.type === 'int' && exponent.type === 'int' && exponent.value >= 0n) return int(intPow(base.value, exponent.value, context));
+    return float(floatPow(toFloat(base, 'the input of `pow`', context), toFloat(exponent, 'the exponent of `pow`', context), context));
   });
 
-  interp.defineMethod('sqrt', ['int', 'float'], 1, (args, ctx) => {
-    const value = expectNumber(arg(args, 0), 'the input of `sqrt`', ctx);
-    if (isNegative(value)) throw runtimeError('`sqrt` of a negative number', ctx.pos);
-    return float(Math.sqrt(toFloat(value, 'the input of `sqrt`', ctx)));
+  interpreter.defineMethod('sqrt', ['int', 'float'], 1, (inputs, context) => {
+    const value = expectNumber(input(inputs, 0), 'the input of `sqrt`', context);
+    if (isNegative(value)) throw runtimeError('`sqrt` of a negative number', context.position);
+    return float(Math.sqrt(toFloat(value, 'the input of `sqrt`', context)));
   });
 
-  interp.defineMethod('min', ['int', 'float'], 2, (args, ctx) => {
-    const value = expectNumber(arg(args, 0), 'the input of `min`', ctx);
-    const other = expectNumber(arg(args, 1), 'the other value of `min`', ctx);
-    return compareValues(other, value, ctx.pos) < 0 ? other : value;
+  interpreter.defineMethod('min', ['int', 'float'], 2, (inputs, context) => {
+    const value = expectNumber(input(inputs, 0), 'the input of `min`', context);
+    const other = expectNumber(input(inputs, 1), 'the other value of `min`', context);
+    return compareValues(other, value, context.position) < 0 ? other : value;
   });
 
-  interp.defineMethod('max', ['int', 'float'], 2, (args, ctx) => {
-    const value = expectNumber(arg(args, 0), 'the input of `max`', ctx);
-    const other = expectNumber(arg(args, 1), 'the other value of `max`', ctx);
-    return compareValues(other, value, ctx.pos) > 0 ? other : value;
+  interpreter.defineMethod('max', ['int', 'float'], 2, (inputs, context) => {
+    const value = expectNumber(input(inputs, 0), 'the input of `max`', context);
+    const other = expectNumber(input(inputs, 1), 'the other value of `max`', context);
+    return compareValues(other, value, context.position) > 0 ? other : value;
   });
 
-  interp.defineMethod('clamp', ['int', 'float'], 3, (args, ctx) => {
-    const value = expectNumber(arg(args, 0), 'the input of `clamp`', ctx);
-    const low = expectNumber(arg(args, 1), 'the low bound of `clamp`', ctx);
-    const high = expectNumber(arg(args, 2), 'the high bound of `clamp`', ctx);
-    if (compareValues(low, high, ctx.pos) > 0) {
-      throw runtimeError(`the low bound of \`clamp\` must not be greater than the high bound, got ${formatValue(low, 'print')} and ${formatValue(high, 'print')}`, ctx.pos);
+  interpreter.defineMethod('clamp', ['int', 'float'], 3, (inputs, context) => {
+    const value = expectNumber(input(inputs, 0), 'the input of `clamp`', context);
+    const low = expectNumber(input(inputs, 1), 'the low bound of `clamp`', context);
+    const high = expectNumber(input(inputs, 2), 'the high bound of `clamp`', context);
+    if (compareValues(low, high, context.position) > 0) {
+      throw runtimeError(`the low bound of \`clamp\` must not be greater than the high bound, got ${formatValue(low, 'print')} and ${formatValue(high, 'print')}`, context.position);
     }
-    if (compareValues(value, low, ctx.pos) < 0) return low;
-    if (compareValues(value, high, ctx.pos) > 0) return high;
+    if (compareValues(value, low, context.position) < 0) return low;
+    if (compareValues(value, high, context.position) > 0) return high;
     return value;
   });
 
-  interp.defineMethod('sign', ['int', 'float'], 1, (args, ctx) => {
-    const value = expectNumber(arg(args, 0), 'the input of `sign`', ctx);
-    if (value.t === 'int') return int(value.v < 0n ? -1n : value.v > 0n ? 1n : 0n);
-    return int(value.v < 0 ? -1n : value.v > 0 ? 1n : 0n);
+  interpreter.defineMethod('sign', ['int', 'float'], 1, (inputs, context) => {
+    const value = expectNumber(input(inputs, 0), 'the input of `sign`', context);
+    if (value.type === 'int') return int(value.value < 0n ? -1n : value.value > 0n ? 1n : 0n);
+    return int(value.value < 0 ? -1n : value.value > 0 ? 1n : 0n);
   });
 
-  interp.defineMethod('to-string', ['int', 'float'], 1, (args, ctx) => str(formatValue(expectNumber(arg(args, 0), 'the input of `to-string`', ctx), 'print')));
+  interpreter.defineMethod('to-string', ['int', 'float'], 1, (inputs, context) => string(formatValue(expectNumber(input(inputs, 0), 'the input of `to-string`', context), 'print')));
 
-  interp.defineMethod('is-even', 'int', 1, (args, ctx) => bool(expectInt(arg(args, 0), 'the input of `is-even`', ctx) % 2n === 0n));
+  interpreter.defineMethod('is-even', 'int', 1, (inputs, context) => boolean(expectInt(input(inputs, 0), 'the input of `is-even`', context) % 2n === 0n));
 
-  interp.defineMethod('is-odd', 'int', 1, (args, ctx) => bool(expectInt(arg(args, 0), 'the input of `is-odd`', ctx) % 2n !== 0n));
+  interpreter.defineMethod('is-odd', 'int', 1, (inputs, context) => boolean(expectInt(input(inputs, 0), 'the input of `is-odd`', context) % 2n !== 0n));
 
-  interp.defineMethod('to-float', 'int', 1, (args, ctx) => {
-    const value = expectNumber(arg(args, 0), 'the input of `to-float`', ctx);
-    return float(toFloat(value, 'the input of `to-float`', ctx));
+  interpreter.defineMethod('to-float', 'int', 1, (inputs, context) => {
+    const value = expectNumber(input(inputs, 0), 'the input of `to-float`', context);
+    return float(toFloat(value, 'the input of `to-float`', context));
   });
 
-  interp.defineMethod('to-int', 'int', 1, (args, ctx) => int(expectInt(arg(args, 0), 'the input of `to-int`', ctx)));
+  interpreter.defineMethod('to-int', 'int', 1, (inputs, context) => int(expectInt(input(inputs, 0), 'the input of `to-int`', context)));
 
-  interp.defineMethod('to-char', 'int', 1, (args, ctx) => {
-    const code = expectInt(arg(args, 0), 'the input of `to-char`', ctx);
+  interpreter.defineMethod('to-char', 'int', 1, (inputs, context) => {
+    const code = expectInt(input(inputs, 0), 'the input of `to-char`', context);
     if (code < 0n || code > MAX_CODE_POINT) {
-      throw runtimeError(`the input of \`to-char\` must be a code point between 0 and ${MAX_CODE_POINT}, got ${code}`, ctx.pos);
+      throw runtimeError(`the input of \`to-char\` must be a code point between 0 and ${MAX_CODE_POINT}, got ${code}`, context.position);
     }
     if (code >= SURROGATE_LOW && code <= SURROGATE_HIGH) {
-      throw runtimeError(`the input of \`to-char\` must not be a surrogate code point (${SURROGATE_LOW} to ${SURROGATE_HIGH}), got ${code}`, ctx.pos);
+      throw runtimeError(`the input of \`to-char\` must not be a surrogate code point (${SURROGATE_LOW} to ${SURROGATE_HIGH}), got ${code}`, context.position);
     }
     return char(String.fromCodePoint(Number(code)));
   });

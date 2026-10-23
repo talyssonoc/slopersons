@@ -1,6 +1,7 @@
 ~ A guided calculator: asks for two numbers and an operator, shows the
 ~ result, and offers another round. Answers are checked and asked again
-~ when they do not make sense. Division always gives a float.
+~ when they do not make sense: a conversion that fails is recovered from
+~ instead of ending the program. Division always gives a float.
 
 {"+": (a b | a + b)
  "-": (a b | a - b)
@@ -12,21 +13,18 @@ proc ask label
 | read-line -> do => answer
 | answer = nothing ? nothing : answer -> trim
 
-proc looks-like-number text
-| text -> starts-with "-" ? text -> slice 1 (text -> length) => body : text => body
-| (body -> length) = 0 ? no -> out
-| (body -> count ".") > 1 ? no -> out
-| not (body -> chars -> any c | c -> is-digit) ? no -> out
-| body -> chars -> all c | (c -> is-digit) or (c = `.`)
-
 proc parse-number text
-| text -> contains "." ? text -> to-float : text -> to-int
+| attempt
+| | text -> contains "." ? text -> to-float : text -> to-int
+| recover
+| | nothing
 
 proc ask-number label
 | while yes
 | | label -> ask => text
 | | text = nothing ? nothing -> out
-| | text -> looks-like-number ? (text -> parse-number) -> out
+| | text -> parse-number => value
+| | value /= nothing ? value -> out
 | | "'{text}' is not a number, try again." -> print-ln
 
 proc ask-operator

@@ -1,4 +1,4 @@
-import type { Expr, Lambda, Statement, Step } from '../../src/ast.ts';
+import type { Expression, Lambda, Statement, Step } from '../../src/ast.ts';
 
 export function printProgram(statements: Statement[]): string {
   return statements.map(printStatement).join('\n');
@@ -6,16 +6,18 @@ export function printProgram(statements: Statement[]): string {
 
 export function printStatement(statement: Statement): string {
   switch (statement.kind) {
-    case 'flowstmt':
-      return printExpr(statement.expr);
+    case 'flow-statement':
+      return printExpression(statement.expression);
     case 'proc':
-      return `(proc ${statement.name} [${statement.params.join(' ')}] ${printBody(statement.body)})`;
+      return `(proc ${statement.name} [${statement.parameters.join(' ')}] ${printBody(statement.body)})`;
     case 'while':
-      return `(while ${printExpr(statement.cond)} ${printBody(statement.body)})`;
-    case 'cond':
-      return printExpr(statement);
+      return `(while ${printExpression(statement.condition)} ${printBody(statement.body)})`;
+    case 'conditional':
+      return printExpression(statement);
     case 'stop':
       return '(stop)';
+    case 'attempt':
+      return printExpression(statement);
   }
 }
 
@@ -24,50 +26,54 @@ function printBody(body: Statement[]): string {
 }
 
 function printLambda(lambda: Lambda): string {
-  return `(fn [${lambda.params.join(' ')}] ${printBody(lambda.body)})`;
+  return `(lambda [${lambda.parameters.join(' ')}] ${printBody(lambda.body)})`;
 }
 
 function printStep(step: Step): string {
   if (step.kind === 'bind') return `(${step.outer ? '=>>' : '=>'} ${step.name})`;
-  const parts = ['->', printExpr(step.callee), ...step.args.map(printExpr)];
+  const parts = ['->', printExpression(step.callee), ...step.arguments.map(printExpression)];
   if (step.body !== null) parts.push(printLambda(step.body));
   return `(${parts.join(' ')})`;
 }
 
-export function printExpr(expr: Expr): string {
-  switch (expr.kind) {
+export function printExpression(expression: Expression): string {
+  switch (expression.kind) {
     case 'int':
-      return expr.value.toString();
+      return expression.value.toString();
     case 'float':
-      return expr.value.toString().includes('.') ? expr.value.toString() : `${expr.value}.0`;
+      return expression.value.toString().includes('.') ? expression.value.toString() : `${expression.value}.0`;
     case 'string':
-      return JSON.stringify(expr.value);
-    case 'interp':
-      return `(interp ${expr.parts.map((part) => (typeof part === 'string' ? JSON.stringify(part) : printExpr(part))).join(' ')})`;
+      return JSON.stringify(expression.value);
+    case 'interpolation':
+      return `(interpolation ${expression.parts.map((part) => (typeof part === 'string' ? JSON.stringify(part) : printExpression(part))).join(' ')})`;
     case 'char':
-      return `\`${expr.value}\``;
-    case 'bool':
-      return expr.value ? 'yes' : 'no';
+      return `\`${expression.value}\``;
+    case 'boolean':
+      return expression.value ? 'yes' : 'no';
     case 'nothing':
       return 'nothing';
     case 'name':
-      return expr.name;
+      return expression.name;
     case 'array':
-      return `[${expr.items.map(printExpr).join(' ')}]`;
+      return `[${expression.items.map(printExpression).join(' ')}]`;
     case 'map':
-      return `(map ${expr.entries.map((entry) => `(${printExpr(entry.key)} ${printExpr(entry.value)})`).join(' ')})`;
+      return `(map ${expression.entries.map((entry) => `(${printExpression(entry.key)} ${printExpression(entry.value)})`).join(' ')})`;
     case 'binary':
-      return `(${expr.op} ${printExpr(expr.left)} ${printExpr(expr.right)})`;
+      return `(${expression.operator} ${printExpression(expression.left)} ${printExpression(expression.right)})`;
     case 'unary':
-      return `(${expr.op === '-' ? 'neg' : 'not'} ${printExpr(expr.operand)})`;
+      return `(${expression.operator === '-' ? 'neg' : 'not'} ${printExpression(expression.operand)})`;
     case 'flow':
-      return `(flow ${[printExpr(expr.head), ...expr.steps.map(printStep)].join(' ')})`;
+      return `(flow ${[printExpression(expression.head), ...expression.steps.map(printStep)].join(' ')})`;
     case 'lambda':
-      return printLambda(expr);
-    case 'cond': {
-      const branches = expr.branches.map((branch) => `(branch ${printExpr(branch.cond)} ${printBody(branch.body)})`);
-      if (expr.otherwise !== null) branches.push(`(else ${printBody(expr.otherwise)})`);
-      return `(cond ${branches.join(' ')})`;
+      return printLambda(expression);
+    case 'attempt': {
+      const handler = expression.handler === null ? '(recover?)' : `(recover${expression.errorName === null ? '' : ` ${expression.errorName}`} ${printBody(expression.handler)})`;
+      return `(attempt ${printBody(expression.body)} ${handler})`;
+    }
+    case 'conditional': {
+      const branches = expression.branches.map((branch) => `(branch ${printExpression(branch.condition)} ${printBody(branch.body)})`);
+      if (expression.otherwise !== null) branches.push(`(else ${printBody(expression.otherwise)})`);
+      return `(conditional ${branches.join(' ')})`;
     }
   }
 }

@@ -1,10 +1,10 @@
 import { civilFromDays, dateFormatTokens, daysFromCivil, parseIsoDate, readAsciiDigits, renderPattern, type FormatToken } from './calendar.ts';
 import { endsWith, padStart } from './text.ts';
 
-export const MS_PER_SECOND = 1000;
-export const MS_PER_MINUTE = 60 * MS_PER_SECOND;
-export const MS_PER_HOUR = 60 * MS_PER_MINUTE;
-export const MS_PER_DAY = 24 * MS_PER_HOUR;
+export const MILLISECONDS_PER_SECOND = 1000;
+export const MILLISECONDS_PER_MINUTE = 60 * MILLISECONDS_PER_SECOND;
+export const MILLISECONDS_PER_HOUR = 60 * MILLISECONDS_PER_MINUTE;
+export const MILLISECONDS_PER_DAY = 24 * MILLISECONDS_PER_HOUR;
 
 export interface TimeParts {
   hour: number;
@@ -22,25 +22,25 @@ export function isValidTime(hour: number, minute: number, second: number, millis
   );
 }
 
-export function msFromTimeParts(parts: TimeParts): number {
-  return parts.hour * MS_PER_HOUR + parts.minute * MS_PER_MINUTE + parts.second * MS_PER_SECOND + parts.millisecond;
+export function millisecondsFromTimeParts(parts: TimeParts): number {
+  return parts.hour * MILLISECONDS_PER_HOUR + parts.minute * MILLISECONDS_PER_MINUTE + parts.second * MILLISECONDS_PER_SECOND + parts.millisecond;
 }
 
-export function timePartsFromMs(ms: number): TimeParts {
-  const hour = Math.floor(ms / MS_PER_HOUR);
-  const minute = Math.floor((ms % MS_PER_HOUR) / MS_PER_MINUTE);
-  const second = Math.floor((ms % MS_PER_MINUTE) / MS_PER_SECOND);
-  const millisecond = ms % MS_PER_SECOND;
+export function timePartsFromMs(milliseconds: number): TimeParts {
+  const hour = Math.floor(milliseconds / MILLISECONDS_PER_HOUR);
+  const minute = Math.floor((milliseconds % MILLISECONDS_PER_HOUR) / MILLISECONDS_PER_MINUTE);
+  const second = Math.floor((milliseconds % MILLISECONDS_PER_MINUTE) / MILLISECONDS_PER_SECOND);
+  const millisecond = milliseconds % MILLISECONDS_PER_SECOND;
   return { hour, minute, second, millisecond };
 }
 
-export function wrapIntoDay(ms: number): number {
-  return ((ms % MS_PER_DAY) + MS_PER_DAY) % MS_PER_DAY;
+export function wrapIntoDay(milliseconds: number): number {
+  return ((milliseconds % MILLISECONDS_PER_DAY) + MILLISECONDS_PER_DAY) % MILLISECONDS_PER_DAY;
 }
 
-export function splitEpochMs(epochMs: number): { days: number; msOfDay: number } {
-  const days = Math.floor(epochMs / MS_PER_DAY);
-  return { days, msOfDay: epochMs - days * MS_PER_DAY };
+export function splitEpochMs(epochMs: number): { days: number; millisecondsOfDay: number } {
+  const days = Math.floor(epochMs / MILLISECONDS_PER_DAY);
+  return { days, millisecondsOfDay: epochMs - days * MILLISECONDS_PER_DAY };
 }
 
 const CODE_ZERO = 48;
@@ -84,7 +84,7 @@ function parseTimeSpan(text: string, start: number, end: number): number | null 
     millisecond = fraction;
   }
   if (!isValidTime(hour, minute, second, millisecond)) return null;
-  return msFromTimeParts({ hour, minute, second, millisecond });
+  return millisecondsFromTimeParts({ hour, minute, second, millisecond });
 }
 
 export function parseIsoTime(text: string): number | null {
@@ -98,13 +98,13 @@ export function parseIsoDateTime(text: string): number | null {
   const separator = text.charAt(10);
   if (separator !== 'T' && separator !== ' ') return null;
   const end = endsWith(text, 'Z') ? text.length - 1 : text.length;
-  const msOfDay = parseTimeSpan(text, 11, end);
-  if (msOfDay === null) return null;
-  return daysFromCivil(date.year, date.month, date.day) * MS_PER_DAY + msOfDay;
+  const millisecondsOfDay = parseTimeSpan(text, 11, end);
+  if (millisecondsOfDay === null) return null;
+  return daysFromCivil(date.year, date.month, date.day) * MILLISECONDS_PER_DAY + millisecondsOfDay;
 }
 
-export function timeFormatTokens(ms: number): FormatToken[] {
-  const parts = timePartsFromMs(ms);
+export function timeFormatTokens(milliseconds: number): FormatToken[] {
+  const parts = timePartsFromMs(milliseconds);
   return [
     ['SSS', padStart(String(parts.millisecond), 3, '0')],
     ['HH', padStart(String(parts.hour), 2, '0')],
@@ -116,20 +116,20 @@ export function timeFormatTokens(ms: number): FormatToken[] {
   ];
 }
 
-export function formatTime(ms: number, pattern: string): string {
-  return renderPattern(pattern, timeFormatTokens(ms));
+export function formatTime(milliseconds: number, pattern: string): string {
+  return renderPattern(pattern, timeFormatTokens(milliseconds));
 }
 
 export function formatDateTime(epochMs: number, pattern: string): string {
-  const { days, msOfDay } = splitEpochMs(epochMs);
-  return renderPattern(pattern, [...dateFormatTokens(civilFromDays(days)), ...timeFormatTokens(msOfDay)]);
+  const { days, millisecondsOfDay: dayMilliseconds } = splitEpochMs(epochMs);
+  return renderPattern(pattern, [...dateFormatTokens(civilFromDays(days)), ...timeFormatTokens(dayMilliseconds)]);
 }
 
-export function isoTime(ms: number): string {
-  return formatTime(ms, ms % MS_PER_SECOND === 0 ? 'HH:MM:SS' : 'HH:MM:SS.SSS');
+export function isoTime(milliseconds: number): string {
+  return formatTime(milliseconds, milliseconds % MILLISECONDS_PER_SECOND === 0 ? 'HH:MM:SS' : 'HH:MM:SS.SSS');
 }
 
 export function isoDateTime(epochMs: number): string {
-  const { msOfDay } = splitEpochMs(epochMs);
-  return formatDateTime(epochMs, msOfDay % MS_PER_SECOND === 0 ? 'yyyy-mm-ddTHH:MM:SS' : 'yyyy-mm-ddTHH:MM:SS.SSS');
+  const { millisecondsOfDay: dayMilliseconds } = splitEpochMs(epochMs);
+  return formatDateTime(epochMs, dayMilliseconds % MILLISECONDS_PER_SECOND === 0 ? 'yyyy-mm-ddTHH:MM:SS' : 'yyyy-mm-ddTHH:MM:SS.SSS');
 }

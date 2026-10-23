@@ -117,11 +117,30 @@ Reads one line from standard input without its line break. Returns `nothing` at 
 
 ## fail
 
-`message -> fail`
+`message -> fail` or `error -> fail`
 
-Stops the program with `error: message` and the position of the call.
+With a string, raises an error with that message at the position of the call. With an error value, raises that error again unchanged, keeping its original message and position. Either way the error can be handled by an enclosing `attempt`, and ends the program otherwise.
 
-Errors: the message is not a string.
+```
+attempt | "boom" -> fail recover e | e -> print-ln   ~ boom
+```
+
+Errors: the input is neither a string nor an error.
+
+## Error values
+
+A handler's error is a value of type `error`. It prints as its message; `show` gives `<error message>`.
+
+- `error -> message`: the message as a string.
+- `error -> line`, `error -> column`: where the error was raised, as ints, or `nothing` when unknown.
+- `error -> to-string`: the same as `message`.
+
+```
+attempt
+| 1 / 0
+recover e
+| "{e -> message} at line {e -> line}" -> print-ln   ~ division by zero at line 2
+```
 
 ## exit
 

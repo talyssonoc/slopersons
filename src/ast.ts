@@ -1,171 +1,180 @@
-import type { Pos } from './errors.ts';
+import type { Position } from './errors.ts';
 
-export type Statement = ProcDef | WhileStmt | Conditional | FlowStmt | StopStmt;
+export type Statement = ProcedureDefinition | WhileStatement | Conditional | FlowStatement | StopStatement | AttemptStatement;
 
-export interface ProcDef {
+export interface ProcedureDefinition {
   kind: 'proc';
   name: string;
-  params: string[];
+  parameters: string[];
   body: Statement[];
-  pos: Pos;
+  position: Position;
 }
 
-export interface WhileStmt {
+export interface WhileStatement {
   kind: 'while';
-  cond: Expr;
+  condition: Expression;
   body: Statement[];
-  pos: Pos;
+  position: Position;
 }
 
 export interface Branch {
-  cond: Expr;
+  condition: Expression;
   body: Statement[];
 }
 
 export interface Conditional {
-  kind: 'cond';
+  kind: 'conditional';
   branches: Branch[];
   otherwise: Statement[] | null;
-  pos: Pos;
+  position: Position;
 }
 
-export interface FlowStmt {
-  kind: 'flowstmt';
-  expr: Expr;
+export interface FlowStatement {
+  kind: 'flow-statement';
+  expression: Expression;
 }
 
-export interface StopStmt {
+export interface StopStatement {
   kind: 'stop';
-  pos: Pos;
+  position: Position;
+}
+
+export interface AttemptStatement {
+  kind: 'attempt';
+  body: Statement[];
+  errorName: string | null;
+  handler: Statement[] | null;
+  position: Position;
 }
 
 export type Step = CallStep | BindStep;
 
 export interface CallStep {
   kind: 'call';
-  callee: Expr;
-  args: Expr[];
+  callee: Expression;
+  arguments: Expression[];
   body: Lambda | null;
-  pos: Pos;
+  position: Position;
 }
 
 export interface BindStep {
   kind: 'bind';
   name: string;
   outer: boolean;
-  pos: Pos;
+  position: Position;
 }
 
-export type Expr =
-  | IntLit
-  | FloatLit
-  | StringLit
+export type Expression =
+  | IntLiteral
+  | FloatLiteral
+  | StringLiteral
   | InterpString
-  | CharLit
-  | BoolLit
-  | NothingLit
+  | CharLiteral
+  | BooleanLiteral
+  | NothingLiteral
   | Name
-  | ArrayLit
-  | MapLit
+  | ArrayLiteral
+  | MapLiteral
   | Binary
   | Unary
   | Flow
   | Lambda
-  | Conditional;
+  | Conditional
+  | AttemptStatement;
 
-export interface IntLit {
+export interface IntLiteral {
   kind: 'int';
   value: bigint;
-  pos: Pos;
+  position: Position;
 }
 
-export interface FloatLit {
+export interface FloatLiteral {
   kind: 'float';
   value: number;
-  pos: Pos;
+  position: Position;
 }
 
-export interface StringLit {
+export interface StringLiteral {
   kind: 'string';
   value: string;
-  pos: Pos;
+  position: Position;
 }
 
 export interface InterpString {
-  kind: 'interp';
-  parts: Array<string | Expr>;
-  pos: Pos;
+  kind: 'interpolation';
+  parts: Array<string | Expression>;
+  position: Position;
 }
 
-export interface CharLit {
+export interface CharLiteral {
   kind: 'char';
   value: string;
-  pos: Pos;
+  position: Position;
 }
 
-export interface BoolLit {
-  kind: 'bool';
+export interface BooleanLiteral {
+  kind: 'boolean';
   value: boolean;
-  pos: Pos;
+  position: Position;
 }
 
-export interface NothingLit {
+export interface NothingLiteral {
   kind: 'nothing';
-  pos: Pos;
+  position: Position;
 }
 
 export interface Name {
   kind: 'name';
   name: string;
-  pos: Pos;
+  position: Position;
 }
 
-export interface ArrayLit {
+export interface ArrayLiteral {
   kind: 'array';
-  items: Expr[];
-  pos: Pos;
+  items: Expression[];
+  position: Position;
 }
 
 export interface MapEntry {
-  key: Expr;
-  value: Expr;
+  key: Expression;
+  value: Expression;
 }
 
-export interface MapLit {
+export interface MapLiteral {
   kind: 'map';
   entries: MapEntry[];
-  pos: Pos;
+  position: Position;
 }
 
 export type BinaryOp = '+' | '-' | '*' | '/' | 'mod' | '=' | '/=' | '<' | '>' | '<=' | '>=' | 'and' | 'or';
 
 export interface Binary {
   kind: 'binary';
-  op: BinaryOp;
-  left: Expr;
-  right: Expr;
-  pos: Pos;
+  operator: BinaryOp;
+  left: Expression;
+  right: Expression;
+  position: Position;
 }
 
 export type UnaryOp = '-' | 'not';
 
 export interface Unary {
   kind: 'unary';
-  op: UnaryOp;
-  operand: Expr;
-  pos: Pos;
+  operator: UnaryOp;
+  operand: Expression;
+  position: Position;
 }
 
 export interface Flow {
   kind: 'flow';
-  head: Expr;
+  head: Expression;
   steps: Step[];
-  pos: Pos;
+  position: Position;
 }
 
 export interface Lambda {
   kind: 'lambda';
-  params: string[];
+  parameters: string[];
   body: Statement[];
-  pos: Pos;
+  position: Position;
 }

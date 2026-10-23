@@ -1,63 +1,63 @@
-import { runtimeError } from '../errors.ts';
+import { SlopersonsError, runtimeError } from '../errors.ts';
 import { ExitSignal, OutSignal, StopSignal, type CallContext, type Interpreter } from '../interpreter.ts';
-import { NOTHING, array, describeType, formatValue, int, str, typeName, type Value } from '../values.ts';
+import { NOTHING, array, describeType, formatValue, int, string, typeName, type Value } from '../values.ts';
 
 export const MAX_SIZE = 50_000_000n;
 
-export function checkSize(size: bigint, name: string, unit: string, ctx: CallContext): number {
+export function checkSize(size: bigint, name: string, unit: string, context: CallContext): number {
   if (size > MAX_SIZE) {
-    throw runtimeError(`\`${name}\` would build a value of ${size} ${unit}, which is more than the limit of ${MAX_SIZE}`, ctx.pos);
+    throw runtimeError(`\`${name}\` would build a value of ${size} ${unit}, which is more than the limit of ${MAX_SIZE}`, context.position);
   }
   return Number(size);
 }
 
-export function arg(args: Value[], index: number): Value {
-  return args[index] ?? NOTHING;
+export function input(inputs: Value[], index: number): Value {
+  return inputs[index] ?? NOTHING;
 }
 
-export function expectChar(value: Value, what: string, ctx: CallContext): string {
-  if (value.t !== 'char') throw runtimeError(`${what} must be a char, got ${describeType(value)}`, ctx.pos);
-  return value.v;
+export function expectChar(value: Value, what: string, context: CallContext): string {
+  if (value.type !== 'char') throw runtimeError(`${what} must be a char, got ${describeType(value)}`, context.position);
+  return value.value;
 }
 
-export function expectDecision(value: Value, what: string, ctx: CallContext): boolean {
-  if (value.t !== 'bool') throw runtimeError(`${what} must return \`yes\` or \`no\`, got ${describeType(value)}`, ctx.pos);
-  return value.v;
+export function expectDecision(value: Value, what: string, context: CallContext): boolean {
+  if (value.type !== 'boolean') throw runtimeError(`${what} must return \`yes\` or \`no\`, got ${describeType(value)}`, context.position);
+  return value.value;
 }
 
-export function expectInt(value: Value, what: string, ctx: CallContext): bigint {
-  if (value.t !== 'int') throw runtimeError(`${what} must be an int, got ${describeType(value)}`, ctx.pos);
-  return value.v;
+export function expectInt(value: Value, what: string, context: CallContext): bigint {
+  if (value.type !== 'int') throw runtimeError(`${what} must be an int, got ${describeType(value)}`, context.position);
+  return value.value;
 }
 
-export function expectString(value: Value, what: string, ctx: CallContext): string {
-  if (value.t !== 'string') throw runtimeError(`${what} must be a string, got ${describeType(value)}`, ctx.pos);
-  return value.v;
+export function expectString(value: Value, what: string, context: CallContext): string {
+  if (value.type !== 'string') throw runtimeError(`${what} must be a string, got ${describeType(value)}`, context.position);
+  return value.value;
 }
 
-export function expectProc(value: Value, what: string, ctx: CallContext): Value {
-  if (value.t !== 'proc' && value.t !== 'builtin') throw runtimeError(`${what} must be a procedure, got ${describeType(value)}`, ctx.pos);
+export function expectProc(value: Value, what: string, context: CallContext): Value {
+  if (value.type !== 'proc' && value.type !== 'builtin') throw runtimeError(`${what} must be a procedure, got ${describeType(value)}`, context.position);
   return value;
 }
 
-export function expectArray(value: Value, what: string, ctx: CallContext): Value[] {
-  if (value.t !== 'array') throw runtimeError(`${what} must be an array, got ${describeType(value)}`, ctx.pos);
+export function expectArray(value: Value, what: string, context: CallContext): Value[] {
+  if (value.type !== 'array') throw runtimeError(`${what} must be an array, got ${describeType(value)}`, context.position);
   return value.items;
 }
 
-export function toIndex(value: Value, what: string, ctx: CallContext): number {
-  const big = expectInt(value, what, ctx);
-  if (big < 0n || big > BigInt(Number.MAX_SAFE_INTEGER)) throw runtimeError(`${what} is out of range: ${big}`, ctx.pos);
+export function toIndex(value: Value, what: string, context: CallContext): number {
+  const big = expectInt(value, what, context);
+  if (big < 0n || big > BigInt(Number.MAX_SAFE_INTEGER)) throw runtimeError(`${what} is out of range: ${big}`, context.position);
   return Number(big);
 }
 
-export function callLambda(fn: Value, args: Value[], ctx: CallContext): Value {
-  return ctx.interp.callValue(fn, args, ctx.pos, ctx.env);
+export function callLambda(procedure: Value, inputs: Value[], context: CallContext): Value {
+  return context.interpreter.callValue(procedure, inputs, context.position, context.environment);
 }
 
-export function callWithOptionalArg(fn: Value, arg: Value, ctx: CallContext): Value {
-  if (fn.t === 'proc' && fn.params.length === 0) return callLambda(fn, [], ctx);
-  return callLambda(fn, [arg], ctx);
+export function callWithOptionalArgument(procedure: Value, argument: Value, context: CallContext): Value {
+  if (procedure.type === 'proc' && procedure.parameters.length === 0) return callLambda(procedure, [], context);
+  return callLambda(procedure, [argument], context);
 }
 
 export function runLoopBody(body: () => void): boolean {
@@ -70,68 +70,87 @@ export function runLoopBody(body: () => void): boolean {
   }
 }
 
-export function registerCore(interp: Interpreter): void {
-  interp.defineBuiltin('print-ln', 1, (args, ctx) => {
-    ctx.interp.io.write(`${formatValue(arg(args, 0), 'print')}\n`);
-    return arg(args, 0);
+export function registerCore(interpreter: Interpreter): void {
+  interpreter.defineBuiltin('print-ln', 1, (inputs, context) => {
+    context.interpreter.io.write(`${formatValue(input(inputs, 0), 'print')}\n`);
+    return input(inputs, 0);
   });
 
-  interp.defineBuiltin('print', 1, (args, ctx) => {
-    ctx.interp.io.write(formatValue(arg(args, 0), 'print'));
-    return arg(args, 0);
+  interpreter.defineBuiltin('print', 1, (inputs, context) => {
+    context.interpreter.io.write(formatValue(input(inputs, 0), 'print'));
+    return input(inputs, 0);
   });
 
-  interp.defineBuiltin('show', 1, (args) => str(formatValue(arg(args, 0), 'show')));
+  interpreter.defineBuiltin('show', 1, (inputs) => string(formatValue(input(inputs, 0), 'show')));
 
-  interp.defineBuiltin('type-of', 1, (args) => str(typeName(arg(args, 0))));
+  interpreter.defineBuiltin('type-of', 1, (inputs) => string(typeName(input(inputs, 0))));
 
-  interp.defineBuiltin('do', { min: 1, max: null }, (args, ctx) => {
-    const fn = expectProc(arg(args, 0), 'the input of `do`', ctx);
-    return callLambda(fn, args.slice(1), ctx);
+  interpreter.defineBuiltin('do', { min: 1, max: null }, (inputs, context) => {
+    const procedure = expectProc(input(inputs, 0), 'the input of `do`', context);
+    return callLambda(procedure, inputs.slice(1), context);
   });
 
-  interp.defineBuiltin('out', 1, (args, ctx) => {
-    throw new OutSignal(ctx.env.activation, arg(args, 0), ctx.pos);
+  interpreter.defineBuiltin('out', 1, (inputs, context) => {
+    throw new OutSignal(context.environment.activation, input(inputs, 0), context.position);
   });
 
-  interp.defineBuiltin('fail', 1, (args, ctx) => {
-    throw runtimeError(expectString(arg(args, 0), 'the message of `fail`', ctx), ctx.pos);
+  interpreter.defineBuiltin('fail', 1, (inputs, context) => {
+    const value = input(inputs, 0);
+    if (value.type === 'error') throw new SlopersonsError('runtime', value.message, value.position ?? context.position);
+    throw runtimeError(expectString(value, 'the message of `fail`', context), context.position);
   });
 
-  interp.defineBuiltin('exit', 1, (args, ctx) => {
-    const code = expectInt(arg(args, 0), 'the exit code', ctx);
-    if (code < 0n || code > 255n) throw runtimeError(`the exit code must be between 0 and 255, got ${code}`, ctx.pos);
+  interpreter.defineMethod('message', 'error', 1, (inputs) => {
+    const value = input(inputs, 0);
+    return string(value.type === 'error' ? value.message : '');
+  });
+
+  interpreter.defineMethod('line', 'error', 1, (inputs) => {
+    const value = input(inputs, 0);
+    return value.type === 'error' && value.position !== null ? int(BigInt(value.position.line)) : NOTHING;
+  });
+
+  interpreter.defineMethod('column', 'error', 1, (inputs) => {
+    const value = input(inputs, 0);
+    return value.type === 'error' && value.position !== null ? int(BigInt(value.position.col)) : NOTHING;
+  });
+
+  interpreter.defineMethod('to-string', 'error', 1, (inputs) => string(formatValue(input(inputs, 0), 'print')));
+
+  interpreter.defineBuiltin('exit', 1, (inputs, context) => {
+    const code = expectInt(input(inputs, 0), 'the exit code', context);
+    if (code < 0n || code > 255n) throw runtimeError(`the exit code must be between 0 and 255, got ${code}`, context.position);
     throw new ExitSignal(Number(code));
   });
 
-  interp.defineBuiltin('read-line', 0, (_args, ctx) => {
-    const line = ctx.interp.io.readLine();
-    return line === null ? NOTHING : str(line);
+  interpreter.defineBuiltin('read-line', 0, (_args, context) => {
+    const line = context.interpreter.io.readLine();
+    return line === null ? NOTHING : string(line);
   });
 
-  interp.defineBuiltin('to', 2, (args, ctx) => {
-    const from = expectInt(arg(args, 0), 'the start of `to`', ctx);
-    const to = expectInt(arg(args, 1), 'the end of `to`', ctx);
-    if (to >= from) checkSize(to - from + 1n, 'to', 'elements', ctx);
+  interpreter.defineBuiltin('to', 2, (inputs, context) => {
+    const from = expectInt(input(inputs, 0), 'the start of `to`', context);
+    const to = expectInt(input(inputs, 1), 'the end of `to`', context);
+    if (to >= from) checkSize(to - from + 1n, 'to', 'elements', context);
     const items: Value[] = [];
     for (let i = from; i <= to; i++) items.push(int(i));
     return array(items);
   });
 
-  interp.defineMethod('each', 'array', 2, (args, ctx) => {
-    const items = expectArray(arg(args, 0), 'the input of `each`', ctx);
-    const fn = expectProc(arg(args, 1), 'the body of `each`', ctx);
+  interpreter.defineMethod('each', 'array', 2, (inputs, context) => {
+    const items = expectArray(input(inputs, 0), 'the input of `each`', context);
+    const procedure = expectProc(input(inputs, 1), 'the body of `each`', context);
     for (const item of items.slice()) {
-      if (!runLoopBody(() => callLambda(fn, [item], ctx))) break;
+      if (!runLoopBody(() => callLambda(procedure, [item], context))) break;
     }
     return NOTHING;
   });
 
-  interp.defineMethod('repeat', 'int', 2, (args, ctx) => {
-    const times = expectInt(arg(args, 0), 'the count of `repeat`', ctx);
-    const fn = expectProc(arg(args, 1), 'the body of `repeat`', ctx);
+  interpreter.defineMethod('repeat', 'int', 2, (inputs, context) => {
+    const times = expectInt(input(inputs, 0), 'the count of `repeat`', context);
+    const procedure = expectProc(input(inputs, 1), 'the body of `repeat`', context);
     for (let i = 0n; i < times; i++) {
-      if (!runLoopBody(() => callWithOptionalArg(fn, int(i), ctx))) break;
+      if (!runLoopBody(() => callWithOptionalArgument(procedure, int(i), context))) break;
     }
     return NOTHING;
   });

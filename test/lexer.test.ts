@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { lex, type Token } from '../src/lexer.ts';
-import { SloError } from '../src/errors.ts';
+import { SlopersonsError } from '../src/errors.ts';
 
 function brief(token: Token): string {
   switch (token.kind) {
@@ -16,9 +16,9 @@ function brief(token: Token): string {
     case 'name':
       return `name:${token.name}`;
     case 'keyword':
-      return `kw:${token.word}`;
+      return `keyword:${token.word}`;
     case 'op':
-      return token.unary ? `op:${token.op}(unary)` : `op:${token.op}`;
+      return token.unary ? `operator:${token.operator}(unary)` : `operator:${token.operator}`;
   }
 }
 
@@ -26,11 +26,11 @@ function lexBrief(source: string): string[] {
   return lex(source).map((line) => `${line.depth}: ${line.tokens.map(brief).join(' ')}`);
 }
 
-function lexError(source: string): SloError {
+function lexError(source: string): SlopersonsError {
   try {
     lex(source);
   } catch (error) {
-    if (error instanceof SloError) return error;
+    if (error instanceof SlopersonsError) return error;
     throw error;
   }
   throw new Error('expected a parse error');
@@ -45,26 +45,26 @@ test('blank lines and comment-only lines are dropped, comments end at the line',
 });
 
 test('kebab-case names are single tokens and spaced minus is an operator', () => {
-  assert.deepEqual(lexBrief('a-b a - b'), ['0: name:a-b name:a op:- name:b']);
+  assert.deepEqual(lexBrief('a-b a - b'), ['0: name:a-b name:a operator:- name:b']);
 });
 
 test('minus directly before an operand after whitespace is unary', () => {
-  assert.deepEqual(lexBrief('a -b'), ['0: name:a op:-(unary) name:b']);
-  assert.deepEqual(lexBrief('[1 -2]'), ['0: op:[ int:1 op:-(unary) int:2 op:]']);
-  assert.deepEqual(lexBrief('(-x)'), ['0: op:( op:-(unary) name:x op:)']);
-  assert.deepEqual(lexBrief('-5'), ['0: op:-(unary) int:5']);
-  assert.deepEqual(lexBrief('a- b'), ['0: name:a op:- name:b']);
+  assert.deepEqual(lexBrief('a -b'), ['0: name:a operator:-(unary) name:b']);
+  assert.deepEqual(lexBrief('[1 -2]'), ['0: operator:[ int:1 operator:-(unary) int:2 operator:]']);
+  assert.deepEqual(lexBrief('(-x)'), ['0: operator:( operator:-(unary) name:x operator:)']);
+  assert.deepEqual(lexBrief('-5'), ['0: operator:-(unary) int:5']);
+  assert.deepEqual(lexBrief('a- b'), ['0: name:a operator:- name:b']);
 });
 
 test('multi-character operators are lexed greedily', () => {
   assert.deepEqual(lexBrief('x -> f => y =>> z /= <= >= = < >'), [
-    '0: name:x op:-> name:f op:=> name:y op:=>> name:z op:/= op:<= op:>= op:= op:< op:>',
+    '0: name:x operator:-> name:f operator:=> name:y operator:=>> name:z operator:/= operator:<= operator:>= operator:= operator:< operator:>',
   ]);
 });
 
 test('reserved words become keyword tokens', () => {
   assert.deepEqual(lexBrief('proc while yes no nothing and or not mod'), [
-    '0: kw:proc kw:while kw:yes kw:no kw:nothing kw:and kw:or kw:not kw:mod',
+    '0: keyword:proc keyword:while keyword:yes keyword:no keyword:nothing keyword:and keyword:or keyword:not keyword:mod',
   ]);
 });
 
@@ -78,7 +78,7 @@ test('numbers: ints with separators, floats, and rejected forms', () => {
 test('strings: escapes, interpolation with nested strings, and errors', () => {
   assert.deepEqual(lexBrief('"a\\"b\\\\c\\n\\{d\\}"'), ['0: string:"a\\"b\\\\c\\n{d}"']);
   assert.deepEqual(lexBrief('"x is {x -> double} and {"inner {y}"}"'), [
-    '0: string:"x is "+{name:x op:-> name:double}+" and "+{string:"inner "+{name:y}}',
+    '0: string:"x is "+{name:x operator:-> name:double}+" and "+{string:"inner "+{name:y}}',
   ]);
   assert.deepEqual(lexBrief('""'), ['0: string:']);
   assert.match(lexError('"abc').message, /unterminated string/);
@@ -96,28 +96,28 @@ test('chars: one code point or an escape', () => {
 });
 
 test('open brackets join physical lines and suppress margin detection', () => {
-  assert.deepEqual(lexBrief('[1\n  2\n| 3]\nx'), ['0: op:[ int:1 int:2 op:| int:3 op:] ', '0: name:x'].map((s) => s.trimEnd()));
+  assert.deepEqual(lexBrief('[1\n  2\n| 3]\nx'), ['0: operator:[ int:1 int:2 operator:| int:3 operator:] ', '0: name:x'].map((text) => text.trimEnd()));
 });
 
 test('bracket errors carry the position of the offending bracket', () => {
   const unclosed = lexError('a\n(1 + 2');
   assert.match(unclosed.message, /unclosed `\(`/);
-  assert.deepEqual(unclosed.pos, { line: 2, col: 1 });
+  assert.deepEqual(unclosed.position, { line: 2, col: 1 });
   assert.match(lexError('a)').message, /unmatched `\)`/);
   assert.match(lexError('(a]').message, /does not match/);
 });
 
 test('tokens carry one-based line and column positions', () => {
   const lines = lex('ab cd\n| "x" 12');
-  assert.deepEqual(lines.map((line) => line.tokens.map((token) => `${token.pos.line}:${token.pos.col}`)), [
+  assert.deepEqual(lines.map((line) => line.tokens.map((token) => `${token.position.line}:${token.position.col}`)), [
     ['1:1', '1:4'],
     ['2:3', '2:7'],
   ]);
-  assert.deepEqual(lines[1]?.pos, { line: 2, col: 3 });
+  assert.deepEqual(lines[1]?.position, { line: 2, col: 3 });
 });
 
 test('unexpected characters are reported with their position', () => {
   const error = lexError('a\nb @');
   assert.match(error.message, /unexpected character `@`/);
-  assert.deepEqual(error.pos, { line: 2, col: 3 });
+  assert.deepEqual(error.position, { line: 2, col: 3 });
 });

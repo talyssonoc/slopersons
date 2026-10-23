@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Interpreter } from '../src/interpreter.ts';
 import { NOTHING } from '../src/values.ts';
-import { failure, fakeIo, output } from './helpers/run.ts';
+import { failure, fakeIo, output, runCli } from './helpers/run.ts';
 
 test('print writes without a newline and passes its value on', () => {
   assert.equal(output('"a" -> print -> print\n1 -> print\n"" -> print-ln\n[1] -> print'), 'aa1\n[1]');
@@ -29,7 +29,7 @@ test('a float operand promotes the result and floats always print-ln with a poin
 test('division and mod by zero are errors with positions', () => {
   const error = failure('1 => x\nx / 0 -> print-ln');
   assert.equal(error.message, 'division by zero');
-  assert.deepEqual(error.pos, { line: 2, col: 3 });
+  assert.deepEqual(error.position, { line: 2, col: 3 });
   assert.equal(failure('1.0 mod 0').message, '`mod` by zero');
 });
 
@@ -79,7 +79,7 @@ test('=> binds locally and rebinds within the same scope', () => {
 test('=> errors when it would shadow an enclosing binding, pointing at =>>', () => {
   const error = failure('0 => total\n[1 2] -> each n\n| total + n => total');
   assert.equal(error.message, '`total` already exists in an enclosing scope; use `=>> total` to update it or choose another name');
-  assert.deepEqual(error.pos, { line: 3, col: 13 });
+  assert.deepEqual(error.position, { line: 3, col: 13 });
 });
 
 test('=>> updates the nearest existing binding from the current scope outward', () => {
@@ -175,7 +175,7 @@ test('each, repeat and to', () => {
 test('unknown names report their position', () => {
   const error = failure('1 => x\n  y -> print-ln');
   assert.equal(error.message, 'unknown name `y`');
-  assert.deepEqual(error.pos, { line: 2, col: 3 });
+  assert.deepEqual(error.position, { line: 2, col: 3 });
 });
 
 test('recursion works in-process at moderate depth; the limit itself is tested through the binary', () => {
@@ -183,18 +183,60 @@ test('recursion works in-process at moderate depth; the limit itself is tested t
 });
 
 test('registering a builtin name twice, or both plainly and by type, is a loud error', () => {
-  const interp = new Interpreter(fakeIo());
-  interp.defineBuiltin('plain', 1, () => NOTHING);
-  assert.throws(() => interp.defineBuiltin('plain', 1, () => NOTHING), /registered twice/);
-  assert.throws(() => interp.defineMethod('plain', 'int', 1, () => NOTHING), /already a plain builtin/);
-  interp.defineMethod('typed', 'int', 1, () => NOTHING);
-  assert.throws(() => interp.defineBuiltin('typed', 1, () => NOTHING), /registered twice/);
-  assert.throws(() => interp.defineMethod('typed', 'int', 1, () => NOTHING), /registered twice for int/);
-  interp.defineMethod('typed', 'string', 1, () => NOTHING);
+  const interpreter = new Interpreter(fakeIo());
+  interpreter.defineBuiltin('plain', 1, () => NOTHING);
+  assert.throws(() => interpreter.defineBuiltin('plain', 1, () => NOTHING), /registered twice/);
+  assert.throws(() => interpreter.defineMethod('plain', 'int', 1, () => NOTHING), /already a plain builtin/);
+  interpreter.defineMethod('typed', 'int', 1, () => NOTHING);
+  assert.throws(() => interpreter.defineBuiltin('typed', 1, () => NOTHING), /registered twice/);
+  assert.throws(() => interpreter.defineMethod('typed', 'int', 1, () => NOTHING), /registered twice for int/);
+  interpreter.defineMethod('typed', 'string', 1, () => NOTHING);
 });
 
 test('fail raises a program error with the given message', () => {
   const error = failure('"custom problem" -> fail');
   assert.equal(error.message, 'custom problem');
-  assert.deepEqual(error.pos, { line: 1, col: 18 });
+  assert.deepEqual(error.position, { line: 1, col: 18 });
+});
+
+test('attempt runs its body, and recover handles a runtime error with the error bound', () => {
+  assert.equal(output('attempt\n| 1 / 0 -> print-ln\n| "unreachable" -> print-ln\nrecover e\n| "caught: {e}" -> print-ln'), 'caught: division by zero\n');
+  assert.equal(output('attempt\n| 5 => n\nrecover\n| 0 => n\nn -> print-ln'), '5\n');
+  assert.equal(output('attempt\n| 1 / 0 => n\nrecover\n| 0 => n\nn -> print-ln'), '0\n');
+});
+
+test('attempt is an expression and keeps bindings made before the failure', () => {
+  assert.equal(output('(attempt | "42" -> to-int recover | 0) -> print-ln\n(attempt | "x" -> to-int recover | 0) -> print-ln'), '42\n0\n');
+  assert.equal(output('attempt\n| 1 => before\n| 1 / 0\nrecover\n| before -> print-ln'), '1\n');
+});
+
+test('error values expose message, line and column, and print as the message', () => {
+  assert.equal(output('attempt | 1 / 0 recover e | e -> message -> print-ln'), 'division by zero\n');
+  const source = 'attempt\n| 1 / 0\nrecover e\n| "{e -> line}:{e -> column}" -> print-ln\n| e -> type-of -> print-ln\n| e -> show -> print-ln\n| [e] -> print-ln\n| e -> to-string -> print-ln';
+  assert.equal(output(source), '2:5\nerror\n<error division by zero>\n[<error division by zero>]\ndivision by zero\n');
+});
+
+test('fail with a string raises a custom error; fail with an error rethrows it unchanged', () => {
+  assert.equal(output('attempt | "boom" -> fail recover e | e -> print-ln'), 'boom\n');
+  const error = failure('attempt\n| 1 / 0\nrecover e\n| e -> fail');
+  assert.equal(error.message, 'division by zero');
+  assert.deepEqual(error.position, { line: 2, col: 5 });
+  assert.equal(failure('attempt | 1 / 0 recover e | "again: {e}" -> fail').message, 'again: division by zero');
+});
+
+test('an error raised inside recover propagates, and attempts nest', () => {
+  assert.equal(failure('attempt | 1 / 0 recover | "x" -> to-int').message, 'cannot convert "x" to an int');
+  assert.equal(output('attempt\n| attempt | 1 / 0 recover | "inner" -> fail\nrecover e\n| "outer saw {e}" -> print-ln'), 'outer saw inner\n');
+});
+
+test('out, stop and exit pass through attempt untouched', () => {
+  assert.equal(output('proc f\n| attempt | "early" -> out recover | "never"\n| "late"\nf -> do -> print-ln'), 'early\n');
+  assert.equal(output('[1 2 3] -> each n\n| attempt | n = 2 ? stop recover | "never" -> print-ln\n| n -> print-ln'), '1\n');
+  const { code, io } = runCli('attempt | 3 -> exit recover | "never" -> print-ln');
+  assert.equal(code, 3);
+  assert.equal(io.out, '');
+});
+
+test('the error name may reuse a name bound outside, including inside lambdas', () => {
+  assert.equal(output('attempt | 1 / 0 recover e | nothing\n[1] -> each n\n| attempt | 1 / 0 recover e | e -> print-ln\ne -> print-ln'), 'division by zero\ndivision by zero\n');
 });

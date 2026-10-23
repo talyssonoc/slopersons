@@ -1,52 +1,52 @@
-import { parseError, type Pos } from './errors.ts';
+import { parseError, type Position } from './errors.ts';
 
-export type Keyword = 'proc' | 'while' | 'stop' | 'yes' | 'no' | 'nothing' | 'and' | 'or' | 'not' | 'mod';
+export type Keyword = 'proc' | 'while' | 'stop' | 'attempt' | 'recover' | 'yes' | 'no' | 'nothing' | 'and' | 'or' | 'not' | 'mod';
 
-const KEYWORDS: ReadonlySet<string> = new Set(['proc', 'while', 'stop', 'yes', 'no', 'nothing', 'and', 'or', 'not', 'mod']);
+const KEYWORDS: ReadonlySet<string> = new Set(['proc', 'while', 'stop', 'attempt', 'recover', 'yes', 'no', 'nothing', 'and', 'or', 'not', 'mod']);
 
 export interface IntToken {
   kind: 'int';
   value: bigint;
-  pos: Pos;
+  position: Position;
 }
 
 export interface FloatToken {
   kind: 'float';
   value: number;
-  pos: Pos;
+  position: Position;
 }
 
-export type StringPart = { kind: 'text'; text: string } | { kind: 'expr'; tokens: Token[]; pos: Pos };
+export type StringPart = { kind: 'text'; text: string } | { kind: 'expr'; tokens: Token[]; position: Position };
 
 export interface StringToken {
   kind: 'string';
   parts: StringPart[];
-  pos: Pos;
+  position: Position;
 }
 
 export interface CharToken {
   kind: 'char';
   value: string;
-  pos: Pos;
+  position: Position;
 }
 
 export interface NameToken {
   kind: 'name';
   name: string;
-  pos: Pos;
+  position: Position;
 }
 
 export interface KeywordToken {
   kind: 'keyword';
   word: Keyword;
-  pos: Pos;
+  position: Position;
 }
 
 export interface OpToken {
   kind: 'op';
-  op: string;
+  operator: string;
   unary: boolean;
-  pos: Pos;
+  position: Position;
 }
 
 export type Token = IntToken | FloatToken | StringToken | CharToken | NameToken | KeywordToken | OpToken;
@@ -54,8 +54,8 @@ export type Token = IntToken | FloatToken | StringToken | CharToken | NameToken 
 export interface LexedLine {
   depth: number;
   tokens: Token[];
-  pos: Pos;
-  endPos: Pos;
+  position: Position;
+  endPosition: Position;
 }
 
 const MULTI_CHAR_OPS = ['=>>', '->', '=>', '/=', '<=', '>='];
@@ -63,48 +63,48 @@ const SINGLE_CHAR_OPS = new Set(['=', '<', '>', '+', '*', '/', '?', ':', '|', '(
 const OPENERS = new Set(['(', '[', '{']);
 const CLOSERS: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
 
-function isDigit(ch: string): boolean {
-  return ch >= '0' && ch <= '9';
+function isDigit(character: string): boolean {
+  return character >= '0' && character <= '9';
 }
 
-function isLetter(ch: string): boolean {
-  return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+function isLetter(character: string): boolean {
+  return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z');
 }
 
-function isNameChar(ch: string): boolean {
-  return isLetter(ch) || isDigit(ch);
+function isNameChar(character: string): boolean {
+  return isLetter(character) || isDigit(character);
 }
 
-function isBlank(ch: string): boolean {
-  return ch === ' ' || ch === '\t' || ch === '\r';
+function isBlank(character: string): boolean {
+  return character === ' ' || character === '\t' || character === '\r';
 }
 
 class Lexer {
-  private readonly src: string;
+  private readonly source: string;
   private i: number;
   private line: number;
   private col: number;
-  private readonly openBrackets: Array<{ ch: string; pos: Pos }>;
+  private readonly openBrackets: Array<{ character: string; position: Position }>;
 
-  constructor(src: string, start: Pos) {
-    this.src = src;
+  constructor(source: string, start: Position) {
+    this.source = source;
     this.i = 0;
     this.line = start.line;
     this.col = start.col;
     this.openBrackets = [];
   }
 
-  private pos(): Pos {
+  private position(): Position {
     return { line: this.line, col: this.col };
   }
 
   private peek(offset = 0): string {
-    return this.src[this.i + offset] ?? '';
+    return this.source[this.i + offset] ?? '';
   }
 
   private advance(count = 1): void {
-    for (let n = 0; n < count; n++) {
-      if (this.src[this.i] === '\n') {
+    for (let total = 0; total < count; total++) {
+      if (this.source[this.i] === '\n') {
         this.line++;
         this.col = 1;
       } else {
@@ -115,7 +115,7 @@ class Lexer {
   }
 
   private atEnd(): boolean {
-    return this.i >= this.src.length;
+    return this.i >= this.source.length;
   }
 
   lexLines(): LexedLine[] {
@@ -127,8 +127,8 @@ class Lexer {
         current = this.startLine();
         atLineStart = false;
       }
-      const ch = this.peek();
-      if (ch === '\n') {
+      const symbol = this.peek();
+      if (symbol === '\n') {
         if (this.openBrackets.length === 0) {
           if (current !== null && current.tokens.length > 0) lines.push(current);
           current = null;
@@ -137,21 +137,21 @@ class Lexer {
         this.advance();
         continue;
       }
-      if (isBlank(ch)) {
+      if (isBlank(symbol)) {
         this.advance();
         continue;
       }
-      if (ch === '~') {
+      if (symbol === '~') {
         this.skipComment();
         continue;
       }
       const token = this.lexToken();
-      if (current === null) throw parseError('internal: token outside of a line', token.pos);
+      if (current === null) throw parseError('internal: token outside of a line', token.position);
       current.tokens.push(token);
-      current.endPos = this.pos();
+      current.endPosition = this.position();
     }
     const unclosed = this.openBrackets[this.openBrackets.length - 1];
-    if (unclosed !== undefined) throw parseError(`unclosed \`${unclosed.ch}\``, unclosed.pos);
+    if (unclosed !== undefined) throw parseError(`unclosed \`${unclosed.character}\``, unclosed.position);
     if (current !== null && current.tokens.length > 0) lines.push(current);
     return lines;
   }
@@ -159,35 +159,35 @@ class Lexer {
   lexFragment(): Token[] {
     const tokens: Token[] = [];
     while (!this.atEnd()) {
-      const ch = this.peek();
-      if (ch === '\n') throw parseError('line break inside string interpolation', this.pos());
-      if (isBlank(ch)) {
+      const symbol = this.peek();
+      if (symbol === '\n') throw parseError('line break inside string interpolation', this.position());
+      if (isBlank(symbol)) {
         this.advance();
         continue;
       }
-      if (ch === '~') throw parseError('comment inside string interpolation', this.pos());
+      if (symbol === '~') throw parseError('comment inside string interpolation', this.position());
       tokens.push(this.lexToken());
     }
     const unclosed = this.openBrackets[this.openBrackets.length - 1];
-    if (unclosed !== undefined) throw parseError(`unclosed \`${unclosed.ch}\``, unclosed.pos);
+    if (unclosed !== undefined) throw parseError(`unclosed \`${unclosed.character}\``, unclosed.position);
     return tokens;
   }
 
   private startLine(): LexedLine {
     let depth = 0;
     while (!this.atEnd()) {
-      const ch = this.peek();
-      if (isBlank(ch)) {
+      const character = this.peek();
+      if (isBlank(character)) {
         this.advance();
-      } else if (ch === '|') {
+      } else if (character === '|') {
         depth++;
         this.advance();
       } else {
         break;
       }
     }
-    const pos = this.pos();
-    return { depth, tokens: [], pos, endPos: pos };
+    const location = this.position();
+    return { depth, tokens: [], position: location, endPosition: location };
   }
 
   private skipComment(): void {
@@ -195,73 +195,73 @@ class Lexer {
   }
 
   private lexToken(): Token {
-    const ch = this.peek();
-    const pos = this.pos();
-    if (ch === '"') return this.lexString();
-    if (ch === '`') return this.lexChar();
-    if (isDigit(ch)) return this.lexNumber();
-    if (isLetter(ch)) return this.lexName();
-    if (ch === '-') return this.lexMinus();
-    for (const op of MULTI_CHAR_OPS) {
-      if (this.src.startsWith(op, this.i)) {
-        this.advance(op.length);
-        return { kind: 'op', op, unary: false, pos };
+    const character = this.peek();
+    const location = this.position();
+    if (character === '"') return this.lexString();
+    if (character === '`') return this.lexChar();
+    if (isDigit(character)) return this.lexNumber();
+    if (isLetter(character)) return this.lexName();
+    if (character === '-') return this.lexMinus();
+    for (const operator of MULTI_CHAR_OPS) {
+      if (this.source.startsWith(operator, this.i)) {
+        this.advance(operator.length);
+        return { kind: 'op', operator, unary: false, position: location };
       }
     }
-    if (SINGLE_CHAR_OPS.has(ch)) {
+    if (SINGLE_CHAR_OPS.has(character)) {
       this.advance();
-      this.trackBracket(ch, pos);
-      return { kind: 'op', op: ch, unary: false, pos };
+      this.trackBracket(character, location);
+      return { kind: 'op', operator: character, unary: false, position: location };
     }
-    throw parseError(`unexpected character \`${ch}\``, pos);
+    throw parseError(`unexpected character \`${character}\``, location);
   }
 
-  private trackBracket(ch: string, pos: Pos): void {
-    if (OPENERS.has(ch)) {
-      this.openBrackets.push({ ch, pos });
+  private trackBracket(symbol: string, location: Position): void {
+    if (OPENERS.has(symbol)) {
+      this.openBrackets.push({ character: symbol, position: location });
       return;
     }
-    const opener = CLOSERS[ch];
+    const opener = CLOSERS[symbol];
     if (opener === undefined) return;
     const top = this.openBrackets.pop();
-    if (top === undefined) throw parseError(`unmatched \`${ch}\``, pos);
-    if (top.ch !== opener) throw parseError(`\`${ch}\` does not match the open \`${top.ch}\``, pos);
+    if (top === undefined) throw parseError(`unmatched \`${symbol}\``, location);
+    if (top.character !== opener) throw parseError(`\`${symbol}\` does not match the open \`${top.character}\``, location);
   }
 
   private lexMinus(): OpToken {
-    const pos = this.pos();
+    const location = this.position();
     if (this.peek(1) === '>') {
       this.advance(2);
-      return { kind: 'op', op: '->', unary: false, pos };
+      return { kind: 'op', operator: '->', unary: false, position: location };
     }
-    const prev = this.i === 0 ? '' : (this.src[this.i - 1] ?? '');
+    const previous = this.i === 0 ? '' : (this.source[this.i - 1] ?? '');
     const next = this.peek(1);
-    const prevAllowsUnary = prev === '' || prev === '\n' || isBlank(prev) || OPENERS.has(prev);
+    const prevAllowsUnary = previous === '' || previous === '\n' || isBlank(previous) || OPENERS.has(previous);
     const nextStartsOperand = isDigit(next) || isLetter(next) || next === '(';
     this.advance();
-    return { kind: 'op', op: '-', unary: prevAllowsUnary && nextStartsOperand, pos };
+    return { kind: 'op', operator: '-', unary: prevAllowsUnary && nextStartsOperand, position: location };
   }
 
   private lexNumber(): IntToken | FloatToken {
-    const pos = this.pos();
+    const location = this.position();
     const intText = this.readDigits();
     if (this.peek() === '.' && isDigit(this.peek(1))) {
       this.advance();
       const fracText = this.readDigits();
-      this.rejectTrailingNameChar(pos);
-      return { kind: 'float', value: Number(`${intText}.${fracText}`), pos };
+      this.rejectTrailingNameChar(location);
+      return { kind: 'float', value: Number(`${intText}.${fracText}`), position: location };
     }
-    this.rejectTrailingNameChar(pos);
-    return { kind: 'int', value: BigInt(intText), pos };
+    this.rejectTrailingNameChar(location);
+    return { kind: 'int', value: BigInt(intText), position: location };
   }
 
   private readDigits(): string {
     let text = '';
     while (!this.atEnd()) {
-      const ch = this.peek();
-      if (isDigit(ch)) {
-        text += ch;
-      } else if (ch !== '_') {
+      const character = this.peek();
+      if (isDigit(character)) {
+        text += character;
+      } else if (character !== '_') {
         break;
       }
       this.advance();
@@ -269,57 +269,57 @@ class Lexer {
     return text;
   }
 
-  private rejectTrailingNameChar(pos: Pos): void {
+  private rejectTrailingNameChar(position: Position): void {
     if (isLetter(this.peek()) || this.peek() === '.') {
-      throw parseError('invalid number literal', pos);
+      throw parseError('invalid number literal', position);
     }
   }
 
   private lexName(): NameToken | KeywordToken {
-    const pos = this.pos();
+    const location = this.position();
     let name = '';
     while (!this.atEnd()) {
-      const ch = this.peek();
-      if (isNameChar(ch)) {
-        name += ch;
+      const character = this.peek();
+      if (isNameChar(character)) {
+        name += character;
         this.advance();
-      } else if (ch === '-' && isNameChar(this.peek(1))) {
-        name += ch;
+      } else if (character === '-' && isNameChar(this.peek(1))) {
+        name += character;
         this.advance();
       } else {
         break;
       }
     }
-    if (KEYWORDS.has(name)) return { kind: 'keyword', word: name as Keyword, pos };
-    return { kind: 'name', name, pos };
+    if (KEYWORDS.has(name)) return { kind: 'keyword', word: name as Keyword, position: location };
+    return { kind: 'name', name, position: location };
   }
 
   private lexChar(): CharToken {
-    const pos = this.pos();
+    const location = this.position();
     this.advance();
     if (this.atEnd() || this.peek() === '\n' || this.peek() === '`') {
-      throw parseError('char literal must contain exactly one character', pos);
+      throw parseError('char literal must contain exactly one character', location);
     }
-    const value = this.peek() === '\\' ? this.lexEscape(pos) : this.readCodePoint();
-    if (this.peek() !== '`') throw parseError('char literal must contain exactly one character', pos);
+    const value = this.peek() === '\\' ? this.lexEscape(location) : this.readCodePoint();
+    if (this.peek() !== '`') throw parseError('char literal must contain exactly one character', location);
     this.advance();
-    return { kind: 'char', value, pos };
+    return { kind: 'char', value, position: location };
   }
 
   private readCodePoint(): string {
-    const cp = this.src.codePointAt(this.i);
-    if (cp === undefined) throw parseError('unexpected end of input', this.pos());
-    const text = String.fromCodePoint(cp);
+    const codePoint = this.source.codePointAt(this.i);
+    if (codePoint === undefined) throw parseError('unexpected end of input', this.position());
+    const text = String.fromCodePoint(codePoint);
     this.advance(text.length);
     return text;
   }
 
-  private lexEscape(literalPos: Pos): string {
-    const escPos = this.pos();
+  private lexEscape(literalPosition: Position): string {
+    const escapePosition = this.position();
     this.advance();
-    const ch = this.peek();
+    const character = this.peek();
     this.advance();
-    switch (ch) {
+    switch (character) {
       case 'n':
         return '\n';
       case 't':
@@ -337,12 +337,12 @@ class Lexer {
       case '}':
         return '}';
       default:
-        throw parseError(`unknown escape \`\\${ch}\` in literal starting at ${literalPos.line}:${literalPos.col}`, escPos);
+        throw parseError(`unknown escape \`\\${character}\` in literal starting at ${literalPosition.line}:${literalPosition.col}`, escapePosition);
     }
   }
 
   private lexString(): StringToken {
-    const pos = this.pos();
+    const location = this.position();
     this.advance();
     const parts: StringPart[] = [];
     let text = '';
@@ -351,65 +351,65 @@ class Lexer {
       text = '';
     };
     while (true) {
-      if (this.atEnd() || this.peek() === '\n') throw parseError('unterminated string', pos);
-      const ch = this.peek();
-      if (ch === '"') {
+      if (this.atEnd() || this.peek() === '\n') throw parseError('unterminated string', location);
+      const character = this.peek();
+      if (character === '"') {
         this.advance();
         break;
       }
-      if (ch === '\\') {
-        text += this.lexEscape(pos);
+      if (character === '\\') {
+        text += this.lexEscape(location);
         continue;
       }
-      if (ch === '{') {
+      if (character === '{') {
         flushText();
         parts.push(this.lexInterpolation());
         continue;
       }
-      if (ch === '}') throw parseError('unmatched `}` in string; write `\\}` for a literal brace', this.pos());
+      if (character === '}') throw parseError('unmatched `}` in string; write `\\}` for a literal brace', this.position());
       text += this.readCodePoint();
     }
     flushText();
-    return { kind: 'string', parts, pos };
+    return { kind: 'string', parts, position: location };
   }
 
   private lexInterpolation(): StringPart {
-    const bracePos = this.pos();
+    const bracePosition = this.position();
     this.advance();
-    const innerPos = this.pos();
+    const innerPosition = this.position();
     const start = this.i;
     let depth = 1;
     while (depth > 0) {
-      if (this.atEnd() || this.peek() === '\n') throw parseError('unterminated interpolation', bracePos);
-      const ch = this.peek();
-      if (ch === '"') {
-        this.skipNestedString(bracePos);
+      if (this.atEnd() || this.peek() === '\n') throw parseError('unterminated interpolation', bracePosition);
+      const character = this.peek();
+      if (character === '"') {
+        this.skipNestedString(bracePosition);
         continue;
       }
-      if (ch === '{') depth++;
-      if (ch === '}') depth--;
+      if (character === '{') depth++;
+      if (character === '}') depth--;
       if (depth > 0) this.advance();
     }
-    const inner = this.src.slice(start, this.i);
+    const inner = this.source.slice(start, this.i);
     this.advance();
-    if (inner.trim().length === 0) throw parseError('empty interpolation', bracePos);
-    const tokens = new Lexer(inner, innerPos).lexFragment();
-    return { kind: 'expr', tokens, pos: innerPos };
+    if (inner.trim().length === 0) throw parseError('empty interpolation', bracePosition);
+    const tokens = new Lexer(inner, innerPosition).lexFragment();
+    return { kind: 'expr', tokens, position: innerPosition };
   }
 
-  private skipNestedString(bracePos: Pos): void {
+  private skipNestedString(bracePosition: Position): void {
     this.advance();
     while (true) {
       if (this.atEnd() || this.peek() === '\n') {
-        throw parseError('unterminated interpolation; a `"` inside `{}` starts a nested string', bracePos);
+        throw parseError('unterminated interpolation; a `"` inside `{}` starts a nested string', bracePosition);
       }
-      const ch = this.peek();
+      const character = this.peek();
       this.advance();
-      if (ch === '\\') {
+      if (character === '\\') {
         this.advance();
         continue;
       }
-      if (ch === '"') return;
+      if (character === '"') return;
     }
   }
 }

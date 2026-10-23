@@ -10,8 +10,8 @@ import {
   hashString,
 } from '../../src/runtime/hashing.ts';
 
-function isUint32(n: number): boolean {
-  return Number.isInteger(n) && n >= 0 && n <= 0xffffffff;
+function isUint32(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= 0xffffffff;
 }
 
 test('FNV constants are the 32-bit FNV-1a offset basis and prime', () => {

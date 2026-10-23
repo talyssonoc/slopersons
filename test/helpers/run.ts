@@ -1,4 +1,4 @@
-import { SloError } from '../../src/errors.ts';
+import { SlopersonsError } from '../../src/errors.ts';
 import { Interpreter } from '../../src/interpreter.ts';
 import { parse } from '../../src/parser.ts';
 import { registerStdlib } from '../../src/stdlib/registry.ts';
@@ -6,24 +6,24 @@ import { runProgram, type CliIo } from '../../src/cli.ts';
 
 export interface RunResult {
   out: string;
-  error: SloError | null;
+  error: SlopersonsError | null;
 }
 
 export interface FakeIo extends CliIo {
   out: string;
-  err: string;
+  error: string;
 }
 
 export function fakeIo(inputLines: string[] = []): FakeIo {
   const pending = [...inputLines];
   const io: FakeIo = {
     out: '',
-    err: '',
+    error: '',
     write: (text) => {
       io.out += text;
     },
     writeError: (text) => {
-      io.err += text;
+      io.error += text;
     },
     readLine: () => pending.shift() ?? null,
   };
@@ -32,13 +32,13 @@ export function fakeIo(inputLines: string[] = []): FakeIo {
 
 export function run(source: string, inputLines: string[] = []): RunResult {
   const io = fakeIo(inputLines);
-  const interp = new Interpreter(io);
-  registerStdlib(interp);
+  const interpreter = new Interpreter(io);
+  registerStdlib(interpreter);
   try {
-    interp.run(parse(source));
+    interpreter.run(parse(source));
     return { out: io.out, error: null };
   } catch (error) {
-    if (error instanceof SloError) return { out: io.out, error };
+    if (error instanceof SlopersonsError) return { out: io.out, error };
     throw error;
   }
 }
@@ -49,7 +49,7 @@ export function output(source: string): string {
   return result.out;
 }
 
-export function failure(source: string): SloError {
+export function failure(source: string): SlopersonsError {
   const result = run(source);
   if (result.error === null) throw new Error(`expected an error, got output: ${JSON.stringify(result.out)}`);
   return result.error;

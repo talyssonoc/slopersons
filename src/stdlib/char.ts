@@ -1,33 +1,33 @@
 import type { Interpreter } from '../interpreter.ts';
 import { isDigit, isLetter, isSpace, length, lower, upper } from '../runtime/text.ts';
-import { bool, char, int, str } from '../values.ts';
-import { arg, expectChar } from './core.ts';
+import { boolean, char, int, string } from '../values.ts';
+import { input, expectChar } from './core.ts';
 
 function singleCodePointOr(original: string, mapped: string): string {
   return length(mapped) === 1 ? mapped : original;
 }
 
-export function registerChar(interp: Interpreter): void {
-  interp.defineMethod('to-int', 'char', 1, (args, ctx) => {
-    const c = expectChar(arg(args, 0), 'the input of `to-int`', ctx);
-    return int(BigInt(c.codePointAt(0) ?? 0));
+export function registerChar(interpreter: Interpreter): void {
+  interpreter.defineMethod('to-int', 'char', 1, (inputs, context) => {
+    const cursor = expectChar(input(inputs, 0), 'the input of `to-int`', context);
+    return int(BigInt(cursor.codePointAt(0) ?? 0));
   });
 
-  interp.defineMethod('upper', 'char', 1, (args, ctx) => {
-    const c = expectChar(arg(args, 0), 'the input of `upper`', ctx);
-    return char(singleCodePointOr(c, upper(c)));
+  interpreter.defineMethod('upper', 'char', 1, (inputs, context) => {
+    const cursor = expectChar(input(inputs, 0), 'the input of `upper`', context);
+    return char(singleCodePointOr(cursor, upper(cursor)));
   });
 
-  interp.defineMethod('lower', 'char', 1, (args, ctx) => {
-    const c = expectChar(arg(args, 0), 'the input of `lower`', ctx);
-    return char(singleCodePointOr(c, lower(c)));
+  interpreter.defineMethod('lower', 'char', 1, (inputs, context) => {
+    const cursor = expectChar(input(inputs, 0), 'the input of `lower`', context);
+    return char(singleCodePointOr(cursor, lower(cursor)));
   });
 
-  interp.defineMethod('is-letter', 'char', 1, (args, ctx) => bool(isLetter(expectChar(arg(args, 0), 'the input of `is-letter`', ctx))));
+  interpreter.defineMethod('is-letter', 'char', 1, (inputs, context) => boolean(isLetter(expectChar(input(inputs, 0), 'the input of `is-letter`', context))));
 
-  interp.defineMethod('is-digit', 'char', 1, (args, ctx) => bool(isDigit(expectChar(arg(args, 0), 'the input of `is-digit`', ctx))));
+  interpreter.defineMethod('is-digit', 'char', 1, (inputs, context) => boolean(isDigit(expectChar(input(inputs, 0), 'the input of `is-digit`', context))));
 
-  interp.defineMethod('is-space', 'char', 1, (args, ctx) => bool(isSpace(expectChar(arg(args, 0), 'the input of `is-space`', ctx))));
+  interpreter.defineMethod('is-space', 'char', 1, (inputs, context) => boolean(isSpace(expectChar(input(inputs, 0), 'the input of `is-space`', context))));
 
-  interp.defineMethod('to-string', 'char', 1, (args, ctx) => str(expectChar(arg(args, 0), 'the input of `to-string`', ctx)));
+  interpreter.defineMethod('to-string', 'char', 1, (inputs, context) => string(expectChar(input(inputs, 0), 'the input of `to-string`', context)));
 }
