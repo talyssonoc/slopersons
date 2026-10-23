@@ -1,0 +1,9 @@
+~ The classic, with a conditional used as an expression.
+proc label n
+| n mod 15 = 0 ? "FizzBuzz"
+| : n mod 3 = 0 ? "Fizz"
+| : n mod 5 = 0 ? "Buzz"
+| : n
+
+1 -> to 15 -> each n
+| n -> label -> print

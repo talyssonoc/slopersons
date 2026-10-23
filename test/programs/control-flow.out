@@ -1,0 +1,14 @@
+-5: negative
+0: zero
+3: small
+42: large
+9
+nothing
+loop 0
+loop 1
+loop 2
+repeat 0
+1-10
+1-20
+2-10
+2-20

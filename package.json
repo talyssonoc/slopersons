@@ -1,0 +1,21 @@
+{
+  "name": "slopersons",
+  "version": "0.1.0",
+  "description": "Interpreter and standard library for the slopersons programming language",
+  "type": "module",
+  "bin": {
+    "slopersons": "bin/slopersons.mjs"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "test": "node --test 'test/**/*.test.ts'",
+    "typecheck": "tsc --noEmit"
+  },
+  "packageManager": "pnpm@10.23.0",
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}

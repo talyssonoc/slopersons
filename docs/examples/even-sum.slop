@@ -1,0 +1,16 @@
+~ Sum the even numbers and describe each one.
+[3 8 15 22 7] => numbers
+0 => total
+
+numbers -> each n
+| n mod 2 = 0 ? total + n =>> total
+
+"even total: {total}" -> print
+
+proc describe n
+| n > 20 ? "big" -> out
+| n > 10 ? "medium" -> out
+| "small"
+
+numbers -> each n
+| "{n} is {n -> describe}" -> print

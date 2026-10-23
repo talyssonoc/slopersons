@@ -1,0 +1,2 @@
+error: `total` already exists in an enclosing scope; use `=>> total` to update it or choose another name
+  at <file>:3:13

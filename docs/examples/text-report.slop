@@ -1,0 +1,24 @@
+~ String handling: words, cases, searching and building text.
+"the quick brown fox jumps over the lazy dog" => sentence
+
+sentence -> words => words
+"{words -> length} words" -> print
+"starts with 'the': {sentence -> starts-with "the"}" -> print
+"'fox' at index {sentence -> index-of "fox"}" -> print
+"'cat' at index {sentence -> index-of "cat"}" -> print
+
+0 => vowels
+sentence -> each c
+| "aeiou" -> contains (c -> to-string) ? vowels + 1 =>> vowels
+"{vowels} vowels" -> print
+
+sentence -> upper -> print
+sentence -> replace "the" "a" -> print
+"the" -> repeat 3 -> print
+("42" -> to-int) + 1 -> print
+
+"  padded  " -> trim => word
+word -> pad-left 10 `.` -> print
+word -> pad-right 10 `.` -> print
+"a👍b" -> reverse -> print
+"a👍b" -> length -> print

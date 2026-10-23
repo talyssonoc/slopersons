@@ -1,0 +1,17 @@
+~ Count word frequencies with a hashmap, then report them.
+"the cat and the dog and the bird" => text
+{} => counts
+
+text -> words -> each w
+| counts -> put w ((counts -> at-or w 0) + 1)
+
+counts -> print
+counts -> keys -> print
+
+counts -> entries
+-> sort-by a b | (a -> at 1) > (b -> at 1)
+-> each pair
+| "{pair -> at 0}: {pair -> at 1}" -> print
+
+counts -> keep k v | v > 1
+-> keys -> print

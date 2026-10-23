@@ -1,0 +1,21 @@
+~ Procedures are values: build them, store them, pass them around.
+proc adder k
+| n | n + k
+
+5 -> adder => add-five
+10 -> add-five -> print
+
+proc compose f g
+| x | x -> f -> g
+
+proc double n | n * 2
+proc increment n | n + 1
+
+(double -> compose increment) => double-then-increment
+7 -> double-then-increment -> print
+
+proc apply-twice x f
+| x -> f -> f
+
+3 -> apply-twice double -> print
+3 -> apply-twice (n | n * n) -> print
