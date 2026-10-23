@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createInterpreter } from '../src/cli.ts';
 import { BANNER, CONTINUATION_PROMPT, PROMPT, Repl } from '../src/repl.ts';
 import { fakeIo } from './helpers/run.ts';
@@ -23,6 +26,13 @@ test('a complete line runs at once and its value is echoed in show form', () => 
 test('printed output and the echo both appear, and nothing is not echoed', () => {
   const result = session(['"hi" -> io/print-line', 'proc f | 1', 'nothing']);
   assert.equal(result.out, `${BANNER}${P}hi\n-> "hi"\n${P}${P}${P}\n`);
+});
+
+test('file streams opened in a session are written when the session ends', () => {
+  const path = join(mkdtempSync(join(tmpdir(), 'slopersons-')), 'session.txt');
+  const result = session([`"${path}" -> file/open "write" => log`, 'log -> stream/write "kept"']);
+  assert.equal(result.code, 0);
+  assert.equal(readFileSync(path, 'utf8'), 'kept');
 });
 
 test('io/arguments is empty in the REPL', () => {

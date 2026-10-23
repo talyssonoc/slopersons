@@ -1,5 +1,5 @@
 import type { Statement } from './ast.ts';
-import { BrokenPipe, EXIT_OK, INTERNAL_ERROR_LINE, describeUnexpected, type CliIo } from './boundary.ts';
+import { BrokenPipe, EXIT_OK, INTERNAL_ERROR_LINE, closeOpenStreams, describeUnexpected, type ReplIo } from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
 import { ExitSignal, type Environment, type Interpreter } from './interpreter.ts';
 import { parse } from './parser.ts';
@@ -13,17 +13,21 @@ export const BANNER = 'slopersons, Ctrl-D to leave\n';
 type Reading = 'complete' | 'incomplete' | 'wants-block' | 'error';
 
 export class Repl {
-  private readonly io: CliIo;
+  private readonly io: ReplIo;
   private readonly interpreter: Interpreter;
   private readonly environment: Environment;
 
-  constructor(io: CliIo, interpreter: Interpreter) {
+  constructor(io: ReplIo, interpreter: Interpreter) {
     this.io = io;
     this.interpreter = interpreter;
     this.environment = interpreter.createTopLevelEnvironment();
   }
 
   run(): number {
+    return closeOpenStreams(this.interpreter, this.io, this.loop());
+  }
+
+  private loop(): number {
     this.io.write(BANNER);
     const pending: string[] = [];
     while (true) {

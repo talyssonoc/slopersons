@@ -25,10 +25,12 @@ import {
   type TypeName,
   type Value,
 } from './values.ts';
+import { StreamRegistry } from './runtime/stream.ts';
 
 export interface Io {
   write(text: string): void;
-  readLine(prompt?: string): string | null;
+  writeError(text: string): void;
+  readInput(buffer: Uint8Array): number;
 }
 
 export interface CallContext {
@@ -145,11 +147,13 @@ export class Interpreter {
   private topActivation: number;
   currentFile: string | null;
   readonly programArguments: readonly string[];
+  readonly streams: StreamRegistry;
   private readonly exportStack: ExportRequest[][];
 
   constructor(io: Io, programArguments: readonly string[] = []) {
     this.io = io;
     this.programArguments = programArguments;
+    this.streams = new StreamRegistry();
     this.builtins = new Map();
     this.methods = new Map();
     this.depth = 0;
@@ -186,6 +190,12 @@ export class Interpreter {
     if (module.members.has(name)) throw new Error(`builtin \`${qualified}\` is registered twice`);
     const normalized: Arity = typeof arity === 'number' ? { min: arity, max: arity } : arity;
     module.members.set(name, { type: 'builtin', id: freshId(), name: qualified, arity: normalized, implementation: procedure });
+  }
+
+  defineValueIn(moduleName: string, name: string, value: Value): void {
+    const module = this.builtinModule(moduleName);
+    if (module.members.has(name)) throw new Error(`builtin \`${moduleName}/${name}\` is registered twice`);
+    module.members.set(name, value);
   }
 
   defineMethodIn(moduleName: string, name: string, types: TypeName | TypeName[], arity: number | Arity, procedure: BuiltinImplementation): void {

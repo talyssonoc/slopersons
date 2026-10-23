@@ -1,12 +1,12 @@
 # Io builtins
 
-Standard output, standard input and the program's command-line arguments. Output is written in order and fully flushed before the program ends, including when `exit` is called; see `cli.md` for exit codes and for what happens when the reader of standard output goes away early.
+Standard input, standard output, standard error and the program's command-line arguments. The three standard streams are [stream](stream.md) values held by this module, `io/stdin`, `io/stdout` and `io/stderr`, and `io/print-line`, `io/print` and `io/read-line` are shortcuts over them, so a program that only talks to the person at the keyboard never needs the `stream` module. Output is written in order and fully flushed before the program ends, including when `exit` is called; see `cli.md` for exit codes and for what happens when the reader of standard output goes away early.
 
 ## print-line
 
 `value -> io/print-line`
 
-Writes the human form of `value` and a newline to standard output, then returns `value` so it can sit in the middle of a flow. Strings and chars print bare; inside arrays and hashmaps they print quoted. Floats always show a decimal point. The Printing section of `semantics.md` gives the form of every type.
+Writes the human form of `value` and a newline to standard output (`io/stdout`), then returns `value` so it can sit in the middle of a flow. Strings and chars print bare; inside arrays and hashmaps they print quoted. Floats always show a decimal point. The Printing section of `semantics.md` gives the form of every type.
 
 ```
 "hi" -> io/print-line                   ~ hi
@@ -29,12 +29,25 @@ io/read-line -> do => name
 
 `io/read-line -> do`
 
-Reads one line from standard input without its line break. Returns `nothing` at end of input. It takes no input, so it is called through `do`. Output written before it, including a prompt without a newline, is delivered before the program waits.
+Reads one line from standard input without its line break. Returns `nothing` at end of input. It takes no input, so it is called through `do`. Output written before it, including a prompt without a newline, is delivered before the program waits. It is `io/stdin -> stream/read-line`: the two read from the same place, so a program can mix them and each line is read once. Input that is not valid UTF-8 is an error.
 
 ```
 "Name: " -> io/print
 io/read-line -> do => name
 "hello, {name}" -> io/print-line          ~ with Ada on standard input: Name: hello, Ada
+```
+
+## stdin, stdout, stderr
+
+`io/stdin`, `io/stdout`, `io/stderr`
+
+The standard streams, as [stream](stream.md) values rather than procedures, so they are used without `do`. `io/stdin` can only be read and the other two can only be written; writes to them are not buffered. Closing one only flushes it, and they stay open for the whole program.
+
+```
+io/stdin -> stream/read-all -> string/lines -> array/length -> io/print-line   ~ the number of lines on standard input
+io/stderr -> stream/write-line "warning: empty input"
+proc report target | target -> stream/write-line "all good"
+io/stdout -> report                                                             ~ all good
 ```
 
 ## arguments

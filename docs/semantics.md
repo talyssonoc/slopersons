@@ -18,6 +18,7 @@
 | `datetime` | built with `date/at-time`, `datetime/parse`, `datetime/from-epoch` or `datetime/now` | no | a date with a time, UTC |
 | `error` | bound by `recover` | no | a message and the position it was raised at |
 | `module` | `use`, or a builtin module name such as `io` | no | read-only exported members |
+| `stream` | `file/open`, or `io/stdin`, `io/stdout`, `io/stderr` | yes | an open file or a standard stream; reading and writing move its position |
 | `proc` | `proc`, lambdas, builtins | no | first-class |
 
 `type-of` returns these names as strings. There is no type coercion anywhere.
@@ -32,7 +33,7 @@
 
 ## Equality and ordering
 
-`=` and `/=` compare structurally: two arrays are equal when their elements are, two hashmaps when they hold the same keys with equal values regardless of insertion order. Values of different types are unequal, never an error, so `1 = 1.0` is `no` and `1 = "1"` is `no`. Procedures are equal only to themselves.
+`=` and `/=` compare structurally: two arrays are equal when their elements are, two hashmaps when they hold the same keys with equal values regardless of insertion order. Values of different types are unequal, never an error, so `1 = 1.0` is `no` and `1 = "1"` is `no`. Procedures and streams are equal only to themselves.
 
 `<`, `>`, `<=`, `>=` work between two numbers (int and float mix), two strings or two chars (by code point), two dates, two times, two datetimes, or two arrays (element by element, then by length). Any other pairing is an error; a date and a datetime do not compare.
 
@@ -63,7 +64,7 @@ Calls may nest 10000 deep. Beyond that the program fails with an error naming th
 
 ## Mutation
 
-Arrays, hashmaps and sets are mutable, and builtins that mutate (`array/put`, `array/push`, `array/pop`, `array/insert`, `array/remove-at`, `hashmap/put`, `hashmap/remove`, `set/add`, `set/remove`) change the value in place and return it so flows can continue. Everything else returns a new value. Strings, dates and all primitives are immutable.
+Arrays, hashmaps and sets are mutable, and builtins that mutate (`array/put`, `array/push`, `array/pop`, `array/insert`, `array/remove-at`, `hashmap/put`, `hashmap/remove`, `set/add`, `set/remove`) change the value in place and return it so flows can continue. Everything else returns a new value. Strings, dates and all primitives are immutable. A stream changes as it is read, written and closed; see `stdlib/stream.md`.
 
 A hashmap or set key that is mutated after insertion leaves the container in an undefined state. Use immutable keys or copies.
 
@@ -73,7 +74,7 @@ Within a flow, the head is evaluated first, then each step left to right. Within
 
 ## Printing
 
-`io/print-line` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, times as `HH:MM:SS` with `.SSS` only when the milliseconds are not zero, datetimes as `yyyy-mm-ddTHH:MM:SS`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>` (a builtin under its qualified name, `<proc io/print-line>`), modules as `<module name>` and errors as their message. Inside containers, strings are quoted and escaped, chars are shown in backticks and errors as `<error message>`. `show` returns that quoted form for any value. String interpolation uses the `io/print-line` form.
+`io/print-line` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, times as `HH:MM:SS` with `.SSS` only when the milliseconds are not zero, datetimes as `yyyy-mm-ddTHH:MM:SS`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>` (a builtin under its qualified name, `<proc io/print-line>`), modules as `<module name>`, streams as `<stream path>` (`<stream stdin>` for the standard ones) and errors as their message. Inside containers, strings are quoted and escaped, chars are shown in backticks and errors as `<error message>`. `show` returns that quoted form for any value. String interpolation uses the `io/print-line` form.
 
 ## Modules
 

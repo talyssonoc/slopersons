@@ -1,0 +1,16 @@
+~ the runner gives every program a fresh working directory, so these relative paths start out empty
+"notes.txt" -> file/write "first line\n" -> file/append "second line\n"
+"notes.txt" -> file/read -> string/lines -> io/print-line
+"notes.txt" -> file/open "append" => log
+log -> stream/write-line "third line"
+log -> stream/close
+"notes.txt" -> file/open "read" => notes
+notes -> stream/read-line => line
+while line /= nothing
+| "> {line}" -> io/print-line
+| notes -> stream/read-line =>> line
+notes -> stream/close
+"." -> file/list -> io/print-line
+"notes.txt" -> file/remove
+"." -> file/list -> io/print-line
+attempt | "notes.txt" -> file/read recover e | e -> error/message -> io/print-line

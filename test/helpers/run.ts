@@ -2,7 +2,7 @@ import { SlopersonsError } from '../../src/errors.ts';
 import { Interpreter } from '../../src/interpreter.ts';
 import { parse } from '../../src/parser.ts';
 import { registerStdlib } from '../../src/stdlib/registry.ts';
-import type { CliIo } from '../../src/boundary.ts';
+import { lineInput, type ReplIo } from '../../src/boundary.ts';
 import { createInterpreter, runProgram } from '../../src/cli.ts';
 
 export interface RunResult {
@@ -10,7 +10,7 @@ export interface RunResult {
   error: SlopersonsError | null;
 }
 
-export interface FakeIo extends CliIo {
+export interface FakeIo extends ReplIo {
   out: string;
   error: string;
 }
@@ -27,9 +27,10 @@ export function fakeIo(inputLines: string[] = []): FakeIo {
       io.error += text;
     },
     readLine: (prompt) => {
-      if (prompt !== undefined) io.out += prompt;
+      io.out += prompt;
       return pending.shift() ?? null;
     },
+    readInput: lineInput(() => pending.shift() ?? null),
   };
   return io;
 }
@@ -44,6 +45,8 @@ export function run(source: string, inputLines: string[] = []): RunResult {
   } catch (error) {
     if (error instanceof SlopersonsError) return { out: io.out, error };
     throw error;
+  } finally {
+    interpreter.streams.closeAll();
   }
 }
 

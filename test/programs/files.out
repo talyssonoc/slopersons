@@ -1,0 +1,7 @@
+["first line" "second line"]
+> first line
+> second line
+> third line
+["notes.txt"]
+[]
+cannot open "notes.txt": no such file or directory

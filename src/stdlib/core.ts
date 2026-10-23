@@ -1,5 +1,6 @@
 import { SlopersonsError, runtimeError } from '../errors.ts';
 import { ExitSignal, OutSignal, StopSignal, type CallContext, type Interpreter } from '../interpreter.ts';
+import { IoFailure } from '../runtime/stream.ts';
 import { NOTHING, array, describeType, formatValue, int, string, typeName, type ErrorValue, type Value } from '../values.ts';
 
 export const MAX_SIZE = 50_000_000n;
@@ -75,17 +76,16 @@ export function runLoopBody(body: () => void): boolean {
   }
 }
 
+export function runIo<Result>(context: CallContext, body: () => Result): Result {
+  try {
+    return body();
+  } catch (error) {
+    if (error instanceof IoFailure) throw runtimeError(error.message, context.position);
+    throw error;
+  }
+}
+
 export function registerCore(interpreter: Interpreter): void {
-  interpreter.defineIn('io', 'print-line', 1, (inputs, context) => {
-    context.interpreter.io.write(`${formatValue(input(inputs, 0), 'print')}\n`);
-    return input(inputs, 0);
-  });
-
-  interpreter.defineIn('io', 'print', 1, (inputs, context) => {
-    context.interpreter.io.write(formatValue(input(inputs, 0), 'print'));
-    return input(inputs, 0);
-  });
-
   interpreter.defineBuiltin('show', 1, (inputs) => string(formatValue(input(inputs, 0), 'show')));
 
   interpreter.defineBuiltin('type-of', 1, (inputs) => string(typeName(input(inputs, 0))));
@@ -129,13 +129,6 @@ export function registerCore(interpreter: Interpreter): void {
     if (code < 0n || code > 255n) throw runtimeError(`the exit code must be between 0 and 255, got ${code}`, context.position);
     throw new ExitSignal(Number(code));
   });
-
-  interpreter.defineIn('io', 'read-line', 0, (_args, context) => {
-    const line = context.interpreter.io.readLine();
-    return line === null ? NOTHING : string(line);
-  });
-
-  interpreter.defineIn('io', 'arguments', 0, (_inputs, context) => array(context.interpreter.programArguments.map(string)));
 
   interpreter.defineIn('int', 'up-to', 2, (inputs, context) => {
     const from = expectInt(input(inputs, 0), 'the start of `int/up-to`', context);

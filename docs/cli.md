@@ -43,7 +43,7 @@ Line editing comes from Node's readline: the arrow keys move within the line and
 | Code | Meaning |
 | --- | --- |
 | 0 | the program finished, or called `0 -> exit` |
-| 1 | the program failed with a parse or runtime error |
+| 1 | the program failed with a parse or runtime error, or a file it left open could not be written when it ended |
 | 2 | usage error: no file given, an unknown option, words after `--repl`, or the file could not be read |
 | 70 | an internal interpreter error; a bug in slopersons, not in the program |
 | other | the value passed to `exit` |
@@ -68,6 +68,8 @@ and exits with code 70. Setting the environment variable `SLOPERSONS_DEBUG=1` ad
 ## Input and output
 
 `io/print-line` writes a line to standard output and `io/print` writes without a line break, which is how prompts are shown. `io/read-line -> do` reads one line from standard input and gives `nothing` at end of input; output written before it, including a prompt without a newline, is delivered before the program blocks waiting for input. Output is fully flushed before the process exits, including when `exit` is called. If the reader of standard output goes away early, as in `slopersons report.slop | head`, the program stops quietly with exit code 0.
+
+Standard input is read as UTF-8; bytes that are not valid UTF-8 stop the program with `error: cannot read standard input: it is not valid UTF-8 text (invalid byte at offset N)` unless an `attempt` handles it. Writes to files opened with `file/open` are buffered, and every file a program leaves open is written and closed when it ends, whether it finishes, calls `exit` or stops with an error. If that last write fails, for example because the disk is full, the failure is printed as an `error:` line and a program that would have exited with 0 exits with 1. Relative paths in `file/*` calls are resolved against the directory `slopersons` was started in.
 
 ## Execution and limits
 

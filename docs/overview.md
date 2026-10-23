@@ -34,7 +34,7 @@ even total: 30
 - [semantics.md](semantics.md): values, arithmetic, equality, scoping, procedures, errors
 - [cli.md](cli.md): running programs, exit codes, error output
 - [adr/README.md](adr/README.md): the Architecture Decision Records, one file per decision with its context, rejected alternatives and consequences
-- [stdlib/core.md](stdlib/core.md): the bare builtins and how the standard library is split into modules; then one page per module: [io](stdlib/io.md), [int](stdlib/int.md), [float](stdlib/float.md), [math](stdlib/math.md), [char](stdlib/char.md), [boolean](stdlib/boolean.md), [string](stdlib/string.md), [array](stdlib/array.md), [hashmap](stdlib/hashmap.md), [set](stdlib/set.md), [date](stdlib/date.md), [time](stdlib/time.md), [datetime](stdlib/datetime.md), [error](stdlib/error.md), [module](stdlib/module.md)
+- [stdlib/core.md](stdlib/core.md): the bare builtins and how the standard library is split into modules; then one page per module: [io](stdlib/io.md), [file](stdlib/file.md), [stream](stdlib/stream.md), [int](stdlib/int.md), [float](stdlib/float.md), [math](stdlib/math.md), [char](stdlib/char.md), [boolean](stdlib/boolean.md), [string](stdlib/string.md), [array](stdlib/array.md), [hashmap](stdlib/hashmap.md), [set](stdlib/set.md), [date](stdlib/date.md), [time](stdlib/time.md), [datetime](stdlib/datetime.md), [error](stdlib/error.md), [module](stdlib/module.md)
 - [examples/](examples/): complete programs; each has a `.out` file with its exact output and runs as part of the test suite
 
 ## The shape in one minute

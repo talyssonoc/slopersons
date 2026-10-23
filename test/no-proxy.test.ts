@@ -34,6 +34,7 @@ const rules: Rule[] = [
   { pattern: /\.(toUpperCase|toLowerCase)\(/, reason: 'case mapping is only wrapped by src/runtime/text.ts', allowedIn: ['src/runtime/text.ts'] },
   { pattern: /\/\\p\{|\/\^\\s\$\/|\/\\s\//, reason: 'Unicode classification regexes are only in src/runtime/text.ts', allowedIn: ['src/runtime/text.ts'] },
   { pattern: /process\.exit\(/, reason: 'exit through ExitSignal so output is flushed', allowedIn: [] },
+  { pattern: /from 'node:/, reason: 'only the boundary talks to Node: the CLI, the worker, module loading and src/file-system.ts', allowedIn: ['src/cli.ts', 'src/worker.ts', 'src/modules.ts', 'src/file-system.ts'] },
 ];
 
 const sources = listSources(srcDir);

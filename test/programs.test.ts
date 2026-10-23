@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, join } from 'node:path';
 
@@ -28,7 +29,8 @@ for (const directory of directories) {
       const argumentLines = readIfExists(`${stem}.args`);
       const programArguments = argumentLines === null ? [] : argumentLines.replace(/\n$/, '').split('\n');
       assert.ok(expectedOut !== null || expectedErr !== null, `${name} needs a .out or .err file next to it`);
-      const result = spawnSync(bin, [path, ...programArguments], { encoding: 'utf8', input });
+      const cwd = mkdtempSync(join(tmpdir(), 'slopersons-program-'));
+      const result = spawnSync(bin, [path, ...programArguments], { encoding: 'utf8', input, cwd });
       assert.equal(result.stdout, expectedOut ?? '');
       assert.equal(result.stderr, (expectedErr ?? '').replaceAll('<file>', path));
       assert.equal(result.status, expectedErr === null ? 0 : 1);

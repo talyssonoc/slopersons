@@ -11,15 +11,14 @@ import {
   LINE_ENDED,
   LINE_READY,
   REPL_LINE_BUFFER_BYTES,
+  closeOpenStreams,
   describeUnexpected,
   isReadLineRequest,
-  type CliIo,
 } from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
 import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
 import { parse } from './parser.ts';
 import { registerModules } from './modules.ts';
-import { Repl } from './repl.ts';
 import { registerStdlib } from './stdlib/registry.ts';
 
 const VERSION = '0.1.0';
@@ -40,7 +39,11 @@ export function createInterpreter(io: Io, programArguments: readonly string[] = 
   return interpreter;
 }
 
-export function runProgram(source: string, file: string, io: CliIo, interpreter: Interpreter = createInterpreter(io)): number {
+export function runProgram(source: string, file: string, io: Io, interpreter: Interpreter = createInterpreter(io)): number {
+  return closeOpenStreams(interpreter, io, execute(source, file, io, interpreter));
+}
+
+function execute(source: string, file: string, io: Io, interpreter: Interpreter): number {
   try {
     interpreter.currentFile = file;
     interpreter.run(parse(source, file));
@@ -96,46 +99,31 @@ function writeAll(fileDescriptor: number, text: string): void {
   }
 }
 
-const NEWLINE = 0x0a;
-const CARRIAGE_RETURN = 0x0d;
-
-function readLineFromStdin(): string | null {
-  const buffer = Buffer.alloc(1);
-  const bytes: number[] = [];
+function readStandardInput(buffer: Uint8Array): number {
   while (true) {
-    let read: number;
     try {
-      read = readSync(0, buffer, 0, 1, null);
+      return readSync(0, buffer, 0, buffer.length, null);
     } catch (error) {
       if (isWouldBlock(error)) {
         pauseBriefly();
         continue;
       }
-      if (error instanceof Error && 'code' in error && error.code === 'EOF') read = 0;
-      else throw error;
+      if (error instanceof Error && 'code' in error && error.code === 'EOF') return 0;
+      throw error;
     }
-    if (read === 0) return bytes.length === 0 ? null : Buffer.from(bytes).toString('utf8');
-    const byte = buffer.readUInt8(0);
-    if (byte === NEWLINE) {
-      if (bytes.at(-1) === CARRIAGE_RETURN) bytes.pop();
-      return Buffer.from(bytes).toString('utf8');
-    }
-    bytes.push(byte);
   }
 }
 
-export const nodeIo: CliIo = {
+export const nodeIo: Io = {
   write: (text) => writeAll(1, text),
   writeError: (text) => writeAll(2, text),
-  readLine: (prompt) => {
-    if (prompt !== undefined) writeAll(1, prompt);
-    return readLineFromStdin();
-  },
+  readInput: readStandardInput,
 };
 
 const USAGE = 'usage: slopersons <file.slop> [arguments...]\n       slopersons --repl\n       slopersons --version\n';
 
-export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> {
+export async function main(argv: string[]): Promise<number> {
+  const io = nodeIo;
   process.removeAllListeners('warning');
   process.on('warning', () => {});
   const [path, ...programArguments] = argv;
@@ -152,7 +140,6 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
       io.writeError(`error: --repl takes no file or arguments\n${USAGE}`);
       return EXIT_USAGE;
     }
-    if (io !== nodeIo) return new Repl(io, createInterpreter(io)).run();
     return runReplInWorker();
   }
   if (path === undefined) {
@@ -170,7 +157,6 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
     io.writeError(`error: cannot read file ${path}\n`);
     return EXIT_USAGE;
   }
-  if (io !== nodeIo) return runProgram(source, path, io, createInterpreter(io, programArguments));
   return runInWorker({ mode: 'program', source, file: path, programArguments });
 }
 

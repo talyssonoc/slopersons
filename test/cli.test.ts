@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { EXIT_INTERNAL, EXIT_PROGRAM_ERROR } from '../src/boundary.ts';
+import { EXIT_INTERNAL, EXIT_PROGRAM_ERROR, closeOpenStreams } from '../src/boundary.ts';
 import { createInterpreter, runProgram } from '../src/cli.ts';
+import { ChannelStream, IoFailure, type ByteChannel } from '../src/runtime/stream.ts';
 import { fakeIo, runCli } from './helpers/run.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -100,6 +101,60 @@ test('read-line decodes characters that take several bytes in UTF-8', () => {
   const path = writeTemp('accents.slop', 'io/read-line -> do => a\nio/read-line -> do => b\n"{a}|{a -> string/length}|{b}|{b -> string/length}" -> io/print-line\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8', input: 'café ü\r\n日本 🎉' });
   assert.equal(result.stdout, 'café ü|6|日本 🎉|4\n');
+});
+
+test('standard input read whole keeps its bytes exactly, with no line break added', () => {
+  const path = writeTemp('all.slop', 'io/read-line -> do -> io/print-line\nio/stdin -> stream/read-all -> show -> io/print-line\n');
+  const result = spawnSync(bin, [path], { encoding: 'utf8', input: 'first\r\nsecond\r\nno break' });
+  assert.equal(result.stderr, '');
+  assert.equal(result.stdout, 'first\n"second\\r\\nno break"\n');
+});
+
+test('invalid UTF-8 on standard input is a program error that names the offset of the bad byte', () => {
+  const path = writeTemp('bad-input.slop', 'io/read-line -> do -> io/print-line\nio/read-line -> do -> io/print-line\n');
+  const result = spawnSync(bin, [path], { encoding: 'utf8', input: Buffer.from([0x6f, 0x6b, 0x0a, 0xff, 0x0a]) });
+  assert.equal(result.stdout, 'ok\n');
+  assert.equal(result.stderr, `error: cannot read standard input: it is not valid UTF-8 text (invalid byte at offset 3)\n  at ${path}:2:14\n`);
+  assert.equal(result.status, 1);
+});
+
+test('file streams a program leaves open are written when it exits or fails', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-'));
+  const exiting = writeTemp('exiting.slop', '"out.txt" -> file/open "write" -> stream/write "on exit"\n4 -> exit\n');
+  assert.equal(spawnSync(bin, [exiting], { encoding: 'utf8', cwd: directory }).status, 4);
+  assert.equal(readFileSync(join(directory, 'out.txt'), 'utf8'), 'on exit');
+  const failing = writeTemp('failing.slop', '"err.txt" -> file/open "write" -> stream/write "on error"\n1 / 0\n');
+  assert.equal(spawnSync(bin, [failing], { encoding: 'utf8', cwd: directory }).status, 1);
+  assert.equal(readFileSync(join(directory, 'err.txt'), 'utf8'), 'on error');
+});
+
+test('relative paths are resolved against the working directory, not the program file', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-'));
+  writeFileSync(join(directory, 'data.txt'), 'from the working directory');
+  const path = writeTemp('reader.slop', '"data.txt" -> file/read -> io/print-line\n');
+  const result = spawnSync(bin, [path], { encoding: 'utf8', cwd: directory });
+  assert.equal(result.stderr, '');
+  assert.equal(result.stdout, 'from the working directory\n');
+});
+
+test('a failure while writing open streams at the end is reported, and turns a success into exit 1', () => {
+  const full: ByteChannel = {
+    positioned: false,
+    read: () => 0,
+    write: () => {
+      throw new IoFailure('cannot write "full.txt": no space left on the device');
+    },
+    close: () => {},
+  };
+  const io = fakeIo();
+  const interpreter = createInterpreter(io);
+  const open = (): void => new ChannelStream({ label: 'full.txt', description: '"full.txt"', mode: 'write', channel: full, standard: false, registry: interpreter.streams }).write('pending');
+  open();
+  assert.equal(closeOpenStreams(interpreter, io, 0), EXIT_PROGRAM_ERROR);
+  assert.equal(io.error, 'error: cannot write "full.txt": no space left on the device\n');
+  open();
+  assert.equal(closeOpenStreams(interpreter, io, 3), 3);
+  assert.equal(closeOpenStreams(interpreter, io, 0), 0);
 });
 
 test('the binary runs programs on a large stack, so recursion thousands deep works', () => {

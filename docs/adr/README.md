@@ -111,3 +111,9 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Represent open files and the standard streams as stream values](./202610231912-represent-open-files-and-the-standard-streams-as-stream-values.md) | Accepted |
 | 2026-10-23 | [Keep the io shortcuts over the standard streams](./202610231913-keep-the-io-shortcuts-over-the-standard-streams.md) | Accepted |
 | 2026-10-23 | [Put file system operations in a `file` module that takes the path first](./202610231914-put-file-system-operations-in-a-file-module-that-takes-the-path-first.md) | Accepted |
+| 2026-10-23 | [Open files with one of four mode words](./202610231943-open-files-with-one-of-four-mode-words.md) | Accepted |
+| 2026-10-23 | [Buffer file streams and write them out when the program ends](./202610231944-buffer-file-streams-and-write-them-out-when-the-program-ends.md) | Accepted |
+| 2026-10-23 | [Treat closing a standard stream as a flush](./202610231945-treat-closing-a-standard-stream-as-a-flush.md) | Accepted |
+| 2026-10-23 | [Reject invalid UTF-8 when reading text](./202610231946-reject-invalid-utf-8-when-reading-text.md) | Accepted |
+| 2026-10-23 | [Report file system failures as runtime errors in slopersons terms](./202610231947-report-file-system-failures-as-runtime-errors-in-slopersons-terms.md) | Accepted |
+| 2026-10-23 | [Keep the operating-system calls for files in one boundary module](./202610231948-keep-the-operating-system-calls-for-files-in-one-boundary-module.md) | Accepted |

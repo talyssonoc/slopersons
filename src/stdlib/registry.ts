@@ -5,15 +5,21 @@ import { registerChar } from './char.ts';
 import { registerCore } from './core.ts';
 import { registerDate } from './date.ts';
 import { registerDatetime } from './datetime.ts';
+import { registerFile } from './file.ts';
 import { registerFloat } from './float.ts';
 import { registerHashmap } from './hashmap.ts';
 import { registerInt } from './int.ts';
+import { registerIo } from './io.ts';
 import { registerSet } from './set.ts';
+import { registerStream } from './stream.ts';
 import { registerString } from './string.ts';
 import { registerTime } from './time.ts';
 
 export function registerStdlib(interpreter: Interpreter): void {
   registerCore(interpreter);
+  registerIo(interpreter);
+  registerStream(interpreter);
+  registerFile(interpreter);
   registerInt(interpreter);
   registerFloat(interpreter);
   registerChar(interpreter);
