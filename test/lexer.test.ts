@@ -15,6 +15,8 @@ function brief(token: Token): string {
       return `char:${token.value}`;
     case 'name':
       return `name:${token.name}`;
+    case 'qualified':
+      return `qualified:${token.parts.join('/')}`;
     case 'keyword':
       return `keyword:${token.word}`;
     case 'op':
@@ -120,4 +122,8 @@ test('unexpected characters are reported with their position', () => {
   const error = lexError('a\nb @');
   assert.match(error.message, /unexpected character `@`/);
   assert.deepEqual(error.position, { line: 2, col: 3 });
+});
+
+test('a slash with no spaces joins name segments, while a spaced or numeric slash is division', () => {
+  assert.deepEqual(lexBrief('geo/area a / b x/2 a-b/c-d'), ['0: qualified:geo/area name:a operator:/ name:b name:x operator:/ int:2 qualified:a-b/c-d']);
 });

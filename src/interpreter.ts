@@ -121,6 +121,16 @@ export class Environment {
 
 export const MAX_CALL_DEPTH = 10_000;
 
+export interface ExportRequest {
+  name: string;
+  position: Position;
+}
+
+export interface ModuleRun {
+  environment: Environment;
+  exports: ExportRequest[];
+}
+
 interface MethodImpl {
   arity: Arity;
   implementation: BuiltinImplementation;
@@ -133,6 +143,8 @@ export class Interpreter {
   private depth: number;
   private nextActivation: number;
   private topActivation: number;
+  currentFile: string | null;
+  private readonly exportStack: ExportRequest[][];
 
   constructor(io: Io) {
     this.io = io;
@@ -141,6 +153,8 @@ export class Interpreter {
     this.depth = 0;
     this.nextActivation = 0;
     this.topActivation = -1;
+    this.currentFile = null;
+    this.exportStack = [];
   }
 
   defineBuiltin(name: string, arity: number | Arity, procedure: BuiltinImplementation): void {
@@ -188,6 +202,23 @@ export class Interpreter {
 
   run(program: Statement[]): Value {
     return this.runIn(program, this.createTopLevelEnvironment());
+  }
+
+  runModule(program: Statement[], file: string): ModuleRun {
+    const previousFile = this.currentFile;
+    const previousTop = this.topActivation;
+    const exports: ExportRequest[] = [];
+    this.exportStack.push(exports);
+    this.currentFile = file;
+    try {
+      const environment = this.createTopLevelEnvironment();
+      this.runIn(program, environment);
+      return { environment, exports };
+    } finally {
+      this.exportStack.pop();
+      this.currentFile = previousFile;
+      this.topActivation = previousTop;
+    }
   }
 
   runIn(program: Statement[], environment: Environment): Value {
@@ -250,6 +281,11 @@ export class Interpreter {
         throw new StopSignal(statement.position);
       case 'attempt':
         return this.execAttempt(statement, environment);
+      case 'export': {
+        const requests = this.exportStack[this.exportStack.length - 1];
+        if (requests !== undefined) for (const name of statement.names) requests.push({ name, position: statement.position });
+        return NOTHING;
+      }
     }
   }
 
@@ -292,6 +328,8 @@ export class Interpreter {
         return NOTHING;
       case 'name':
         return this.lookup(expression.name, expression.position, environment);
+      case 'qualified':
+        return this.resolveQualified(expression.parts, expression.position, environment);
       case 'interpolation': {
         let text = '';
         for (const part of expression.parts) text += typeof part === 'string' ? part : formatValue(this.evaluateExpression(part, environment), 'print');
@@ -328,6 +366,21 @@ export class Interpreter {
       case 'attempt':
         return this.execAttempt(expression, environment);
     }
+  }
+
+  private resolveQualified(parts: string[], position: Position, environment: Environment): Value {
+    let value = this.lookup(parts[0] ?? '', position, environment);
+    for (let index = 1; index < parts.length; index++) {
+      const part = parts[index] ?? '';
+      const prefix = parts.slice(0, index).join('/');
+      if (value.type !== 'module') {
+        throw runtimeError(`\`${prefix}\` is ${describeType(value)}, not a module, so \`${prefix}/${part}\` cannot be looked up`, position);
+      }
+      const member = value.members.get(part);
+      if (member === undefined) throw runtimeError(`module \`${prefix}\` has no exported name \`${part}\``, position);
+      value = member;
+    }
+    return value;
   }
 
   private lookup(name: string, position: Position, environment: Environment): Value {

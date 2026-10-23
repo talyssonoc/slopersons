@@ -1,0 +1,11 @@
+~ Importing a module: `use` loads the file once and returns a module value.
+"./lib/geometry" -> use => geometry
+
+2.0 -> geometry/circle-area -> print-ln
+geometry/square-area => square-area
+3 -> square-area -> print-ln
+"circle" -> geometry/describe (1.0 -> geometry/circle-area) -> print-ln
+geometry -> names -> print-ln
+geometry/pi -> print-ln
+
+attempt | geometry/secret recover e | e -> print-ln

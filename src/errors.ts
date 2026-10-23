@@ -1,6 +1,7 @@
 export interface Position {
   line: number;
   col: number;
+  file?: string;
 }
 
 export type ErrorKind = 'parse' | 'runtime';
@@ -26,7 +27,7 @@ export class SlopersonsError extends Error {
   }
 
   format(): string {
-    const where = this.position === null ? '' : `\n  at ${this.file ?? '<input>'}:${this.position.line}:${this.position.col}`;
+    const where = this.position === null ? '' : `\n  at ${this.position.file ?? this.file ?? '<input>'}:${this.position.line}:${this.position.col}`;
     return `error: ${this.message}${where}`;
   }
 }

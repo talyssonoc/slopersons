@@ -1,8 +1,8 @@
 import { incompleteError, parseError, type Position } from './errors.ts';
 
-export type Keyword = 'proc' | 'while' | 'stop' | 'attempt' | 'recover' | 'yes' | 'no' | 'nothing' | 'and' | 'or' | 'not' | 'mod';
+export type Keyword = 'proc' | 'while' | 'stop' | 'attempt' | 'recover' | 'export' | 'yes' | 'no' | 'nothing' | 'and' | 'or' | 'not' | 'mod';
 
-const KEYWORDS: ReadonlySet<string> = new Set(['proc', 'while', 'stop', 'attempt', 'recover', 'yes', 'no', 'nothing', 'and', 'or', 'not', 'mod']);
+const KEYWORDS: ReadonlySet<string> = new Set(['proc', 'while', 'stop', 'attempt', 'recover', 'export', 'yes', 'no', 'nothing', 'and', 'or', 'not', 'mod']);
 
 export interface IntToken {
   kind: 'int';
@@ -36,6 +36,12 @@ export interface NameToken {
   position: Position;
 }
 
+export interface QualifiedToken {
+  kind: 'qualified';
+  parts: string[];
+  position: Position;
+}
+
 export interface KeywordToken {
   kind: 'keyword';
   word: Keyword;
@@ -49,7 +55,7 @@ export interface OpToken {
   position: Position;
 }
 
-export type Token = IntToken | FloatToken | StringToken | CharToken | NameToken | KeywordToken | OpToken;
+export type Token = IntToken | FloatToken | StringToken | CharToken | NameToken | QualifiedToken | KeywordToken | OpToken;
 
 export interface LexedLine {
   depth: number;
@@ -86,7 +92,10 @@ class Lexer {
   private col: number;
   private readonly openBrackets: Array<{ character: string; position: Position }>;
 
-  constructor(source: string, start: Position) {
+  private readonly file: string | undefined;
+
+  constructor(source: string, start: Position, file?: string) {
+    this.file = file;
     this.source = source;
     this.i = 0;
     this.line = start.line;
@@ -95,7 +104,7 @@ class Lexer {
   }
 
   private position(): Position {
-    return { line: this.line, col: this.col };
+    return this.file === undefined ? { line: this.line, col: this.col } : { line: this.line, col: this.col, file: this.file };
   }
 
   private peek(offset = 0): string {
@@ -275,8 +284,20 @@ class Lexer {
     }
   }
 
-  private lexName(): NameToken | KeywordToken {
+  private lexName(): NameToken | QualifiedToken | KeywordToken {
     const location = this.position();
+    const parts: string[] = [this.readNameSegment()];
+    while (this.peek() === '/' && isLetter(this.peek(1))) {
+      this.advance();
+      parts.push(this.readNameSegment());
+    }
+    if (parts.length > 1) return { kind: 'qualified', parts, position: location };
+    const name = parts[0] ?? '';
+    if (KEYWORDS.has(name)) return { kind: 'keyword', word: name as Keyword, position: location };
+    return { kind: 'name', name, position: location };
+  }
+
+  private readNameSegment(): string {
     let name = '';
     while (!this.atEnd()) {
       const character = this.peek();
@@ -290,8 +311,7 @@ class Lexer {
         break;
       }
     }
-    if (KEYWORDS.has(name)) return { kind: 'keyword', word: name as Keyword, position: location };
-    return { kind: 'name', name, position: location };
+    return name;
   }
 
   private lexChar(): CharToken {
@@ -393,7 +413,7 @@ class Lexer {
     const inner = this.source.slice(start, this.i);
     this.advance();
     if (inner.trim().length === 0) throw parseError('empty interpolation', bracePosition);
-    const tokens = new Lexer(inner, innerPosition).lexFragment();
+    const tokens = new Lexer(inner, innerPosition, this.file).lexFragment();
     return { kind: 'expr', tokens, position: innerPosition };
   }
 
@@ -414,6 +434,6 @@ class Lexer {
   }
 }
 
-export function lex(source: string): LexedLine[] {
-  return new Lexer(source, { line: 1, col: 1 }).lexLines();
+export function lex(source: string, file?: string): LexedLine[] {
+  return new Lexer(source, { line: 1, col: 1 }, file).lexLines();
 }

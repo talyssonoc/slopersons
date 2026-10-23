@@ -1,0 +1,11 @@
+~ A library module. Only the names listed in `export` are visible to importers.
+3.14159 => pi
+
+proc circle-area r | pi * r * r
+proc square-area side | side * side
+proc describe shape area
+| "{shape} with area {area}"
+
+proc secret | "not exported"
+
+export pi circle-area square-area describe

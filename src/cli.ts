@@ -18,6 +18,7 @@ import {
 import { SlopersonsError } from './errors.ts';
 import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
 import { parse } from './parser.ts';
+import { registerModules } from './modules.ts';
 import { Repl } from './repl.ts';
 import { registerStdlib } from './stdlib/registry.ts';
 
@@ -35,12 +36,14 @@ function workerHeapMb(): number {
 export function createInterpreter(io: Io): Interpreter {
   const interpreter = new Interpreter(io);
   registerStdlib(interpreter);
+  registerModules(interpreter);
   return interpreter;
 }
 
 export function runProgram(source: string, file: string, io: CliIo, interpreter: Interpreter = createInterpreter(io)): number {
   try {
-    interpreter.run(parse(source));
+    interpreter.currentFile = file;
+    interpreter.run(parse(source, file));
     return EXIT_OK;
   } catch (error) {
     if (error instanceof ExitSignal) return error.code;

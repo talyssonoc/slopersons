@@ -73,6 +73,16 @@ Within a flow, the head is evaluated first, then each step left to right. Within
 
 `print-ln` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, times as `HH:MM:SS` with `.SSS` only when the milliseconds are not zero, datetimes as `yyyy-mm-ddTHH:MM:SS`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>`. Inside containers, strings are quoted and escaped and chars are shown in backticks. `show` returns that quoted form for any value. String interpolation uses the `print-ln` form.
 
+## Modules
+
+`path -> use` resolves the path against the directory of the file being run (the working directory in the REPL), appends `.slop` if the path lacks it, reads the file, and runs its top level in a fresh top-level scope, exactly as a program runs. The result is a value of type `module` whose members are the names the file listed in `export` statements. Exports are resolved when the file finishes running, so an `export` may come before the definitions it names; naming something the file never binds is an error. Everything not exported stays invisible to importers.
+
+A file is loaded at most once per run: a second `use` of the same resolved path returns the same module value without running the file again. A file that, directly or through others, uses itself while loading is a circular import and an error.
+
+`module/name` reads an exported member; the left part must be bound to a module. `module -> at "name"`, `-> has "name"`, `-> names` and `-> path` do the same by string. Members are read-only: there is no way to assign into a module.
+
+Errors raised while a module loads, or later inside its procedures, report the module's file in their position. A module's parse error is reported like any parse error and cannot be caught with `attempt`; a missing file or a missing export is a runtime error and can.
+
 ## Errors
 
 A runtime error that nothing handles ends the program: the CLI prints `error: <message>` and `  at <file>:<line>:<col>` to standard error and exits with code 1. `message -> fail` raises an error with a custom message at the position of the call.

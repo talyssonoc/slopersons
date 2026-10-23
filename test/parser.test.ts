@@ -197,3 +197,21 @@ test('errors: attempt without recover, recover without attempt, and misplaced re
   assert.match(parseError('(attempt | x) => n').message, /needs a `recover` on the same line/);
   assert.match(parseError('attempt\n| x\nrecover e').message, /needs a body/);
 });
+
+test('qualified names are expressions, callees and arguments, but never binding targets', () => {
+  assert.equal(printed('5 -> geo/area'), '(flow 5 (-> geo/area))');
+  assert.equal(printed('geo/area => area'), '(flow geo/area (=> area))');
+  assert.equal(printed('x -> f geo/pi'), '(flow x (-> f geo/pi))');
+  assert.equal(printed('a/b/c'), 'a/b/c');
+  assert.equal(printed('xs -> each geo/x | 1'), '(flow xs (-> each geo/x (lambda [] 1)))');
+  assert.match(parseError('1 => geo/x').message, /expected a name after `=>`/);
+  assert.match(parseError('proc geo/f | 1').message, /expected a procedure name/);
+});
+
+test('export lists names and is only allowed at the top level', () => {
+  assert.equal(printed('export area perimeter'), '(export area perimeter)');
+  assert.match(parseError('export').message, /needs at least one name/);
+  assert.match(parseError('export 5').message, /needs at least one name/);
+  assert.match(parseError('proc f\n| export x').message, /only allowed at the top level/);
+  assert.match(parseError('export x\n| y').message, /cannot take a block/);
+});

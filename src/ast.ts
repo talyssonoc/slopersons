@@ -1,6 +1,6 @@
 import type { Position } from './errors.ts';
 
-export type Statement = ProcedureDefinition | WhileStatement | Conditional | FlowStatement | StopStatement | AttemptStatement;
+export type Statement = ProcedureDefinition | WhileStatement | Conditional | FlowStatement | StopStatement | AttemptStatement | ExportStatement;
 
 export interface ProcedureDefinition {
   kind: 'proc';
@@ -39,6 +39,12 @@ export interface StopStatement {
   position: Position;
 }
 
+export interface ExportStatement {
+  kind: 'export';
+  names: string[];
+  position: Position;
+}
+
 export interface AttemptStatement {
   kind: 'attempt';
   body: Statement[];
@@ -73,6 +79,7 @@ export type Expression =
   | BooleanLiteral
   | NothingLiteral
   | Name
+  | QualifiedName
   | ArrayLiteral
   | MapLiteral
   | Binary
@@ -126,6 +133,12 @@ export interface NothingLiteral {
 export interface Name {
   kind: 'name';
   name: string;
+  position: Position;
+}
+
+export interface QualifiedName {
+  kind: 'qualified';
+  parts: string[];
   position: Position;
 }
 

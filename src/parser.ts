@@ -1,5 +1,6 @@
 import type {
   AttemptStatement,
+  ExportStatement,
   BinaryOp,
   CallStep,
   Conditional,
@@ -13,7 +14,7 @@ import type {
   WhileStatement,
 } from './ast.ts';
 import { incompleteError, parseError, type Position } from './errors.ts';
-import { lex, type OpToken, type StringPart, type Token } from './lexer.ts';
+import { lex, type OpToken, type QualifiedToken, type StringPart, type Token } from './lexer.ts';
 import { buildLineTree, type Line } from './line-tree.ts';
 
 class Cursor {
@@ -90,6 +91,8 @@ function describe(token: Token | undefined): string {
       return `\`${token.word}\``;
     case 'name':
       return `\`${token.name}\``;
+    case 'qualified':
+      return `\`${token.parts.join('/')}\``;
     case 'int':
       return `\`${token.value}\``;
     case 'float':
@@ -109,6 +112,7 @@ function canStartExpression(token: Token | undefined): boolean {
     case 'string':
     case 'char':
     case 'name':
+    case 'qualified':
       return true;
     case 'keyword':
       return token.word === 'yes' || token.word === 'no' || token.word === 'nothing' || token.word === 'not';
@@ -146,7 +150,18 @@ const EMPTY: ReadonlySet<string> = new Set();
 const COLON: ReadonlySet<string> = new Set([':']);
 
 class Parser {
+  private depth = 0;
+
   parseBlock(lines: Line[]): Statement[] {
+    this.depth++;
+    try {
+      return this.parseStatements(lines);
+    } finally {
+      this.depth--;
+    }
+  }
+
+  private parseStatements(lines: Line[]): Statement[] {
     const statements: Statement[] = [];
     for (const line of lines) {
       const cursor = new Cursor(line.tokens, line.endPosition);
@@ -174,6 +189,7 @@ class Parser {
     if (cursor.isKeyword('proc')) return this.parseProc(cursor, children);
     if (cursor.isKeyword('while')) return this.parseWhile(cursor, children);
     if (cursor.isKeyword('attempt')) return this.parseAttempt(cursor, children);
+    if (cursor.isKeyword('export')) return this.parseExport(cursor, children);
     if (cursor.isKeyword('stop')) {
       const location = cursor.next().position;
       this.requireStop(cursor, stopAt);
@@ -286,6 +302,17 @@ class Parser {
       conditional.otherwise = [this.parseStatement(cursor, NO_CHILDREN, COLON)];
       return;
     }
+  }
+
+  private parseExport(cursor: Cursor, children: Line[]): ExportStatement {
+    const position = cursor.next().position;
+    if (this.depth > 1) throw parseError('`export` is only allowed at the top level of a file', position);
+    const names: string[] = [];
+    while (cursor.isName()) names.push(cursor.expectName('exported name').name);
+    if (names.length === 0) throw parseError('`export` needs at least one name', cursor.position());
+    this.requireStop(cursor, EMPTY);
+    if (children.length > 0) throw parseError('`export` cannot take a block', position);
+    return { kind: 'export', names, position };
   }
 
   private parseAttempt(cursor: Cursor, children: Line[]): AttemptStatement {
@@ -402,6 +429,9 @@ class Parser {
     let callee: Expression;
     if (cursor.isName()) {
       callee = cursor.expectName('procedure');
+    } else if (cursor.peek()?.kind === 'qualified') {
+      const token = cursor.next() as QualifiedToken;
+      callee = { kind: 'qualified', parts: token.parts, position: token.position };
     } else if (cursor.isOp('(')) {
       callee = this.parseParen(cursor);
     } else {
@@ -519,6 +549,9 @@ class Parser {
       case 'name':
         cursor.next();
         return { kind: 'name', name: token.name, position: token.position };
+      case 'qualified':
+        cursor.next();
+        return { kind: 'qualified', parts: token.parts, position: token.position };
       case 'keyword':
         cursor.next();
         if (token.word === 'yes') return { kind: 'boolean', value: true, position: token.position };
@@ -605,7 +638,7 @@ class Parser {
   }
 }
 
-export function parse(source: string): Statement[] {
-  const tree = buildLineTree(lex(source));
+export function parse(source: string, file?: string): Statement[] {
+  const tree = buildLineTree(lex(source, file));
   return new Parser().parseBlock(tree);
 }

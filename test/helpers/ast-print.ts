@@ -18,6 +18,8 @@ export function printStatement(statement: Statement): string {
       return '(stop)';
     case 'attempt':
       return printExpression(statement);
+    case 'export':
+      return `(export ${statement.names.join(' ')})`;
   }
 }
 
@@ -54,6 +56,8 @@ export function printExpression(expression: Expression): string {
       return 'nothing';
     case 'name':
       return expression.name;
+    case 'qualified':
+      return expression.parts.join('/');
     case 'array':
       return `[${expression.items.map(printExpression).join(' ')}]`;
     case 'map':

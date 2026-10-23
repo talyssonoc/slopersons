@@ -127,12 +127,39 @@ attempt | "boom" -> fail recover e | e -> print-ln   ~ boom
 
 Errors: the input is neither a string nor an error.
 
+## use
+
+`path -> use`
+
+Loads another `.slop` file as a module and returns the module value. The path is relative to the current file (the working directory in the REPL) and `.slop` is added when missing. A file is loaded once per run. See the Modules section of `semantics.md`.
+
+```
+"./lib/geometry" -> use => geometry
+2.0 -> geometry/circle-area -> print-ln
+```
+
+Errors: the path is not a string; the file cannot be read; the file imports itself through a cycle; an `export` in the file names something it never binds.
+
+## Module values
+
+A module value prints as `<module name>`, where the name is the file name without `.slop`, and is equal only to itself.
+
+- `module -> at "name"`: the exported member, or an error naming the module and the missing name.
+- `module -> has "name"`: whether the name is exported.
+- `module -> names`: the exported names as an array of strings, in export order.
+- `module -> path`: the file the module was loaded from.
+
+```
+geometry -> names -> print-ln   ~ ["pi" "circle-area" "square-area" "describe"]
+```
+
 ## Error values
 
 A handler's error is a value of type `error`. It prints as its message; `show` gives `<error message>`.
 
 - `error -> message`: the message as a string.
 - `error -> line`, `error -> column`: where the error was raised, as ints, or `nothing` when unknown.
+- `error -> file`: the file the error was raised in, as a string, or `nothing` when unknown.
 - `error -> to-string`: the same as `message`.
 
 ```

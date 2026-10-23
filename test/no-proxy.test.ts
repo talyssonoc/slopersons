@@ -26,11 +26,11 @@ interface Rule {
 const FRONT_END = ['src/lexer.ts', 'src/line-tree.ts', 'src/parser.ts', 'src/ast.ts', 'src/errors.ts'];
 
 const rules: Rule[] = [
-  { pattern: /\bnew (Map|Set|WeakMap|WeakSet)\b/, reason: 'slopersons containers use src/runtime/hashtable.ts; JS Map is only for interpreter bookkeeping', allowedIn: [...FRONT_END, 'src/interpreter.ts'] },
+  { pattern: /\bnew (Map|Set|WeakMap|WeakSet)\b/, reason: 'slopersons containers use src/runtime/hashtable.ts; JS Map is only for interpreter bookkeeping', allowedIn: [...FRONT_END, 'src/interpreter.ts', 'src/modules.ts'] },
   { pattern: /\.(sort|toSorted)\(/, reason: 'sorting goes through src/runtime/sorting.ts', allowedIn: [] },
   { pattern: /\bnew Date\b|\bDate\.(UTC|parse)\b|\.getUTC|\.getFullYear|\.getMonth|\.getDate|\.getDay\b/, reason: 'calendar math lives in src/runtime/calendar.ts', allowedIn: [] },
   { pattern: /\bTemporal\b|\bIntl\b/, reason: 'no Temporal or Intl anywhere', allowedIn: [] },
-  { pattern: /\.(indexOf|lastIndexOf|includes|startsWith|endsWith|split|trim|trimStart|trimEnd|padStart|padEnd|replace|replaceAll|substring|substr|normalize|localeCompare)\(/, reason: 'string algorithms live in src/runtime/text.ts', allowedIn: [...FRONT_END, 'src/runtime/text.ts', 'src/cli.ts', 'src/repl.ts'] },
+  { pattern: /\.(indexOf|lastIndexOf|includes|startsWith|endsWith|split|trim|trimStart|trimEnd|padStart|padEnd|replace|replaceAll|substring|substr|normalize|localeCompare)\(/, reason: 'string algorithms live in src/runtime/text.ts', allowedIn: [...FRONT_END, 'src/runtime/text.ts', 'src/cli.ts', 'src/repl.ts', 'src/modules.ts'] },
   { pattern: /\.(toUpperCase|toLowerCase)\(/, reason: 'case mapping is only wrapped by src/runtime/text.ts', allowedIn: ['src/runtime/text.ts'] },
   { pattern: /\/\\p\{|\/\^\\s\$\/|\/\\s\//, reason: 'Unicode classification regexes are only in src/runtime/text.ts', allowedIn: ['src/runtime/text.ts'] },
   { pattern: /process\.exit\(/, reason: 'exit through ExitSignal so output is flushed', allowedIn: [] },

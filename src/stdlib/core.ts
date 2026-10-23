@@ -115,6 +115,11 @@ export function registerCore(interpreter: Interpreter): void {
     return value.type === 'error' && value.position !== null ? int(BigInt(value.position.col)) : NOTHING;
   });
 
+  interpreter.defineMethod('file', 'error', 1, (inputs) => {
+    const value = input(inputs, 0);
+    return value.type === 'error' && value.position?.file !== undefined ? string(value.position.file) : NOTHING;
+  });
+
   interpreter.defineMethod('to-string', 'error', 1, (inputs) => string(formatValue(input(inputs, 0), 'print')));
 
   interpreter.defineBuiltin('exit', 1, (inputs, context) => {

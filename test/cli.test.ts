@@ -192,6 +192,14 @@ test('read-line inside a REPL entry reads the next input line through the same c
   assert.equal(result.status, 0);
 });
 
+test('in the REPL, use resolves relative to the working directory', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'slopersons-repl-modules-'));
+  writeFileSync(join(dir, 'geometry.slop'), 'proc area r | 3 * r * r\nexport area\n');
+  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', cwd: dir, input: '"./geometry" -> use => geo\n5 -> geo/area\n' });
+  assert.equal(result.stdout, 'slopersons, Ctrl-D to leave\n> -> <module geometry>\n> -> 75\n> \n');
+  assert.equal(result.status, 0);
+});
+
 test('--help mentions the REPL', () => {
   const result = spawnSync(bin, ['--help'], { encoding: 'utf8' });
   assert.match(result.stdout, /slopersons --repl/);

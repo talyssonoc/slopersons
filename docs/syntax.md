@@ -221,6 +221,30 @@ recover e | "problem: {e}" -> print-ln
 
 An `attempt` without a `recover` is a parse error. `out`, `stop` and `exit` are not errors and pass through an `attempt` untouched. See `semantics.md` for what an error value carries and which failures cannot be caught.
 
+## Modules
+
+A program can use procedures and values defined in another `.slop` file. `use` loads a file and gives back a module value; a slash joins a module name and a member name into one qualified name.
+
+```
+"./lib/geometry" -> use => geometry
+2.0 -> geometry/circle-area -> print-ln
+geometry/square-area => square-area      ~ bring one member into scope
+```
+
+The path is relative to the file that contains the `use` (to the working directory in the REPL), and `.slop` is added when missing. A file is loaded once per run, however many times it is used.
+
+A module decides what it exposes with an `export` statement listing names, which may appear anywhere at the file's top level:
+
+```
+3.14159 => pi
+proc circle-area r | pi * r * r
+proc helper | "not visible to importers"
+
+export pi circle-area
+```
+
+Qualified names are values and callees, never binding targets or parameters: `geometry/pi => x` binds `x`, while `1 => geometry/pi` is a parse error. See `semantics.md` for loading rules and `stdlib/core.md` for the module builtins.
+
 ## Literals
 
 | Kind | Examples | Notes |
@@ -253,9 +277,9 @@ A lambda inside a literal must be parenthesized unless it is the last thing in t
 
 Names start with a letter and continue with letters, digits and single hyphens: `total`, `is-empty`, `add-five`, `x2`. Kebab-case is the convention.
 
-Because `a-b` is a name, binary operators need spaces on both sides: `a - b`. Writing `a -b` is a parse error, reported as a missing operator, not a silent subtraction.
+Because `a-b` is a name, binary operators need spaces on both sides: `a - b`. Writing `a -b` is a parse error, reported as a missing operator, not a silent subtraction. The same rule gives qualified names: `geometry/area` is one name reaching into a module, `a / b` is a division.
 
-Reserved words: `proc`, `while`, `stop`, `attempt`, `recover`, `yes`, `no`, `nothing`, `and`, `or`, `not`, `mod`.
+Reserved words: `proc`, `while`, `stop`, `attempt`, `recover`, `export`, `yes`, `no`, `nothing`, `and`, `or`, `not`, `mod`.
 
 ## Operators
 
@@ -293,6 +317,7 @@ statement   := 'proc' NAME NAME* body
              | 'while' flow body
              | 'stop'
              | 'attempt' body 'recover' NAME? body
+             | 'export' NAME+                           top level of a file only
              | flow '?' then-body (':' flow '?' then-body)* (':' body)?
              | flow
 body        := '|' statement | margin-block
@@ -310,6 +335,6 @@ cmp-expr    := add-expr (CMP add-expr)?
 add-expr    := mul-expr (('+' | '-') mul-expr)*
 mul-expr    := unary (('*' | '/' | 'mod') unary)*
 unary       := '-' unary | primary
-primary     := INT | FLOAT | STRING | CHAR | 'yes' | 'no' | 'nothing' | NAME
+primary     := INT | FLOAT | STRING | CHAR | 'yes' | 'no' | 'nothing' | NAME | QUALIFIED
              | '[' expr* ']' | '{' (expr ':' expr)* '}' | '(' statement ')'
 ```

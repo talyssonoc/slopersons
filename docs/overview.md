@@ -46,4 +46,5 @@ even total: 30
 - `params | body` is a lambda; written after a call it becomes the call's last argument.
 - `proc name params` defines a procedure; `-> out` returns early; `stop` leaves a loop.
 - `attempt` runs a body and `recover e` handles any runtime error it raised, with `e` an error value.
+- `"./lib/geometry" -> use => geometry` loads another file as a module; `geometry/area` reaches an exported name; a module lists what it exposes with `export`.
 - Names are kebab-case, so operators need spaces around them.
