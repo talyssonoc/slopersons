@@ -1,8 +1,8 @@
 import { incompleteError, parseError, type Position } from './errors.ts';
 
-export type Keyword = 'proc' | 'while' | 'stop' | 'attempt' | 'recover' | 'export' | 'yes' | 'no' | 'nothing' | 'and' | 'or' | 'not' | 'mod';
+export type Keyword = 'proc' | 'while' | 'stop' | 'attempt' | 'recover' | 'always' | 'export' | 'yes' | 'no' | 'nothing' | 'and' | 'or' | 'not' | 'mod';
 
-const KEYWORDS: ReadonlySet<string> = new Set(['proc', 'while', 'stop', 'attempt', 'recover', 'export', 'yes', 'no', 'nothing', 'and', 'or', 'not', 'mod']);
+const KEYWORDS: ReadonlySet<string> = new Set(['proc', 'while', 'stop', 'attempt', 'recover', 'always', 'export', 'yes', 'no', 'nothing', 'and', 'or', 'not', 'mod']);
 
 export interface IntToken {
   kind: 'int';

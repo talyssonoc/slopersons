@@ -100,8 +100,9 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Write program output synchronously to the file descriptors](./202610231607-write-program-output-synchronously-to-the-file-descriptors.md) | Accepted |
 | 2026-10-23 | [Exempt the lexer, parser and CLI from the no-proxy rule](./202610231608-exempt-the-front-end-and-cli-from-the-no-proxy-rule.md) | Accepted |
 | 2026-10-23 | [Add time and datetime types](./202610231609-add-time-and-datetime-types.md) | Accepted |
-| 2026-10-23 | [Handle errors with `attempt` and `recover`](./202610231610-handle-errors-with-attempt-and-recover.md) | Accepted |
+| 2026-10-23 | [Handle errors with `attempt` and `recover`](./202610231610-handle-errors-with-attempt-and-recover.md) | Superseded by [Run cleanup with always after attempt](./202610231615-run-cleanup-with-always-after-attempt.md) |
 | 2026-10-23 | [Add a REPL that collects blocks until an empty line](./202610231611-add-a-repl-that-collects-blocks-until-an-empty-line.md) | Superseded by [Read REPL input with readline on the main thread](./202610231612-read-repl-input-with-readline-on-the-main-thread.md) |
 | 2026-10-23 | [Read REPL input with readline on the main thread](./202610231612-read-repl-input-with-readline-on-the-main-thread.md) | Accepted |
 | 2026-10-23 | [Split programs into modules with `use` and `export`](./202610231613-split-programs-into-modules-with-use-and-export.md) | Accepted |
 | 2026-10-23 | [Organize the standard library into modules](./202610231614-organize-the-standard-library-into-modules.md) | Accepted |
+| 2026-10-23 | [Run cleanup with `always` after `attempt`](./202610231615-run-cleanup-with-always-after-attempt.md) | Accepted |

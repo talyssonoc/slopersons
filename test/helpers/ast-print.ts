@@ -71,8 +71,10 @@ export function printExpression(expression: Expression): string {
     case 'lambda':
       return printLambda(expression);
     case 'attempt': {
-      const handler = expression.handler === null ? '(recover?)' : `(recover${expression.errorName === null ? '' : ` ${expression.errorName}`} ${printBody(expression.handler)})`;
-      return `(attempt ${printBody(expression.body)} ${handler})`;
+      const parts = [`(attempt ${printBody(expression.body)}`];
+      if (expression.handler !== null) parts.push(`(recover${expression.errorName === null ? '' : ` ${expression.errorName}`} ${printBody(expression.handler)})`);
+      if (expression.cleanup !== null) parts.push(`(always ${printBody(expression.cleanup)})`);
+      return `${parts.join(' ')})`;
     }
     case 'conditional': {
       const branches = expression.branches.map((branch) => `(branch ${printExpression(branch.condition)} ${printBody(branch.body)})`);

@@ -194,7 +194,7 @@ test('errors: attempt without recover, recover without attempt, and misplaced re
   assert.match(parseError('attempt\n| x\nrecover e | 0\nrecover | 1').message, /already has a `recover`/);
   assert.match(parseError('x -> f recover e | 0').message, /must follow an `attempt`/);
   assert.match(parseError('attempt | x\n| y').message, /cannot take a block/);
-  assert.match(parseError('(attempt | x) => n').message, /needs a `recover` on the same line/);
+  assert.match(parseError('(attempt | x) => n').message, /needs a `recover` or an `always` on the same line/);
   assert.match(parseError('attempt\n| x\nrecover e').message, /needs a body/);
 });
 
@@ -214,4 +214,25 @@ test('export lists names and is only allowed at the top level', () => {
   assert.match(parseError('export 5').message, /needs at least one name/);
   assert.match(parseError('proc f\n| export x').message, /only allowed at the top level/);
   assert.match(parseError('export x\n| y').message, /cannot take a block/);
+});
+
+test('always adds a cleanup body to attempt, with or without recover, in block and inline forms', () => {
+  assert.equal(printed('attempt\n| x\nrecover e\n| 0\nalways\n| y'), '(attempt x (recover e 0) (always y))');
+  assert.equal(printed('attempt\n| x\nalways\n| y'), '(attempt x (always y))');
+  assert.equal(printed('attempt | x recover | 0 always | y'), '(attempt x (recover 0) (always y))');
+  assert.equal(printed('attempt | x always | y'), '(attempt x (always y))');
+  assert.equal(printed('attempt | x recover e | 0 always\n| y'), '(attempt x (recover e 0) (always y))');
+  assert.equal(printed('attempt | x always\n| y'), '(attempt x (always y))');
+  assert.equal(printed('(attempt | x always | y) => n'), '(flow (attempt x (always y)) (=> n))');
+});
+
+test('errors: always placement', () => {
+  assert.match(parseError('always | y').message, /without a preceding `attempt`/);
+  assert.match(parseError('attempt | x always | y\nalways | z').message, /already has an `always`/);
+  assert.match(parseError('attempt | x always | y\nrecover | 0').message, /`recover` must come before `always`/);
+  assert.match(parseError('x -> f always | y').message, /must follow an `attempt` or `recover` body/);
+  assert.match(parseError('attempt\n| x\nalways').message, /`always` needs a body/);
+  assert.match(parseError('attempt | x\n| y').message, /put `recover` or `always` on the same line/);
+  assert.match(parseError('attempt | x').message, /needs a `recover` or an `always`/);
+  assert.match(parseError('(attempt | x) => n').message, /needs a `recover` or an `always` on the same line/);
 });

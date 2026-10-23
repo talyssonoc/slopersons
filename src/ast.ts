@@ -50,6 +50,7 @@ export interface AttemptStatement {
   body: Statement[];
   errorName: string | null;
   handler: Statement[] | null;
+  cleanup: Statement[] | null;
   position: Position;
 }
 

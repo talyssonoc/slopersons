@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Interpreter } from '../src/interpreter.ts';
 import { NOTHING } from '../src/values.ts';
-import { failure, fakeIo, output, runCli } from './helpers/run.ts';
+import { failure, fakeIo, output, run, runCli } from './helpers/run.ts';
 
 test('print writes without a newline and passes its value on', () => {
   assert.equal(output('"a" -> io/print -> io/print\n1 -> io/print\n"" -> io/print-ln\n[1] -> io/print'), 'aa1\n[1]');
@@ -242,4 +242,29 @@ test('out, stop and exit pass through attempt untouched', () => {
 
 test('the error name may reuse a name bound outside, including inside lambdas', () => {
   assert.equal(output('attempt | 1 / 0 recover e | nothing\n[1] -> array/each n\n| attempt | 1 / 0 recover e | e -> io/print-ln\ne -> io/print-ln'), 'division by zero\ndivision by zero\n');
+});
+
+test('always runs after the body or the handler, and the statement keeps their value', () => {
+  assert.equal(output('attempt\n| "body" -> io/print-ln\nalways\n| "cleanup" -> io/print-ln'), 'body\ncleanup\n');
+  assert.equal(output('attempt | 1 / 0 recover e | "handled {e}" -> io/print-ln always | "after" -> io/print-ln'), 'handled division by zero\nafter\n');
+  assert.equal(output('(attempt | 5 recover | 0 always | "ignored") -> io/print-ln\n(attempt | 1 / 0 recover | 0 always | "ignored") -> io/print-ln'), '5\n0\n');
+  assert.equal(output('attempt | 1 => n always | n + 1 => n\nn -> io/print-ln'), '2\n');
+});
+
+test('always runs before an unhandled error, an out or a stop propagates, but not before exit', () => {
+  const unhandled = run('attempt | 1 / 0 always | "cleanup" -> io/print-ln');
+  assert.equal(unhandled.out, 'cleanup\n');
+  assert.equal(unhandled.error?.message, 'division by zero');
+  assert.equal(output('proc f\n| attempt | "early" -> out always | "cleanup" -> io/print-ln\n| "late"\nf -> do -> io/print-ln'), 'cleanup\nearly\n');
+  assert.equal(output('[1 2 3] -> array/each n\n| attempt | n = 2 ? stop always | "cleanup {n}" -> io/print-ln\n| n -> io/print-ln'), 'cleanup 1\n1\ncleanup 2\n');
+  const exited = runCli('attempt | 3 -> exit always | "never" -> io/print-ln');
+  assert.equal(exited.code, 3);
+  assert.equal(exited.io.out, '');
+});
+
+test('an error raised inside always replaces whatever was pending', () => {
+  assert.equal(failure('attempt | 1 / 0 always | "worse" -> fail').message, 'worse');
+  assert.equal(failure('attempt | 1 recover | 0 always | "x" -> string/to-int').message, 'cannot convert "x" to an int');
+  const nested = output('attempt\n| attempt | 1 / 0 always | "inner cleanup" -> io/print-ln\nrecover e\n| "outer got {e}" -> io/print-ln');
+  assert.equal(nested, 'inner cleanup\nouter got division by zero\n');
 });

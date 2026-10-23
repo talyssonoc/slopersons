@@ -99,4 +99,4 @@ Catchable: every runtime error, whether raised by the interpreter (division by z
 
 Not catchable: parse errors, since they happen before the program runs; `exit`, `out` and `stop`, which are control flow rather than errors; running out of memory or outgrowing what the interpreter can hold; and interpreter bugs. These pass through `attempt` untouched.
 
-There is no `finally`: the language has no resources that need releasing.
+An `always` body runs when control leaves the `attempt` body or the `recover` body, whichever ran last: after a normal finish, after a handled error, before an unhandled error propagates, and before an `out` or a `stop` continues on its way. It does not run when `exit` ends the program or when the interpreter itself fails. Its value is ignored; the statement keeps the value of the body that ran before it. An error raised inside `always` replaces whatever was pending. The bodies share the surrounding scope like the others.

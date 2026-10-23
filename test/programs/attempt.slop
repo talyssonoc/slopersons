@@ -22,3 +22,13 @@ attempt
 | attempt | 1 / 0 recover e | "wrapped: {e}" -> fail
 recover outer
 | outer -> io/print-ln
+
+attempt
+| "opening" -> io/print-ln
+| 1 / 0
+recover e
+| "recovered: {e}" -> io/print-ln
+always
+| "closing" -> io/print-ln
+
+attempt | "no error" -> io/print-ln always | "closing again" -> io/print-ln

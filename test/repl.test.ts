@@ -36,6 +36,9 @@ test('an incomplete line collects a block until an empty line', () => {
   const conditional = session(['1 > 0 ?', '| "big"', ': "small"', '']);
   assert.equal(conditional.out, `${BANNER}${P}${C}${C}${C}-> "big"\n${P}\n`);
   const attempt = session(['attempt', '| 1 / 0', 'recover e', '| e -> error/message', '']);
+  const cleanup = session(['attempt', '| 1 / 0', 'always', '| "cleanup" -> io/print-ln', '']);
+  assert.equal(cleanup.out, `${BANNER}${P}${C}${C}${C}${C}cleanup\n${P}\n`);
+  assert.equal(cleanup.err, 'error: division by zero\n  at <repl>:2:5\n');
   assert.equal(attempt.out, `${BANNER}${P}${C}${C}${C}${C}-> "division by zero"\n${P}\n`);
 });
 

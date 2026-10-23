@@ -6,3 +6,8 @@ at line 9
 -1
 CUSTOM
 wrapped: division by zero
+opening
+recovered: division by zero
+closing
+no error
+closing again

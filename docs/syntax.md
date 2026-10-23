@@ -219,7 +219,21 @@ recover e | "problem: {e}" -> io/print-ln
 (attempt | line -> string/to-int recover | 0) => n
 ```
 
-An `attempt` without a `recover` is a parse error. `out`, `stop` and `exit` are not errors and pass through an `attempt` untouched. See `semantics.md` for what an error value carries and which failures cannot be caught.
+An `always` body runs after the `attempt` body or the `recover` body, however they ended, and its value is ignored:
+
+```
+attempt
+| "opening" -> io/print-ln
+| risky -> do
+recover e
+| "problem: {e}" -> io/print-ln
+always
+| "closing" -> io/print-ln
+
+attempt | risky -> do always | "closing" -> io/print-ln   ~ no handler: the error propagates after the cleanup
+```
+
+An `attempt` needs a `recover`, an `always` or both, with `recover` first; anything else is a parse error. `out`, `stop` and `exit` are not errors and pass through an `attempt` untouched, although `out` and `stop` still run an `always` body on their way out. See `semantics.md` for what an error value carries and which failures cannot be caught.
 
 ## Modules
 
@@ -281,7 +295,7 @@ Names start with a letter and continue with letters, digits and single hyphens: 
 
 Because `a-b` is a name, binary operators need spaces on both sides: `a - b`. Writing `a -b` is a parse error, reported as a missing operator, not a silent subtraction. The same rule gives qualified names: `geometry/area` and `io/print-ln` are single names reaching into a module, `a / b` is a division.
 
-Reserved words: `proc`, `while`, `stop`, `attempt`, `recover`, `export`, `yes`, `no`, `nothing`, `and`, `or`, `not`, `mod`.
+Reserved words: `proc`, `while`, `stop`, `attempt`, `recover`, `always`, `export`, `yes`, `no`, `nothing`, `and`, `or`, `not`, `mod`.
 
 ## Operators
 
@@ -309,7 +323,7 @@ Each of these produces an error rather than a silent misparse.
 - **A then-branch ends at the first `:`** that is not inside brackets.
 - **A line of bare names followed by a block is a lambda.** `n` on one line and `| n + k` below it is `n | n + k`.
 - **A literal cannot take a block.**
-- **`recover` ends any inline body.** It can only follow an `attempt`, so no inline body can legitimately contain it.
+- **`recover` and `always` end any inline body.** They can only follow an `attempt`, so no inline body can legitimately contain them.
 
 ## Grammar
 
@@ -318,7 +332,7 @@ program     := statement*
 statement   := 'proc' NAME NAME* body
              | 'while' flow body
              | 'stop'
-             | 'attempt' body 'recover' NAME? body
+             | 'attempt' body ('recover' NAME? body)? ('always' body)?   at least one of the two
              | 'export' NAME+                           top level of a file only
              | flow '?' then-body (':' flow '?' then-body)* (':' body)?
              | flow

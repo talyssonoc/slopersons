@@ -61,8 +61,8 @@ These hold for every change. They come from the project owner and are not negoti
 - Conditions must be `yes`/`no`. No truthiness, no coercion. `=` is deep structural equality across types; ordering across unrelated types is an error.
 - Ints are BigInt; `/` floors, `mod` is floored, a float operand promotes. Division by zero is an error.
 - `out` exits the nearest enclosing `proc` through lambdas; `stop` (a keyword statement) exits the innermost `while` or loop builtin (`array/each`, `string/each`, `hashmap/each`, `set/each`, `int/times`); other builtins let it pass through.
-- `attempt`/`recover` catch `SlopersonsError`s of kind `runtime` only. Control signals (`OutSignal`, `StopSignal`, `ExitSignal`) and JS errors pass through. A caught error becomes an `error` value; `fail` rethrows one unchanged.
-- Keywords: `proc while stop attempt recover export yes no nothing and or not mod`.
+- `attempt`/`recover` catch `SlopersonsError`s of kind `runtime` only. Control signals (`OutSignal`, `StopSignal`, `ExitSignal`) and JS errors pass through. A caught error becomes an `error` value; `fail` rethrows one unchanged. An `always` body runs after normal completion, runtime errors, `OutSignal` and `StopSignal`, never after `ExitSignal` or a JS error (`cleanupRuns` in `src/interpreter.ts`).
+- Keywords: `proc while stop attempt recover always export yes no nothing and or not mod`.
 - Modules: `path -> use` loads a file once per interpreter (cache keyed by absolute path in `src/modules.ts`), runs it with `runModule`, and exposes only names listed in `export` statements. Qualified names `a/b` are lexed as one token; `/` between letters joins, anything else is division. Positions carry their `file`, so errors inside modules point at the module. The standard library is itself a set of module values created with `interpreter.builtinModule` and bound in the fallback namespace; `module/*` works on them and on user modules alike.
 
 ## Adding a builtin

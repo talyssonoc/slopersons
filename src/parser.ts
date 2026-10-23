@@ -122,7 +122,7 @@ function canStartExpression(token: Token | undefined): boolean {
 }
 
 function isStop(cursor: Cursor, stopAt: ReadonlySet<string>): boolean {
-  if (cursor.atEnd() || cursor.isOp(')') || cursor.isKeyword('recover')) return true;
+  if (cursor.atEnd() || cursor.isOp(')') || cursor.isKeyword('recover') || cursor.isKeyword('always')) return true;
   const token = cursor.peek();
   return token !== undefined && token.kind === 'op' && stopAt.has(token.operator);
 }
@@ -169,6 +169,8 @@ class Parser {
         this.mergeElse(cursor, line, statements);
       } else if (cursor.isKeyword('recover')) {
         this.mergeRecover(cursor, line, statements);
+      } else if (cursor.isKeyword('always')) {
+        this.mergeAlways(cursor, line, statements);
       } else if (cursor.isOp('->') || cursor.isOp('=>') || cursor.isOp('=>>')) {
         this.mergeContinuation(cursor, line, statements);
       } else {
@@ -176,11 +178,12 @@ class Parser {
       }
       if (!cursor.atEnd()) {
         if (cursor.isKeyword('recover')) throw parseError('`recover` must follow an `attempt` body on the same line or an `attempt` block', cursor.position());
+        if (cursor.isKeyword('always')) throw parseError('`always` must follow an `attempt` or `recover` body on the same line or an `attempt` block', cursor.position());
         throw parseError(`unexpected ${describe(cursor.peek())}`, cursor.position());
       }
     }
     for (const statement of statements) {
-      if (statement.kind === 'attempt' && statement.handler === null) throw incompleteError('`attempt` needs a `recover`', statement.position);
+      if (statement.kind === 'attempt' && statement.handler === null && statement.cleanup === null) throw incompleteError('`attempt` needs a `recover` or an `always`', statement.position);
     }
     return statements;
   }
@@ -317,14 +320,16 @@ class Parser {
 
   private parseAttempt(cursor: Cursor, children: Line[]): AttemptStatement {
     const location = cursor.next().position;
-    const attempt: AttemptStatement = { kind: 'attempt', body: [], errorName: null, handler: null, position: location };
+    const attempt: AttemptStatement = { kind: 'attempt', body: [], errorName: null, handler: null, cleanup: null, position: location };
     if (cursor.isOp('|')) {
       cursor.next();
       attempt.body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
       if (cursor.isKeyword('recover')) {
         this.parseRecover(cursor, attempt, children);
+      } else if (cursor.isKeyword('always')) {
+        this.parseAlways(cursor, attempt, children);
       } else if (children.length > 0) {
-        throw parseError('an inline `attempt` body cannot take a block; put `recover` on the same line or use a block body', cursor.position());
+        throw parseError('an inline `attempt` body cannot take a block; put `recover` or `always` on the same line or use a block body', cursor.position());
       }
       return attempt;
     }
@@ -336,9 +341,36 @@ class Parser {
 
   private parseRecover(cursor: Cursor, attempt: AttemptStatement, children: Line[]): void {
     const location = cursor.next().position;
+    if (attempt.cleanup !== null) throw parseError('`recover` must come before `always`', location);
     if (attempt.handler !== null) throw parseError('this `attempt` already has a `recover`', location);
     if (cursor.isName()) attempt.errorName = cursor.expectName('error name').name;
-    attempt.handler = this.parseBody(cursor, children, '`recover`');
+    if (cursor.isOp('|')) {
+      cursor.next();
+      attempt.handler = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
+      if (cursor.isKeyword('always')) {
+        this.parseAlways(cursor, attempt, children);
+      } else if (children.length > 0) {
+        throw parseError('`recover` has an inline body, so it cannot also take a block', cursor.position());
+      }
+      return;
+    }
+    if (!isStop(cursor, EMPTY)) throw parseError(`unexpected ${describe(cursor.peek())} in \`recover\` header`, cursor.position());
+    if (children.length === 0) throw incompleteError('`recover` needs a body', cursor.position());
+    attempt.handler = this.parseBlock(children);
+  }
+
+  private parseAlways(cursor: Cursor, attempt: AttemptStatement, children: Line[]): void {
+    const location = cursor.next().position;
+    if (attempt.cleanup !== null) throw parseError('this `attempt` already has an `always`', location);
+    attempt.cleanup = this.parseBody(cursor, children, '`always`');
+  }
+
+  private mergeAlways(cursor: Cursor, line: Line, statements: Statement[]): void {
+    const previous = statements[statements.length - 1];
+    if (previous === undefined || previous.kind !== 'attempt') {
+      throw parseError('`always` without a preceding `attempt` at the same depth', cursor.position());
+    }
+    this.parseAlways(cursor, previous, line.children);
   }
 
   private mergeRecover(cursor: Cursor, line: Line, statements: Statement[]): void {
@@ -605,7 +637,7 @@ class Parser {
       case 'conditional':
         return statement;
       case 'attempt':
-        if (statement.handler === null) throw parseError('`attempt` needs a `recover` on the same line when used as a value', location);
+        if (statement.handler === null && statement.cleanup === null) throw parseError('`attempt` needs a `recover` or an `always` on the same line when used as a value', location);
         return statement;
       default:
         throw parseError(`\`${statement.kind}\` is not a value and cannot appear in ${what}`, location);

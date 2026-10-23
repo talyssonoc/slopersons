@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [Run cleanup with always after attempt](./202610231615-run-cleanup-with-always-after-attempt.md)
 
 ## Context
 

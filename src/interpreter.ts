@@ -309,13 +309,24 @@ export class Interpreter {
   }
 
   private execAttempt(statement: Expression & { kind: 'attempt' }, environment: Environment): Value {
+    let outcome: { value: Value } | { thrown: unknown };
     try {
-      return this.execBlock(statement.body, environment);
+      outcome = { value: this.execBlock(statement.body, environment) };
     } catch (error) {
-      if (!(error instanceof SlopersonsError) || error.kind !== 'runtime') throw error;
-      if (statement.errorName !== null) environment.defineParam(statement.errorName, errorValue(error));
-      return this.execBlock(statement.handler ?? [], environment);
+      if (isRuntimeError(error) && statement.handler !== null) {
+        if (statement.errorName !== null) environment.defineParam(statement.errorName, errorValue(error));
+        try {
+          outcome = { value: this.execBlock(statement.handler, environment) };
+        } catch (inner) {
+          outcome = { thrown: inner };
+        }
+      } else {
+        outcome = { thrown: error };
+      }
     }
+    if (statement.cleanup !== null && cleanupRuns(outcome)) this.execBlock(statement.cleanup, environment);
+    if ('thrown' in outcome) throw outcome.thrown;
+    return outcome.value;
   }
 
   private evalConditional(expression: Expression & { kind: 'conditional' }, environment: Environment): Value {
@@ -498,6 +509,16 @@ export class Interpreter {
         return arithmetic(expression.operator, left, right, expression.position);
     }
   }
+}
+
+function isRuntimeError(error: unknown): error is SlopersonsError {
+  return error instanceof SlopersonsError && error.kind === 'runtime';
+}
+
+function cleanupRuns(outcome: { value: Value } | { thrown: unknown }): boolean {
+  if (!('thrown' in outcome)) return true;
+  const thrown = outcome.thrown;
+  return isRuntimeError(thrown) || thrown instanceof OutSignal || thrown instanceof StopSignal;
 }
 
 type ArithOp = '+' | '-' | '*' | '/' | 'mod';
