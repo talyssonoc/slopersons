@@ -1,6 +1,6 @@
 # slopersons
 
-slopersons is a small dynamically typed, structured programming language in which every statement is a left-to-right flow of data through procedures. It has first-class procedures, arbitrary-precision integers, and a standard library of strings, arrays, hashmaps, sets and dates implemented inside the interpreter.
+slopersons is a small dynamically typed, structured programming language in which every statement is a left-to-right flow of data through procedures. It has first-class procedures, arbitrary-precision integers, and a standard library of strings, arrays, hashmaps, sets, dates, times and datetimes implemented inside the interpreter.
 
 ```
 ~ even-sum.slop
@@ -34,7 +34,7 @@ even total: 30
 - [semantics.md](semantics.md): values, arithmetic, equality, scoping, procedures, errors
 - [cli.md](cli.md): running programs, exit codes, error output
 - [adr/README.md](adr/README.md): the Architecture Decision Records, one file per decision with its context, rejected alternatives and consequences
-- [stdlib/core.md](stdlib/core.md), [int](stdlib/int.md), [float](stdlib/float.md), [char](stdlib/char.md), [boolean](stdlib/boolean.md), [string](stdlib/string.md), [array](stdlib/array.md), [hashmap](stdlib/hashmap.md), [set](stdlib/set.md), [date](stdlib/date.md): the standard library
+- [stdlib/core.md](stdlib/core.md), [int](stdlib/int.md), [float](stdlib/float.md), [char](stdlib/char.md), [boolean](stdlib/boolean.md), [string](stdlib/string.md), [array](stdlib/array.md), [hashmap](stdlib/hashmap.md), [set](stdlib/set.md), [date](stdlib/date.md), [time](stdlib/time.md), [datetime](stdlib/datetime.md): the standard library
 - [examples/](examples/): complete programs; each has a `.out` file with its exact output and runs as part of the test suite
 
 ## The shape in one minute

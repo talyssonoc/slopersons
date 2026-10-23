@@ -95,7 +95,7 @@ const CODE_ZERO = 48;
 const CODE_NINE = 57;
 const CODE_DASH = 45;
 
-function readAsciiDigits(text: string, start: number, count: number): number | null {
+export function readAsciiDigits(text: string, start: number, count: number): number | null {
   let value = 0;
   for (let i = start; i < start + count; i++) {
     const code = text.charCodeAt(i);
@@ -134,20 +134,22 @@ function weekdayName(date: CivilDate): string {
   return nameAt(WEEKDAY_NAMES, weekday(daysFromCivil(date.year, date.month, date.day)) - 1);
 }
 
-type TokenRenderer = (date: CivilDate) => string;
+export type FormatToken = readonly [string, string];
 
-const FORMAT_TOKENS: ReadonlyArray<readonly [string, TokenRenderer]> = [
-  ['yyyy', (date) => zeroPadded(date.year, 4)],
-  ['yy', (date) => zeroPadded(((date.year % 100) + 100) % 100, 2)],
-  ['mmmm', (date) => monthName(date)],
-  ['mmm', (date) => monthName(date).slice(0, 3)],
-  ['mm', (date) => zeroPadded(date.month, 2)],
-  ['m', (date) => String(date.month)],
-  ['dddd', (date) => weekdayName(date)],
-  ['ddd', (date) => weekdayName(date).slice(0, 3)],
-  ['dd', (date) => zeroPadded(date.day, 2)],
-  ['d', (date) => String(date.day)],
-];
+export function dateFormatTokens(date: CivilDate): FormatToken[] {
+  return [
+    ['yyyy', zeroPadded(date.year, 4)],
+    ['yy', zeroPadded(((date.year % 100) + 100) % 100, 2)],
+    ['mmmm', monthName(date)],
+    ['mmm', monthName(date).slice(0, 3)],
+    ['mm', zeroPadded(date.month, 2)],
+    ['m', String(date.month)],
+    ['dddd', weekdayName(date)],
+    ['ddd', weekdayName(date).slice(0, 3)],
+    ['dd', zeroPadded(date.day, 2)],
+    ['d', String(date.day)],
+  ];
+}
 
 function matchesAt(text: string, token: string, at: number): boolean {
   if (at + token.length > text.length) return false;
@@ -157,19 +159,22 @@ function matchesAt(text: string, token: string, at: number): boolean {
   return true;
 }
 
-export function formatDate(date: CivilDate, pattern: string): string {
+export function renderPattern(pattern: string, tokens: ReadonlyArray<FormatToken>): string {
   let out = '';
   let i = 0;
   while (i < pattern.length) {
-    const match = FORMAT_TOKENS.find(([token]) => matchesAt(pattern, token, i));
+    const match = tokens.find(([token]) => matchesAt(pattern, token, i));
     if (match === undefined) {
       out += pattern.charAt(i);
       i += 1;
     } else {
-      const [token, render] = match;
-      out += render(date);
-      i += token.length;
+      out += match[1];
+      i += match[0].length;
     }
   }
   return out;
+}
+
+export function formatDate(date: CivilDate, pattern: string): string {
+  return renderPattern(pattern, dateFormatTokens(date));
 }

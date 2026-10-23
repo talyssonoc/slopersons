@@ -6,6 +6,7 @@ import { civilFromDays, formatDate } from './runtime/calendar.ts';
 import { hashBigInt, hashBoolean, hashCombine, hashNumber, hashString } from './runtime/hashing.ts';
 import { HashTable, type KeyOps } from './runtime/hashtable.ts';
 import { codePoints, formatFloat } from './runtime/text.ts';
+import { isoDateTime, isoTime } from './runtime/time.ts';
 
 export interface IntValue {
   t: 'int';
@@ -56,6 +57,16 @@ export interface DateValue {
   days: number;
 }
 
+export interface TimeValue {
+  t: 'time';
+  ms: number;
+}
+
+export interface DateTimeValue {
+  t: 'datetime';
+  ms: number;
+}
+
 export interface ProcValue {
   t: 'proc';
   id: number;
@@ -92,10 +103,12 @@ export type Value =
   | MapValue
   | SetValue
   | DateValue
+  | TimeValue
+  | DateTimeValue
   | ProcValue
   | BuiltinValue;
 
-export type TypeName = 'int' | 'float' | 'char' | 'boolean' | 'string' | 'nothing' | 'array' | 'hashmap' | 'set' | 'date' | 'proc';
+export type TypeName = 'int' | 'float' | 'char' | 'boolean' | 'string' | 'nothing' | 'array' | 'hashmap' | 'set' | 'date' | 'time' | 'datetime' | 'proc';
 
 export const NOTHING: NothingValue = { t: 'nothing' };
 export const YES: BoolValue = { t: 'bool', v: true };
@@ -135,6 +148,14 @@ export function date(days: number): DateValue {
   return { t: 'date', days };
 }
 
+export function time(ms: number): TimeValue {
+  return { t: 'time', ms };
+}
+
+export function datetime(ms: number): DateTimeValue {
+  return { t: 'datetime', ms };
+}
+
 export function typeName(value: Value): TypeName {
   switch (value.t) {
     case 'bool':
@@ -164,6 +185,9 @@ export function valuesEqual(a: Value, b: Value): boolean {
       return true;
     case 'date':
       return a.days === (b as DateValue).days;
+    case 'time':
+    case 'datetime':
+      return a.ms === (b as TimeValue | DateTimeValue).ms;
     case 'array': {
       const other = b as ArrayValue;
       if (a.items.length !== other.items.length) return false;
@@ -210,6 +234,8 @@ const TAG_HASH: Record<Value['t'], number> = {
   date: 10,
   proc: 11,
   builtin: 12,
+  time: 13,
+  datetime: 14,
 };
 
 export function hashValue(value: Value): number {
@@ -228,6 +254,9 @@ export function hashValue(value: Value): number {
       return hashCombine(tag, 0);
     case 'date':
       return hashCombine(tag, hashNumber(value.days));
+    case 'time':
+    case 'datetime':
+      return hashCombine(tag, hashNumber(value.ms));
     case 'array': {
       let h = tag;
       for (const item of value.items) h = hashCombine(h, hashValue(item));
@@ -288,6 +317,7 @@ export function compareValues(a: Value, b: Value, pos: Pos | null): number {
   if (a.t === 'string' && b.t === 'string') return compareStrings(a.v, b.v);
   if (a.t === 'char' && b.t === 'char') return compareStrings(a.v, b.v);
   if (a.t === 'date' && b.t === 'date') return a.days < b.days ? -1 : a.days > b.days ? 1 : 0;
+  if ((a.t === 'time' && b.t === 'time') || (a.t === 'datetime' && b.t === 'datetime')) return a.ms < b.ms ? -1 : a.ms > b.ms ? 1 : 0;
   if (a.t === 'array' && b.t === 'array') {
     const n = Math.min(a.items.length, b.items.length);
     for (let i = 0; i < n; i++) {
@@ -378,6 +408,10 @@ export function formatValue(value: Value, mode: FormatMode): string {
       return 'nothing';
     case 'date':
       return formatDateValue(value);
+    case 'time':
+      return isoTime(value.ms);
+    case 'datetime':
+      return isoDateTime(value.ms);
     case 'array':
       return `[${value.items.map((item) => formatValue(item, 'show')).join(' ')}]`;
     case 'map':

@@ -22,7 +22,7 @@ import { arg, expectInt, expectString } from './core.ts';
 const MS_PER_DAY = 86_400_000;
 const MAX_MAGNITUDE = 1_000_000_000n;
 
-function expectDate(value: Value, what: string, ctx: CallContext): DateValue {
+export function expectDate(value: Value, what: string, ctx: CallContext): DateValue {
   if (value.t !== 'date') throw runtimeError(`${what} must be a date, got ${describeType(value)}`, ctx.pos);
   return value;
 }

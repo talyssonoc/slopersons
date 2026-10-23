@@ -14,6 +14,8 @@
 | `hashmap` | `{"k": 1}` | yes | insertion ordered, any value as key |
 | `set` | built with `to-set` | yes | insertion ordered |
 | `date` | built with `date` or `to-date` | no | calendar date, no time of day |
+| `time` | built with `time` or `to-time` | no | time of day, millisecond precision, no zone |
+| `datetime` | built with `at-time`, `to-datetime` or `now` | no | a date with a time, UTC |
 | `proc` | `proc`, lambdas, builtins | no | first-class |
 
 `type-of` returns these names as strings. There is no type coercion anywhere.
@@ -30,7 +32,7 @@
 
 `=` and `/=` compare structurally: two arrays are equal when their elements are, two hashmaps when they hold the same keys with equal values regardless of insertion order. Values of different types are unequal, never an error, so `1 = 1.0` is `no` and `1 = "1"` is `no`. Procedures are equal only to themselves.
 
-`<`, `>`, `<=`, `>=` work between two numbers (int and float mix), two strings or two chars (by code point), two dates, or two arrays (element by element, then by length). Any other pairing is an error.
+`<`, `>`, `<=`, `>=` work between two numbers (int and float mix), two strings or two chars (by code point), two dates, two times, two datetimes, or two arrays (element by element, then by length). Any other pairing is an error; a date and a datetime do not compare.
 
 ## Conditions
 
@@ -69,7 +71,7 @@ Within a flow, the head is evaluated first, then each step left to right. Within
 
 ## Printing
 
-`print-ln` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>`. Inside containers, strings are quoted and escaped and chars are shown in backticks. `show` returns that quoted form for any value. String interpolation uses the `print-ln` form.
+`print-ln` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, times as `HH:MM:SS` with `.SSS` only when the milliseconds are not zero, datetimes as `yyyy-mm-ddTHH:MM:SS`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>`. Inside containers, strings are quoted and escaped and chars are shown in backticks. `show` returns that quoted form for any value. String interpolation uses the `print-ln` form.
 
 ## Errors
 

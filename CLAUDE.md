@@ -27,7 +27,7 @@ src/parser.ts           recursive descent over the line tree -> AST (src/ast.ts)
 src/interpreter.ts      Env, Interpreter (tree walker), control signals (OutSignal, StopSignal, ExitSignal), arithmetic
 src/values.ts           tagged runtime values, equality, hashing, ordering, formatting
 src/errors.ts           SloError with kind, position and file
-src/runtime/            hand-built algorithms: hashtable, hashing, sorting, text (code points), calendar
+src/runtime/            hand-built algorithms: hashtable, hashing, sorting, text (code points), calendar, time (time of day, datetime parsing and formatting)
 src/stdlib/             builtins grouped by type; registry.ts registers each module with explicit calls
 test/                   mirrors src/; test/helpers/ast-print.ts prints ASTs as S-expressions; test/helpers/run.ts runs source in-process
 test/no-proxy.test.ts   greps src/ for forbidden JS APIs (invariant 5); extend its rules when adding an allowed exception
@@ -60,7 +60,7 @@ These hold for every change. They come from the project owner and are not negoti
 
 ## Adding a builtin
 
-1. Implement it in `src/stdlib/<type>.ts`. Every builtin whose first argument is a typed receiver uses `interp.defineMethod(name, type, arity, fn)`, even if only one type has it today: the interpreter dispatches on the type of the piped value and reports `` `name` cannot be used with an int; it works on string `` for the wrong receiver. `interp.defineBuiltin(name, arity, fn)` is only for builtins that accept any value (`print`, `print-ln`, `show`, `type-of`, `do`, `out`, `fail`, `exit`) or take no input (`today`, `read-line`). Registering a name twice, or both ways, throws at startup so collisions between modules are caught by the first test run. Use the `expect*` helpers in `src/stdlib/core.ts` for argument checks so messages stay uniform. Arity is exact (`2`) or `{ min, max }`.
+1. Implement it in `src/stdlib/<type>.ts`. Every builtin whose first argument is a typed receiver uses `interp.defineMethod(name, type, arity, fn)`, even if only one type has it today: the interpreter dispatches on the type of the piped value and reports `` `name` cannot be used with an int; it works on string `` for the wrong receiver. `interp.defineBuiltin(name, arity, fn)` is only for builtins that accept any value (`print`, `print-ln`, `show`, `type-of`, `do`, `out`, `fail`, `exit`) or take no input (`today`, `now`, `read-line`). Registering a name twice, or both ways, throws at startup so collisions between modules are caught by the first test run. Use the `expect*` helpers in `src/stdlib/core.ts` for argument checks so messages stay uniform. Arity is exact (`2`) or `{ min, max }`.
 2. Register it from the module's `register<Type>` function (already called by `registry.ts`).
 3. Document it in `docs/stdlib/<type>.md` with its signature in flow form and an example.
 4. Add a unit test in `test/stdlib/<type>.test.ts` using the `run` helper from `test/helpers/run.ts`, and a golden program under `test/programs/` if the behavior is user-visible.

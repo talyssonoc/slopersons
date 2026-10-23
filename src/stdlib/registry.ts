@@ -4,11 +4,13 @@ import { registerBoolean } from './boolean.ts';
 import { registerChar } from './char.ts';
 import { registerCore } from './core.ts';
 import { registerDate } from './date.ts';
+import { registerDatetime } from './datetime.ts';
 import { registerFloat } from './float.ts';
 import { registerHashmap } from './hashmap.ts';
 import { registerInt } from './int.ts';
 import { registerSet } from './set.ts';
 import { registerString } from './string.ts';
+import { registerTime } from './time.ts';
 
 export function registerStdlib(interp: Interpreter): void {
   registerCore(interp);
@@ -21,4 +23,6 @@ export function registerStdlib(interp: Interpreter): void {
   registerHashmap(interp);
   registerSet(interp);
   registerDate(interp);
+  registerTime(interp);
+  registerDatetime(interp);
 }

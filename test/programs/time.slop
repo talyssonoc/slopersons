@@ -1,0 +1,19 @@
+9 -> time 5 7 42 => t
+t -> print-ln
+t -> format "H:MM" -> print-ln
+t -> add-hours 20 -> print-ln
+"23:59:59" -> to-time -> add-seconds 2 -> print-ln
+(9 -> time 0 0) -> seconds-between (10 -> time 30 0) -> print-ln
+2024 -> date 12 25 -> at-time (18 -> time 30 0) => dinner
+dinner -> print-ln
+dinner -> add-hours 6 -> print-ln
+dinner -> format "dddd d mmmm, HH:MM" -> print-ln
+"2024-12-27T06:00:00" -> to-datetime => departure
+dinner -> days-between departure -> print-ln
+dinner -> seconds-between departure -> print-ln
+departure -> date -> print-ln
+departure -> time -> print-ln
+departure > dinner -> print-ln
+now -> do -> type-of -> print-ln
+0 -> to-datetime -> print-ln
+[(12 -> time 0 0) dinner] -> print-ln

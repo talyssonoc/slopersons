@@ -261,3 +261,9 @@ Returns the date as a `yyyy-mm-dd` string, the same form `print-ln` uses.
 ```
 2026 -> date 10 23 -> to-string -> print-ln    ~ 2026-10-23
 ```
+
+## at-time
+
+`date -> at-time time`
+
+Combines the date with a time of day into a datetime. Documented on the [datetime page](datetime.md).

@@ -17,3 +17,11 @@ christmas > start -> print-ln
 
 christmas -> end-of-month -> print-ln
 christmas -> start-of-month -> format "dd/mm/yy" -> print-ln
+
+~ Times and datetimes.
+christmas -> at-time (18 -> time 30 0) => dinner
+dinner -> print-ln
+dinner -> add-hours 7 -> print-ln
+dinner -> format "dddd at H:MM" -> print-ln
+"2024-12-31T23:59:59" -> to-datetime -> add-seconds 1 -> print-ln
+dinner -> time -> add-minutes 90 -> print-ln
