@@ -25,6 +25,11 @@ test('printed output and the echo both appear, and nothing is not echoed', () =>
   assert.equal(result.out, `${BANNER}${P}hi\n-> "hi"\n${P}${P}${P}\n`);
 });
 
+test('io/arguments is empty in the REPL', () => {
+  const result = session(['io/arguments -> do']);
+  assert.equal(result.out, `${BANNER}${P}-> []\n${P}\n`);
+});
+
 test('bindings and procedures persist across entries', () => {
   const result = session(['5 => x', 'proc double n | n * 2', 'x -> double']);
   assert.equal(result.out, `${BANNER}${P}-> 5\n${P}${P}-> 10\n${P}\n`);

@@ -73,6 +73,29 @@ test('read-line reads stdin one line at a time and gives nothing at the end', ()
   assert.equal(result.stdout, 'first|second|nothing\n');
 });
 
+test('everything after the program file goes to the program, including words that look like interpreter options', () => {
+  const path = writeTemp('arguments.slop', 'io/arguments -> do -> io/print-line\n');
+  const result = spawnSync(bin, [path, '--version', '--help', '-h', '--repl', 'café'], { encoding: 'utf8' });
+  assert.equal(result.stderr, '');
+  assert.equal(result.stdout, '["--version" "--help" "-h" "--repl" "café"]\n');
+  assert.equal(result.status, 0);
+});
+
+test('an unknown option before the program file is a usage error', () => {
+  const path = writeTemp('ignored.slop', '"never" -> io/print-line\n');
+  const result = spawnSync(bin, ['--bogus', path], { encoding: 'utf8' });
+  assert.equal(result.stdout, '');
+  assert.match(result.stderr, /^error: unknown option --bogus\nusage: slopersons <file\.slop> \[arguments\.\.\.\]\n/);
+  assert.equal(result.status, 2);
+});
+
+test('--repl takes no file or arguments', () => {
+  const result = spawnSync(bin, ['--repl', 'program.slop'], { encoding: 'utf8', input: '' });
+  assert.equal(result.stdout, '');
+  assert.match(result.stderr, /^error: --repl takes no file or arguments\nusage: /);
+  assert.equal(result.status, 2);
+});
+
 test('read-line decodes characters that take several bytes in UTF-8', () => {
   const path = writeTemp('accents.slop', 'io/read-line -> do => a\nio/read-line -> do => b\n"{a}|{a -> string/length}|{b}|{b -> string/length}" -> io/print-line\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8', input: 'café ü\r\n日本 🎉' });

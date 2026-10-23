@@ -4,7 +4,7 @@ The standard library is a set of modules that are always available, without a `u
 
 | Module | What it holds | Page |
 | --- | --- | --- |
-| `io` | writing to standard output, reading standard input | [io.md](io.md) |
+| `io` | writing to standard output, reading standard input, the program's command-line arguments | [io.md](io.md) |
 | `int` | int-only functions, the range builder `int/up-to`, the counted loop `int/times` | [int.md](int.md) |
 | `float` | float-only functions | [float.md](float.md) |
 | `math` | numeric functions that take an int or a float: `abs`, `pow`, `sqrt`, `min`, `max`, `clamp`, `sign` | [math.md](math.md) |
@@ -25,7 +25,7 @@ A function lives in the module of its input's type, so `array/length`, `string/l
 The builtin modules are ordinary module values, bound in the fallback namespace below the program's scope, so everything on the [module page](module.md) works on them and a member can be bound to a shorter name:
 
 ```
-io -> module/names -> io/print-line     ~ ["print-line" "print" "read-line"]
+io -> module/names -> io/print-line     ~ ["print-line" "print" "read-line" "arguments"]
 io -> io/print-line                     ~ <module io>
 proc double n | n * 2
 array/map => map

@@ -10,7 +10,7 @@ Language reference: `docs/syntax.md`, `docs/semantics.md`, `docs/stdlib/*.md`. R
 pnpm install                      # once; Node 26.12.1 via asdf (.tool-versions), pnpm 10
 pnpm test                         # node --test over test/**/*.test.ts
 pnpm typecheck                    # tsc --noEmit; Node never type-checks, so this is the only type check
-./bin/slopersons.mjs file.slop    # run a program through the shebang, no build
+./bin/slopersons.mjs file.slop    # run a program through the shebang, no build; words after the file reach it as io/arguments
 pnpm slopersons file.slop         # same, as a package script (add --silent when piping; pnpm's banner goes to stdout)
 ./bin/slopersons.mjs --repl       # interactive session; Ctrl-D leaves
 SLOPERSONS_DEBUG=1 ./bin/slopersons.mjs file.slop   # only way to see a JS stack for an internal error
@@ -35,7 +35,7 @@ src/runtime/            hand-built algorithms: hashtable, hashing, sorting, text
 src/stdlib/             the builtin modules, one file per type; core.ts holds the bare builtins, `io/*`, `error/*` and the loop builtins, `math/*` lives in int.ts; registry.ts registers each file with explicit calls
 test/                   mirrors src/; test/helpers/ast-print.ts prints ASTs as S-expressions; test/helpers/run.ts runs source in-process
 test/no-proxy.test.ts   greps src/ for forbidden JS APIs (invariant 5); extend its rules when adding an allowed exception
-test/programs/          golden .slop programs with .out/.err expectations, run through the real binary
+test/programs/          golden .slop programs with .out/.err expectations (optional .in for stdin, .args for arguments, one per line), run through the real binary
 docs/                   language docs, stdlib reference, decisions, examples
 ```
 

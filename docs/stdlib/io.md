@@ -1,6 +1,6 @@
 # Io builtins
 
-Standard output and standard input. Output is written in order and fully flushed before the program ends, including when `exit` is called; see `cli.md` for exit codes and for what happens when the reader of standard output goes away early.
+Standard output, standard input and the program's command-line arguments. Output is written in order and fully flushed before the program ends, including when `exit` is called; see `cli.md` for exit codes and for what happens when the reader of standard output goes away early.
 
 ## print-line
 
@@ -35,4 +35,17 @@ Reads one line from standard input without its line break. Returns `nothing` at 
 "Name: " -> io/print
 io/read-line -> do => name
 "hello, {name}" -> io/print-line          ~ with Ada on standard input: Name: hello, Ada
+```
+
+## arguments
+
+`io/arguments -> do`
+
+Returns the words written after the program file on the command line, as a new array of strings in their original order. The program's own path is not included, and words that look like interpreter options, such as `--help`, arrive unchanged. Returns `[]` when there are none, and always in the REPL. It takes no input, so it is called through `do`. Each call builds a new array, so changing one does not change what the next call returns.
+
+```
+~ slopersons greet.slop Ada --loud
+io/arguments -> do => given
+given -> io/print-line                  ~ ["Ada" "--loud"]
+given -> array/at 0 -> io/print-line    ~ Ada
 ```

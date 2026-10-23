@@ -31,7 +31,7 @@ try {
     const io = replIo(given.control, given.data);
     code = new Repl(io, createInterpreter(io)).run();
   } else {
-    code = runProgram(given.source, given.file, nodeIo);
+    code = runProgram(given.source, given.file, nodeIo, createInterpreter(nodeIo, given.programArguments));
   }
 } catch {
   nodeIo.writeError(INTERNAL_ERROR_LINE);

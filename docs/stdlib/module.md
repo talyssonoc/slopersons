@@ -6,7 +6,7 @@ A module value is what `use` returns for a `.slop` file, and what the names of t
 "./lib/geometry" -> use => geometry
 geometry -> io/print-line                   ~ <module geometry>
 geometry -> module/names -> io/print-line   ~ ["pi" "circle-area" "square-area" "describe"]
-io -> module/names -> io/print-line         ~ ["print-line" "print" "read-line"]
+io -> module/names -> io/print-line         ~ ["print-line" "print" "read-line" "arguments"]
 ```
 
 ## at

@@ -25,8 +25,10 @@ for (const directory of directories) {
       const expectedOut = readIfExists(`${stem}.out`);
       const expectedErr = readIfExists(`${stem}.err`);
       const input = readIfExists(`${stem}.in`) ?? '';
+      const argumentLines = readIfExists(`${stem}.args`);
+      const programArguments = argumentLines === null ? [] : argumentLines.replace(/\n$/, '').split('\n');
       assert.ok(expectedOut !== null || expectedErr !== null, `${name} needs a .out or .err file next to it`);
-      const result = spawnSync(bin, [path], { encoding: 'utf8', input });
+      const result = spawnSync(bin, [path, ...programArguments], { encoding: 'utf8', input });
       assert.equal(result.stdout, expectedOut ?? '');
       assert.equal(result.stderr, (expectedErr ?? '').replaceAll('<file>', path));
       assert.equal(result.status, expectedErr === null ? 0 : 1);

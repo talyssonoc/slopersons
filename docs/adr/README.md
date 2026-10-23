@@ -107,3 +107,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Organize the standard library into modules](./202610231614-organize-the-standard-library-into-modules.md) | Accepted |
 | 2026-10-23 | [Run cleanup with `always` after `attempt`](./202610231615-run-cleanup-with-always-after-attempt.md) | Accepted |
 | 2026-10-23 | [Rename `print-ln` to `print-line`](./202610231906-rename-print-ln-to-print-line.md) | Accepted |
+| 2026-10-23 | [Pass the words after the program file to the program](./202610231911-pass-the-words-after-the-program-file-to-the-program.md) | Accepted |

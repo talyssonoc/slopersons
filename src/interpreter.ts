@@ -144,10 +144,12 @@ export class Interpreter {
   private nextActivation: number;
   private topActivation: number;
   currentFile: string | null;
+  readonly programArguments: readonly string[];
   private readonly exportStack: ExportRequest[][];
 
-  constructor(io: Io) {
+  constructor(io: Io, programArguments: readonly string[] = []) {
     this.io = io;
+    this.programArguments = programArguments;
     this.builtins = new Map();
     this.methods = new Map();
     this.depth = 0;

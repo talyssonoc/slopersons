@@ -33,8 +33,8 @@ function workerHeapMb(): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_WORKER_HEAP_MB;
 }
 
-export function createInterpreter(io: Io): Interpreter {
-  const interpreter = new Interpreter(io);
+export function createInterpreter(io: Io, programArguments: readonly string[] = []): Interpreter {
+  const interpreter = new Interpreter(io, programArguments);
   registerStdlib(interpreter);
   registerModules(interpreter);
   return interpreter;
@@ -133,24 +133,34 @@ export const nodeIo: CliIo = {
   },
 };
 
+const USAGE = 'usage: slopersons <file.slop> [arguments...]\n       slopersons --repl\n       slopersons --version\n';
+
 export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> {
   process.removeAllListeners('warning');
   process.on('warning', () => {});
-  if (argv.includes('--version')) {
+  const [path, ...programArguments] = argv;
+  if (path === '--version') {
     io.write(`slopersons ${VERSION}\n`);
     return EXIT_OK;
   }
-  if (argv.includes('--help') || argv.includes('-h')) {
-    io.write('usage: slopersons <file.slop>\n       slopersons --repl\n       slopersons --version\n');
+  if (path === '--help' || path === '-h') {
+    io.write(USAGE);
     return EXIT_OK;
   }
-  if (argv.includes('--repl')) {
+  if (path === '--repl') {
+    if (programArguments.length > 0) {
+      io.writeError(`error: --repl takes no file or arguments\n${USAGE}`);
+      return EXIT_USAGE;
+    }
     if (io !== nodeIo) return new Repl(io, createInterpreter(io)).run();
     return runReplInWorker();
   }
-  const path = argv[0];
   if (path === undefined) {
-    io.writeError('usage: slopersons <file.slop>\n       slopersons --repl\n');
+    io.writeError(USAGE);
+    return EXIT_USAGE;
+  }
+  if (path.startsWith('-')) {
+    io.writeError(`error: unknown option ${path}\n${USAGE}`);
     return EXIT_USAGE;
   }
   let source: string;
@@ -160,11 +170,11 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
     io.writeError(`error: cannot read file ${path}\n`);
     return EXIT_USAGE;
   }
-  if (io !== nodeIo) return runProgram(source, path, io);
-  return runInWorker({ mode: 'program', source, file: path });
+  if (io !== nodeIo) return runProgram(source, path, io, createInterpreter(io, programArguments));
+  return runInWorker({ mode: 'program', source, file: path, programArguments });
 }
 
-export type WorkerData = { mode: 'program'; source: string; file: string } | { mode: 'repl'; control: SharedArrayBuffer; data: SharedArrayBuffer };
+export type WorkerData = { mode: 'program'; source: string; file: string; programArguments: string[] } | { mode: 'repl'; control: SharedArrayBuffer; data: SharedArrayBuffer };
 
 function runReplInWorker(): Promise<number> {
   const control = new SharedArrayBuffer(8);

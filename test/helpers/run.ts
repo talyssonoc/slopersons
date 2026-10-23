@@ -3,7 +3,7 @@ import { Interpreter } from '../../src/interpreter.ts';
 import { parse } from '../../src/parser.ts';
 import { registerStdlib } from '../../src/stdlib/registry.ts';
 import type { CliIo } from '../../src/boundary.ts';
-import { runProgram } from '../../src/cli.ts';
+import { createInterpreter, runProgram } from '../../src/cli.ts';
 
 export interface RunResult {
   out: string;
@@ -59,8 +59,8 @@ export function failure(source: string): SlopersonsError {
   return result.error;
 }
 
-export function runCli(source: string, inputLines: string[] = []): { code: number; io: FakeIo } {
+export function runCli(source: string, inputLines: string[] = [], programArguments: string[] = []): { code: number; io: FakeIo } {
   const io = fakeIo(inputLines);
-  const code = runProgram(source, 'test.slop', io);
+  const code = runProgram(source, 'test.slop', io, createInterpreter(io, programArguments));
   return { code, io };
 }

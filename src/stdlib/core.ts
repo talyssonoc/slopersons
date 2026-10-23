@@ -135,6 +135,8 @@ export function registerCore(interpreter: Interpreter): void {
     return line === null ? NOTHING : string(line);
   });
 
+  interpreter.defineIn('io', 'arguments', 0, (_inputs, context) => array(context.interpreter.programArguments.map(string)));
+
   interpreter.defineIn('int', 'up-to', 2, (inputs, context) => {
     const from = expectInt(input(inputs, 0), 'the start of `int/up-to`', context);
     const to = expectInt(input(inputs, 1), 'the end of `int/up-to`', context);

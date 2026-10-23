@@ -1,13 +1,17 @@
 # Command line
 
 ```
-slopersons <file.slop>
+slopersons <file.slop> [arguments...]
 slopersons --repl
 slopersons --version
 slopersons --help
 ```
 
 From a checkout, the command is `./bin/slopersons.mjs`, or `pnpm slopersons <file.slop>` through the package script. pnpm prints its script banner on standard output, so when piping the program's output use `pnpm --silent slopersons <file.slop>`. The `bin` field in `package.json` exposes it as `slopersons` after `pnpm link --global` or an install.
+
+## Program arguments
+
+Everything after the program file is passed to the program, which reads it with `io/arguments -> do` (see [io](stdlib/io.md#arguments)). Interpreter options are recognized only as the first word, so `slopersons tool.slop --help` runs `tool.slop` with `["--help"]` instead of printing this page's usage. A first word that starts with `-` and is not one of the options above is a usage error, and so is anything after `--repl`. In the REPL, `io/arguments -> do` gives `[]`. The package script passes arguments the same way: `pnpm --silent slopersons tool.slop a --help` gives the program `["a" "--help"]`.
 
 ## REPL
 
@@ -40,7 +44,7 @@ Line editing comes from Node's readline: the arrow keys move within the line and
 | --- | --- |
 | 0 | the program finished, or called `0 -> exit` |
 | 1 | the program failed with a parse or runtime error |
-| 2 | usage error: no file given, or the file could not be read |
+| 2 | usage error: no file given, an unknown option, words after `--repl`, or the file could not be read |
 | 70 | an internal interpreter error; a bug in slopersons, not in the program |
 | other | the value passed to `exit` |
 

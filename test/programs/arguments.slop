@@ -1,0 +1,4 @@
+~ run with the words in arguments.args, one per line
+io/arguments -> do => given
+"{given -> array/length} arguments" -> io/print-line
+given -> array/each argument | "<{argument}>" -> io/print-line
