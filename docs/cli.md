@@ -32,7 +32,7 @@ From a checkout, the command is `./bin/slopersons.mjs`, or `pnpm slopersons <fil
 - Errors are printed as `error: message` with the position inside the entry, and the session continues.
 - Ctrl-D leaves with exit code 0; `code -> exit` leaves with that code.
 
-Input is read line by line as programs read it, so the terminal provides basic editing but there is no history or cursor movement between lines.
+Line editing comes from Node's readline: the arrow keys move within the line and recall earlier entries, and the usual shortcuts work. Up to 200 entries are kept in the session's history.
 
 ## Exit codes
 

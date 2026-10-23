@@ -27,8 +27,7 @@ export class Repl {
     this.io.write(BANNER);
     const pending: string[] = [];
     while (true) {
-      this.io.write(pending.length === 0 ? PROMPT : CONTINUATION_PROMPT);
-      const line = this.io.readLine();
+      const line = this.io.readLine(pending.length === 0 ? PROMPT : CONTINUATION_PROMPT);
       if (line === null) {
         this.io.write('\n');
         if (pending.length === 0) return EXIT_OK;

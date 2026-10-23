@@ -1,6 +1,20 @@
 import { readFileSync, readSync, writeSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { Worker, isMainThread } from 'node:worker_threads';
-import { BrokenPipe, EXIT_INTERNAL, EXIT_OK, EXIT_PROGRAM_ERROR, EXIT_USAGE, INTERNAL_ERROR_LINE, describeUnexpected, type CliIo } from './boundary.ts';
+import {
+  BrokenPipe,
+  EXIT_INTERNAL,
+  EXIT_OK,
+  EXIT_PROGRAM_ERROR,
+  EXIT_USAGE,
+  INTERNAL_ERROR_LINE,
+  LINE_ENDED,
+  LINE_READY,
+  REPL_LINE_BUFFER_BYTES,
+  describeUnexpected,
+  isReadLineRequest,
+  type CliIo,
+} from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
 import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
 import { parse } from './parser.ts';
@@ -104,7 +118,10 @@ function readLineFromStdin(): string | null {
 export const nodeIo: CliIo = {
   write: (text) => writeAll(1, text),
   writeError: (text) => writeAll(2, text),
-  readLine: readLineFromStdin,
+  readLine: (prompt) => {
+    if (prompt !== undefined) writeAll(1, prompt);
+    return readLineFromStdin();
+  },
 };
 
 export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> {
@@ -120,7 +137,7 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
   }
   if (argv.includes('--repl')) {
     if (io !== nodeIo) return new Repl(io, createInterpreter(io)).run();
-    return runInWorker({ mode: 'repl' });
+    return runReplInWorker();
   }
   const path = argv[0];
   if (path === undefined) {
@@ -138,9 +155,54 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
   return runInWorker({ mode: 'program', source, file: path });
 }
 
-export type WorkerData = { mode: 'program'; source: string; file: string } | { mode: 'repl' };
+export type WorkerData = { mode: 'program'; source: string; file: string } | { mode: 'repl'; control: SharedArrayBuffer; data: SharedArrayBuffer };
 
-function runInWorker(data: WorkerData): Promise<number> {
+function runReplInWorker(): Promise<number> {
+  const control = new SharedArrayBuffer(8);
+  const data = new SharedArrayBuffer(REPL_LINE_BUFFER_BYTES);
+  const controlView = new Int32Array(control);
+  const dataView = new Uint8Array(data);
+  const encoder = new TextEncoder();
+  const queued: string[] = [];
+  let ended = false;
+  let waiting = false;
+  const reader = createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY === true, historySize: 200 });
+  const deliver = (line: string | null): void => {
+    waiting = false;
+    if (line === null) {
+      Atomics.store(controlView, 1, 0);
+      Atomics.store(controlView, 0, LINE_ENDED);
+    } else {
+      const { written } = encoder.encodeInto(line, dataView);
+      Atomics.store(controlView, 1, written);
+      Atomics.store(controlView, 0, LINE_READY);
+    }
+    Atomics.notify(controlView, 0);
+  };
+  reader.on('line', (line: string) => {
+    if (waiting) deliver(line);
+    else queued.push(line);
+  });
+  reader.on('close', () => {
+    ended = true;
+    if (waiting) deliver(null);
+  });
+  const onRequest = (prompt: string): void => {
+    if (ended) {
+      writeAll(1, prompt);
+    } else {
+      reader.setPrompt(prompt);
+      reader.prompt();
+    }
+    const next = queued.shift();
+    if (next !== undefined) deliver(next);
+    else if (ended) deliver(null);
+    else waiting = true;
+  };
+  return runInWorker({ mode: 'repl', control, data }, onRequest, () => reader.close());
+}
+
+function runInWorker(data: WorkerData, onReadLine?: (prompt: string) => void, onExit?: () => void): Promise<number> {
   return new Promise((resolve) => {
     const worker = new Worker(new URL('./worker.ts', import.meta.url), {
       workerData: data,
@@ -159,6 +221,7 @@ function runInWorker(data: WorkerData): Promise<number> {
     process.stderr.on('error', onBrokenPipe);
     worker.on('message', (message: unknown) => {
       if (typeof message === 'number' && !pipeBroken) code = message;
+      if (isReadLineRequest(message) && onReadLine !== undefined) onReadLine(message.prompt);
     });
     worker.on('error', (error: unknown) => {
       if (error instanceof Error && 'code' in error && error.code === 'ERR_WORKER_OUT_OF_MEMORY') {
@@ -169,6 +232,9 @@ function runInWorker(data: WorkerData): Promise<number> {
       process.stderr.write(INTERNAL_ERROR_LINE);
       code = EXIT_INTERNAL;
     });
-    worker.on('exit', () => resolve(code));
+    worker.on('exit', () => {
+      onExit?.();
+      resolve(code);
+    });
   });
 }

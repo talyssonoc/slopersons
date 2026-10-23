@@ -26,7 +26,10 @@ export function fakeIo(inputLines: string[] = []): FakeIo {
     writeError: (text) => {
       io.error += text;
     },
-    readLine: () => pending.shift() ?? null,
+    readLine: (prompt) => {
+      if (prompt !== undefined) io.out += prompt;
+      return pending.shift() ?? null;
+    },
   };
   return io;
 }

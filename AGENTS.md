@@ -22,7 +22,7 @@ SLOPERSONS_DEBUG=1 ./bin/slopersons.mjs file.slop   # only way to see a JS stack
 bin/slopersons.mjs      shebang entry; imports src/cli.ts; last-resort catch so no JS error ever escapes
 src/cli.ts              argument handling, file reading, the error boundary (runProgram), stdin line reading, worker launch
 src/boundary.ts         exit codes, CliIo, BrokenPipe and the messages for JS-level failures, shared by cli.ts and repl.ts
-src/repl.ts             the --repl loop: complete lines run at once, incomplete ones collect a block until an empty line
+src/repl.ts             the --repl loop: complete lines run at once, incomplete ones collect a block until an empty line; in REPL mode cli.ts reads lines with readline on the main thread and hands them to the worker over shared memory
 src/worker.ts           worker-thread entry: runs the program on a 256 MB stack with a heap limit
 src/lexer.ts            physical lines -> margin depth + tokens; strings with interpolation segments
 src/line-tree.ts        lexed lines -> nested blocks by margin depth

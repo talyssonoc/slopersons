@@ -186,6 +186,12 @@ test('--repl runs an interactive session through the binary', () => {
   assert.equal(result.status, 0);
 });
 
+test('read-line inside a REPL entry reads the next input line through the same channel', () => {
+  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', input: 'read-line -> do -> upper\nhello\n' });
+  assert.equal(result.stdout, 'slopersons, Ctrl-D to leave\n> -> "HELLO"\n> \n');
+  assert.equal(result.status, 0);
+});
+
 test('--help mentions the REPL', () => {
   const result = spawnSync(bin, ['--help'], { encoding: 'utf8' });
   assert.match(result.stdout, /slopersons --repl/);

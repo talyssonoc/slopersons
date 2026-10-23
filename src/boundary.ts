@@ -13,6 +13,20 @@ export interface CliIo extends Io {
 
 export class BrokenPipe {}
 
+export const LINE_WAITING = 0;
+export const LINE_READY = 1;
+export const LINE_ENDED = 2;
+export const REPL_LINE_BUFFER_BYTES = 1 << 20;
+
+export interface ReadLineRequest {
+  type: 'read-line';
+  prompt: string;
+}
+
+export function isReadLineRequest(message: unknown): message is ReadLineRequest {
+  return typeof message === 'object' && message !== null && 'type' in message && message.type === 'read-line' && 'prompt' in message && typeof message.prompt === 'string';
+}
+
 export function isStackOverflow(error: unknown): boolean {
   return error instanceof RangeError && /call stack/i.test(error.message);
 }

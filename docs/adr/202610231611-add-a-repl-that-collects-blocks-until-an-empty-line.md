@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [Read REPL input with readline on the main thread](./202610231612-read-repl-input-with-readline-on-the-main-thread.md)
 
 ## Context
 

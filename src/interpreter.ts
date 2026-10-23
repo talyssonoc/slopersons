@@ -28,7 +28,7 @@ import {
 
 export interface Io {
   write(text: string): void;
-  readLine(): string | null;
+  readLine(prompt?: string): string | null;
 }
 
 export interface CallContext {
