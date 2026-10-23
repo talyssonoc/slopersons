@@ -108,3 +108,6 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Run cleanup with `always` after `attempt`](./202610231615-run-cleanup-with-always-after-attempt.md) | Accepted |
 | 2026-10-23 | [Rename `print-ln` to `print-line`](./202610231906-rename-print-ln-to-print-line.md) | Accepted |
 | 2026-10-23 | [Pass the words after the program file to the program](./202610231911-pass-the-words-after-the-program-file-to-the-program.md) | Accepted |
+| 2026-10-23 | [Represent open files and the standard streams as stream values](./202610231912-represent-open-files-and-the-standard-streams-as-stream-values.md) | Accepted |
+| 2026-10-23 | [Keep the io shortcuts over the standard streams](./202610231913-keep-the-io-shortcuts-over-the-standard-streams.md) | Accepted |
+| 2026-10-23 | [Put file system operations in a `file` module that takes the path first](./202610231914-put-file-system-operations-in-a-file-module-that-takes-the-path-first.md) | Accepted |
