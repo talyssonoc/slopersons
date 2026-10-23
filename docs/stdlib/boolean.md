@@ -9,7 +9,7 @@ Builtins whose input is a boolean, `yes` or `no`. Booleans do not coerce anywher
 Returns `"yes"` or `"no"`.
 
 ```
-yes -> to-string -> show -> print   ~ "yes"
+yes -> to-string -> show -> print-ln   ~ "yes"
 ```
 
 ## to-int
@@ -19,6 +19,6 @@ yes -> to-string -> show -> print   ~ "yes"
 Returns `1` for `yes` and `0` for `no`, which makes counting matches a sum.
 
 ```
-(3 > 2) -> to-int -> print          ~ 1
-no -> to-int -> print               ~ 0
+(3 > 2) -> to-int -> print-ln          ~ 1
+no -> to-int -> print-ln               ~ 0
 ```

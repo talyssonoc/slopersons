@@ -8,27 +8,38 @@ Conventions used in every stdlib page:
 - "Errors" lists the conditions that stop the program with `error: ...`. Type errors read `the input of \`name\` must be a string, got an int`.
 - Examples show the program followed by its output in a comment.
 
-## print
+## print-ln
 
-`value -> print`
+`value -> print-ln`
 
 Writes the human form of `value` and a newline to standard output, then returns `value` so it can sit in the middle of a flow. Strings and chars print bare; inside arrays and hashmaps they print quoted. Floats always show a decimal point.
 
 ```
-"hi" -> print              ~ hi
-[1 "a" `b` 2.0] -> print   ~ [1 "a" `b` 2.0]
-3 -> print -> double       ~ prints 3, flows 6 onward
+"hi" -> print-ln              ~ hi
+[1 "a" `b` 2.0] -> print-ln   ~ [1 "a" `b` 2.0]
+3 -> print-ln -> double       ~ prints 3, flows 6 onward
+```
+
+## print
+
+`value -> print`
+
+Like `print-ln` but without the trailing newline, so a prompt can stay on the same line as the answer. Returns `value`.
+
+```
+"Name: " -> print
+read-line -> do => name
 ```
 
 ## show
 
 `value -> show`
 
-Returns the literal form of `value` as a string: strings come back quoted and escaped, chars in backticks, everything else as `print` would show it inside a container.
+Returns the literal form of `value` as a string: strings come back quoted and escaped, chars in backticks, everything else as `print-ln` would show it inside a container.
 
 ```
-"a\"b" -> show -> print    ~ "a\"b"
-`x` -> show -> print       ~ `x`
+"a\"b" -> show -> print-ln    ~ "a\"b"
+`x` -> show -> print-ln       ~ `x`
 ```
 
 ## type-of
@@ -44,9 +55,9 @@ Returns the type name as a string: `int`, `float`, `char`, `boolean`, `string`, 
 Calls `procedure` with the given arguments. This is how a procedure with no input is called, since a bare name is a value, not a call.
 
 ```
-today -> do -> print
+today -> do -> print-ln
 proc add a b | a + b
-add -> do 1 2 -> print     ~ 3
+add -> do 1 2 -> print-ln     ~ 3
 ```
 
 Errors: the input is not a procedure; wrong number of arguments for the procedure.
@@ -77,7 +88,7 @@ Errors: used at the top level; used inside a lambda whose procedure has already 
 Builds an array of ints from `from` to `until` inclusive. An empty array when `until` is less than `from`.
 
 ```
-1 -> to 4 -> print         ~ [1 2 3 4]
+1 -> to 4 -> print-ln         ~ [1 2 3 4]
 ```
 
 Errors: either bound is not an int.

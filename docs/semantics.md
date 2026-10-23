@@ -41,7 +41,7 @@
 A scope is created by the program itself, by each call of a `proc`, and by each call of a lambda. Conditional branches and loop bodies do **not** create scopes.
 
 - Parameters create fresh bindings in the call's scope and may shadow outer names.
-- `=> name` rebinds `name` if it already exists in the current scope, creates it if it exists nowhere, and is an **error** if it exists only in an enclosing scope. The error exists so that `total + n => total` inside a lambda cannot silently create a shadow and leave the outer `total` unchanged.
+- `=> name` rebinds `name` if it already exists in the current scope, creates it if it exists nowhere in the current procedure call, and is an **error** if it exists only in an enclosing scope of the *same* procedure call (a lambda shadowing its procedure's local, or a top-level lambda shadowing a top-level name). The error exists so that `total + n => total` inside a lambda cannot silently create a shadow and leave the outer `total` unchanged. A `proc` body is a new call, so it may use any local names regardless of what exists outside it; outer names stay readable and are updated only with `=>>`.
 - `=>> name` updates the nearest existing binding, searching from the current scope outward through lambdas and procs up to the program scope. It is an error if no binding exists.
 - Builtins live in a fallback namespace below the program scope: a user binding may take a builtin's name without error and hides it within that scope.
 
@@ -69,7 +69,7 @@ Within a flow, the head is evaluated first, then each step left to right. Within
 
 ## Printing
 
-`print` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>`. Inside containers, strings are quoted and escaped and chars are shown in backticks. `show` returns that quoted form for any value. String interpolation uses the `print` form.
+`print-ln` writes the human form: strings and chars bare, ints as digits, floats always with a decimal point (`2.0`), `yes`/`no`/`nothing` as written, dates as `yyyy-mm-dd`, arrays as `[1 2 3]`, hashmaps as `{"a": 1  "b": 2}`, sets as `set[1 2 3]`, procedures as `<proc name>` or `<lambda>`. Inside containers, strings are quoted and escaped and chars are shown in backticks. `show` returns that quoted form for any value. String interpolation uses the `print-ln` form.
 
 ## Errors
 

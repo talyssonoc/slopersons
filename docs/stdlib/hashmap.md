@@ -14,8 +14,8 @@ Builtins for hashmaps. A hashmap literal is `{"a": 1  "b": 2}`: `key: value` ent
 Returns the value stored under `key`. Use `at-or` or `has` when the key may be missing. Other types have their own `at`: see the array and string pages.
 
 ```
-{"a": 1  "b": 2} -> at "b" -> print        ~ 2
-{[1 2]: "pair"} -> at [1 2] -> print       ~ pair
+{"a": 1  "b": 2} -> at "b" -> print-ln        ~ 2
+{[1 2]: "pair"} -> at [1 2] -> print-ln       ~ pair
 ```
 
 Errors: `key` is not in the hashmap, as `key "zip" not found in hashmap` with the key in its `show` form.
@@ -27,8 +27,8 @@ Errors: `key` is not in the hashmap, as `key "zip" not found in hashmap` with th
 Returns the value stored under `key`, or `default` when the key is missing. A key stored with the value `nothing` is present, so `nothing` comes back rather than the default.
 
 ```
-{"a": 1} -> at-or "a" 0 -> print           ~ 1
-{"a": 1} -> at-or "zip" 0 -> print         ~ 0
+{"a": 1} -> at-or "a" 0 -> print-ln           ~ 1
+{"a": 1} -> at-or "zip" 0 -> print-ln         ~ 0
 ```
 
 ## put
@@ -39,8 +39,8 @@ Stores `value` under `key` in place and returns the same hashmap. An existing ke
 
 ```
 {"a": 1} => m
-m -> put "a" 10 -> put "b" 2 -> print      ~ {"a": 10  "b": 2}
-m -> print                                 ~ {"a": 10  "b": 2}
+m -> put "a" 10 -> put "b" 2 -> print-ln      ~ {"a": 10  "b": 2}
+m -> print-ln                                 ~ {"a": 10  "b": 2}
 ```
 
 ## remove
@@ -50,7 +50,7 @@ m -> print                                 ~ {"a": 10  "b": 2}
 Deletes the entry under `key` in place and returns the same hashmap. Removing a key that is not there changes nothing.
 
 ```
-{"a": 1  "b": 2} -> remove "a" -> remove "zip" -> print    ~ {"b": 2}
+{"a": 1  "b": 2} -> remove "a" -> remove "zip" -> print-ln    ~ {"b": 2}
 ```
 
 ## has
@@ -60,8 +60,8 @@ Deletes the entry under `key` in place and returns the same hashmap. Removing a 
 Returns `yes` when `key` is in the hashmap, `no` otherwise.
 
 ```
-{"a": 1} -> has "a" -> print               ~ yes
-{"a": 1} -> has "b" -> print               ~ no
+{"a": 1} -> has "a" -> print-ln               ~ yes
+{"a": 1} -> has "b" -> print-ln               ~ no
 ```
 
 ## keys
@@ -71,7 +71,7 @@ Returns `yes` when `key` is in the hashmap, `no` otherwise.
 Returns the keys as an array, in insertion order.
 
 ```
-{"b": 2  "a": 1} -> keys -> print          ~ ["b" "a"]
+{"b": 2  "a": 1} -> keys -> print-ln          ~ ["b" "a"]
 ```
 
 ## values
@@ -81,7 +81,7 @@ Returns the keys as an array, in insertion order.
 Returns the values as an array, in insertion order.
 
 ```
-{"b": 2  "a": 1} -> values -> print        ~ [2 1]
+{"b": 2  "a": 1} -> values -> print-ln        ~ [2 1]
 ```
 
 ## entries
@@ -91,7 +91,7 @@ Returns the values as an array, in insertion order.
 Returns the entries as an array of two-element `[key value]` arrays, in insertion order.
 
 ```
-{"b": 2  "a": 1} -> entries -> print       ~ [["b" 2] ["a" 1]]
+{"b": 2  "a": 1} -> entries -> print-ln       ~ [["b" 2] ["a" 1]]
 ```
 
 ## to-array
@@ -101,7 +101,7 @@ Returns the entries as an array of two-element `[key value]` arrays, in insertio
 Same as `entries`. Other types have their own `to-array`: see the set page.
 
 ```
-{"b": 2  "a": 1} -> to-array -> print      ~ [["b" 2] ["a" 1]]
+{"b": 2  "a": 1} -> to-array -> print-ln      ~ [["b" 2] ["a" 1]]
 ```
 
 ## length
@@ -111,7 +111,7 @@ Same as `entries`. Other types have their own `to-array`: see the set page.
 Returns the number of entries as an int.
 
 ```
-{"a": 1  "b": 2} -> length -> print        ~ 2
+{"a": 1  "b": 2} -> length -> print-ln        ~ 2
 ```
 
 ## is-empty
@@ -121,8 +121,8 @@ Returns the number of entries as an int.
 Returns `yes` when the hashmap has no entries.
 
 ```
-{} -> is-empty -> print                    ~ yes
-{"a": 1} -> is-empty -> print              ~ no
+{} -> is-empty -> print-ln                    ~ yes
+{"a": 1} -> is-empty -> print-ln              ~ no
 ```
 
 ## merge
@@ -132,7 +132,7 @@ Returns `yes` when the hashmap has no entries.
 Returns a new hashmap with the entries of both. The input's keys come first in their order, then the keys only `other` has; when a key is in both, the value from `other` wins. Neither input changes.
 
 ```
-{"a": 1  "b": 2} -> merge {"b": 20  "c": 3} -> print    ~ {"a": 1  "b": 20  "c": 3}
+{"a": 1  "b": 2} -> merge {"b": 20  "c": 3} -> print-ln    ~ {"a": 1  "b": 20  "c": 3}
 ```
 
 Errors: `other` is not a hashmap.
@@ -145,7 +145,7 @@ Calls the body once per entry, in insertion order, with the key and the value as
 
 ```
 {"a": 1  "b": 2} -> each k v
-| "{k}={v}" -> print                       ~ a=1
+| "{k}={v}" -> print-ln                       ~ a=1
                                            ~ b=2
 ```
 
@@ -159,7 +159,7 @@ Returns a new hashmap with the same keys in the same order, each value replaced 
 
 ```
 {"a": 1  "b": 2} -> map-values v | v * 10
--> print                                   ~ {"a": 10  "b": 20}
+-> print-ln                                   ~ {"a": 10  "b": 20}
 ```
 
 Errors: the body is not a procedure.
@@ -172,7 +172,7 @@ Returns a new hashmap with the entries for which the body returns `yes`, in thei
 
 ```
 {"a": 1  "b": 2  "c": 3} -> keep k v | v > 1
--> print                                   ~ {"b": 2  "c": 3}
+-> print-ln                                   ~ {"b": 2  "c": 3}
 ```
 
 Errors: the body is not a procedure; the body returns something other than `yes` or `no`, as `the condition in \`keep\` must return \`yes\` or \`no\`, got an int`.
@@ -185,6 +185,6 @@ Returns a new hashmap with the same entries in the same order. The copy is shall
 
 ```
 {"a": 1} => m
-m -> copy -> put "b" 2 -> print            ~ {"a": 1  "b": 2}
-m -> print                                 ~ {"a": 1}
+m -> copy -> put "b" 2 -> print-ln            ~ {"a": 1  "b": 2}
+m -> print-ln                                 ~ {"a": 1}
 ```

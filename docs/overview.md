@@ -10,14 +10,14 @@ slopersons is a small dynamically typed, structured programming language in whic
 numbers -> each n
 | n mod 2 = 0 ? total + n =>> total
 
-"even total: {total}" -> print
+"even total: {total}" -> print-ln
 
 proc describe n
 | n > 20 ? "big" -> out
 | n > 10 ? "medium" -> out
 | "small"
 
-numbers -> map describe -> print
+numbers -> map describe -> print-ln
 ```
 
 Running it:

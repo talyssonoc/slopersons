@@ -9,8 +9,8 @@ Builtins whose input is a char. A char is one Unicode code point, so `to-int` an
 Returns the code point of the char as an int. The int page has `to-char` for the way back.
 
 ```
-`a` -> to-int -> print     ~ 97
-`👍` -> to-int -> print    ~ 128077
+`a` -> to-int -> print-ln     ~ 97
+`👍` -> to-int -> print-ln    ~ 128077
 ```
 
 ## upper
@@ -20,8 +20,8 @@ Returns the code point of the char as an int. The int page has `to-char` for the
 Returns the upper-case form of the char. When the upper-case form is more than one code point, as `` `ß` `` becoming `SS`, the char is returned unchanged, since a char cannot hold two code points. Strings have their own `upper`: see the string page.
 
 ```
-`a` -> upper -> print      ~ A
-`ß` -> upper -> print      ~ ß
+`a` -> upper -> print-ln      ~ A
+`ß` -> upper -> print-ln      ~ ß
 ```
 
 ## lower
@@ -31,7 +31,7 @@ Returns the upper-case form of the char. When the upper-case form is more than o
 Returns the lower-case form of the char. As with `upper`, a mapping to more than one code point leaves the char unchanged. Strings have their own `lower`: see the string page.
 
 ```
-`Z` -> lower -> print      ~ z
+`Z` -> lower -> print-ln      ~ z
 ```
 
 ## is-letter
@@ -41,8 +41,8 @@ Returns the lower-case form of the char. As with `upper`, a mapping to more than
 Returns `yes` when the char is a letter in any script.
 
 ```
-`é` -> is-letter -> print  ~ yes
-`1` -> is-letter -> print  ~ no
+`é` -> is-letter -> print-ln  ~ yes
+`1` -> is-letter -> print-ln  ~ no
 ```
 
 ## is-digit
@@ -52,8 +52,8 @@ Returns `yes` when the char is a letter in any script.
 Returns `yes` when the char is a decimal digit in any script. Other numeric characters such as `` `½` `` are not digits.
 
 ```
-`7` -> is-digit -> print   ~ yes
-`½` -> is-digit -> print   ~ no
+`7` -> is-digit -> print-ln   ~ yes
+`½` -> is-digit -> print-ln   ~ no
 ```
 
 ## is-space
@@ -63,8 +63,8 @@ Returns `yes` when the char is a decimal digit in any script. Other numeric char
 Returns `yes` when the char is white space, including tabs and line breaks.
 
 ```
-`\t` -> is-space -> print  ~ yes
-`a` -> is-space -> print   ~ no
+`\t` -> is-space -> print-ln  ~ yes
+`a` -> is-space -> print-ln   ~ no
 ```
 
 ## to-string
@@ -74,5 +74,5 @@ Returns `yes` when the char is white space, including tabs and line breaks.
 Returns a string holding just this char.
 
 ```
-`a` -> to-string -> show -> print   ~ "a"
+`a` -> to-string -> show -> print-ln   ~ "a"
 ```

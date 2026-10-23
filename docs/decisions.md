@@ -36,7 +36,9 @@ Rejected: a leading `-> today` on a line, because a line starting with `->` cont
 
 Scopes are created only by the program top level, `proc` bodies and lambda bodies; conditional and loop blocks do not create scopes. `=> name` rebinds within the current scope or creates a local; if the name exists only in an enclosing scope it is an error that points at `=>>`. `=>> name` updates the nearest existing binding, searching from the current scope outward, and errors if none exists. Parameters always create fresh bindings and may shadow.
 
-Why: user chose "always local, explicit marker for outer". The shadowing error was added because `total + n => total` inside an `each` lambda would otherwise silently create a shadow and leave the accumulator unchanged. `=>>` searches from the current scope (not only enclosing ones) because the first test program hit a trap: inside a top-level `while` body `i` is local, so a strict "enclosing only" `=>>` rejected `i + 1 =>> i` while the same line inside an `each` lambda required it. With the lenient rule, `=>>` is always safe for "update this counter wherever it lives" and `=>` is always "this is mine".
+Why: user chose "always local, explicit marker for outer". The shadowing error was added because `total + n => total` inside an `each` lambda would otherwise silently create a shadow and leave the accumulator unchanged.
+
+The shadowing check is bounded to the current procedure activation. The first version checked every enclosing scope, and the guided calculator example broke on its second round: `ask-operator` binds a local `op`, the caller later bound a top-level `op`, and from then on the procedure's own local was rejected. A procedure's locals must not depend on the names its callers choose, so a `proc` body may shadow anything outside the call; lambdas inside the same call are still checked against the procedure's locals, which is where the accumulator mistake lives. `=>>` searches from the current scope (not only enclosing ones) because the first test program hit a trap: inside a top-level `while` body `i` is local, so a strict "enclosing only" `=>>` rejected `i + 1 =>> i` while the same line inside an `each` lambda required it. With the lenient rule, `=>>` is always safe for "update this counter wherever it lives" and `=>` is always "this is mine".
 
 Rejected: Ruby-block semantics (update nearest existing binding everywhere), simplest but a proc can silently clobber a global; a hybrid where lambdas share and procs isolate.
 
@@ -155,7 +157,7 @@ Rejected: one module per name with a type switch inside (couples unrelated modul
 
 ### Every builtin with a typed receiver is registered through dispatch
 
-The first stdlib modules used plain `defineBuiltin` for names they believed unique to their type and `defineMethod` only for known-shared names. Written concurrently, the modules disagreed about which names were shared (`put`, `keep`, `copy`, `count`), and a plain registration silently replaced a dispatching one depending on registration order. Two changes fixed this for good: registering a name twice, or both plainly and by type, throws at startup; and every builtin whose first argument has a type is registered with `defineMethod`, even when only one type has it today. Plain builtins are only those that accept any value (`print`, `show`, `type-of`, `do`, `out`, `fail`, `exit`) or take no input (`today`, `read-line`). A consequence users see: the wrong receiver is reported as `\`push\` cannot be used with an int; it works on array`, while other arguments keep the `the index of \`at\` must be an int, got a string` form.
+The first stdlib modules used plain `defineBuiltin` for names they believed unique to their type and `defineMethod` only for known-shared names. Written concurrently, the modules disagreed about which names were shared (`put`, `keep`, `copy`, `count`), and a plain registration silently replaced a dispatching one depending on registration order. Two changes fixed this for good: registering a name twice, or both plainly and by type, throws at startup; and every builtin whose first argument has a type is registered with `defineMethod`, even when only one type has it today. Plain builtins are only those that accept any value (`print-ln`, `show`, `type-of`, `do`, `out`, `fail`, `exit`) or take no input (`today`, `read-line`). A consequence users see: the wrong receiver is reported as `\`push\` cannot be used with an int; it works on array`, while other arguments keep the `the index of \`at\` must be an int, got a string` form.
 
 ### Builtin errors point at the arrow
 
@@ -175,13 +177,17 @@ Rejected: `node --stack-size` in the shebang (segfaults when it exceeds the OS t
 
 So a long flow can end with its binding on its own line.
 
-### `print` returns its input
+### `print` writes as is, `print-ln` adds the line break
 
-`x -> print -> double` prints `x` and keeps flowing, which is convenient for debugging a pipeline without restructuring it.
+The first version had `print` (with newline) and `write` (without). Nothing in those names says which one ends the line, so the pair became `print` and `print-ln`, following Java, Kotlin, Go and Rust where the suffix carries the only difference. The everyday call is the longer `print-ln`; that was judged a fair price for never having to remember which verb adds the newline. `print` without a newline exists so that a prompt can stay on the same line as the answer, which the guided calculator example needs.
+
+### `print-ln` returns its input
+
+`x -> print-ln -> double` prints `x` and keeps flowing, which is convenient for debugging a pipeline without restructuring it.
 
 ### Chars print bare, like strings
 
-`` `a` -> print `` writes `a`. Inside containers and through `show`, chars appear in backticks so that output remains readable as a literal.
+`` `a` -> print-ln `` writes `a`. Inside containers and through `show`, chars appear in backticks so that output remains readable as a literal.
 
 ### `index-of` returns `nothing` when absent
 
@@ -195,9 +201,19 @@ Missing *keys* are errors because they usually mean a typo, but "not found" is a
 
 Three layers keep a runaway program from ever showing a V8 message. Builtins that construct values of a requested size (`to`, `repeat`, `pad-left`, `pad-right`) check the size against a 50 million limit first and raise a slopersons error naming the builtin and the size. If a value still outgrows what JavaScript can represent (a string doubled 30 times), the resulting `RangeError` is caught at the CLI boundary and reported as "a value grew too large". And the worker thread runs with `resourceLimits.maxOldGenerationSizeMb` (1024 MB by default, `SLOPERSONS_MAX_HEAP_MB` to change it), so exceeding it terminates the worker with an error event the main thread turns into "the program ran out of memory" instead of the process dying with a fatal heap message.
 
-### A closed output pipe ends the program quietly
+### A closed output pipe ends the program quietly with exit 0
 
-`slopersons file.slop | head` closes standard output early; Node then raises `EPIPE` on the main thread's stdout, which by default prints a JavaScript stack trace. The CLI listens for that error on stdout and stderr, terminates the worker and exits with code 0, matching how Unix tools behave under SIGPIPE. Found by piping an example to `head` while adding the package script.
+When the reader of standard output goes away (`slopersons report.slop | head`), the program stops at its next write and exits 0 with nothing on stderr.
+
+Rejected: exit code 141, which is what a shell reports for a process killed by SIGPIPE, because the number is a Unix artifact that means nothing to someone writing slopersons; reporting an error, because the program did nothing wrong.
+
+### Program output is written synchronously to the file descriptors
+
+The worker thread writes to file descriptors 1 and 2 with `writeSync`, waiting briefly and retrying when the descriptor would block, instead of going through the worker's `process.stdout` stream.
+
+Why: the worker stdio stream sends one chunk to the main thread and waits for an acknowledgement that only the worker's event loop can receive, and that loop never runs while the program is blocked in `read-line`. In an interactive session every prompt after the first one stayed stuck in the worker until the program ended. Synchronous writes also make the interleaving of standard output and standard error match program order.
+
+Rejected: flushing before each read (the stream offers no way to force the pending chunk out); moving reads to the main thread and handing lines to the worker through shared memory (far more machinery for the same result).
 
 ### The lexer and parser may use JS collections and string methods
 

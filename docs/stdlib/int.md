@@ -9,8 +9,8 @@ Builtins whose input is an int. The ones marked `(int, float)` accept a float in
 Returns the magnitude of `number` with the same type as the input.
 
 ```
--5 -> abs -> print         ~ 5
--2.5 -> abs -> print       ~ 2.5
+-5 -> abs -> print-ln         ~ 5
+-2.5 -> abs -> print-ln       ~ 2.5
 ```
 
 ## pow
@@ -20,10 +20,10 @@ Returns the magnitude of `number` with the same type as the input.
 Raises `base` to `exponent`. Two ints with an exponent of zero or more give an exact int. A negative int exponent or any float operand gives a float.
 
 ```
-2 -> pow 10 -> print       ~ 1024
-2 -> pow -1 -> print       ~ 0.5
-9 -> pow 0.5 -> print      ~ 3.0
-2.0 -> pow 3 -> print      ~ 8.0
+2 -> pow 10 -> print-ln       ~ 1024
+2 -> pow -1 -> print-ln       ~ 0.5
+9 -> pow 0.5 -> print-ln      ~ 3.0
+2.0 -> pow 3 -> print-ln      ~ 8.0
 ```
 
 Errors: the exponent is not an int or a float; the result is too large for an int or a float; zero raised to a negative exponent; a negative base with a fractional exponent.
@@ -35,8 +35,8 @@ Errors: the exponent is not an int or a float; the result is too large for an in
 Returns the square root as a float, whatever the type of the input.
 
 ```
-16 -> sqrt -> print        ~ 4.0
-2.25 -> sqrt -> print      ~ 1.5
+16 -> sqrt -> print-ln        ~ 4.0
+2.25 -> sqrt -> print-ln      ~ 1.5
 ```
 
 Errors: the input is negative; the input is an int too large for a float.
@@ -48,9 +48,9 @@ Errors: the input is negative; the input is an int too large for a float.
 Returns the smaller of the two numbers, unchanged: an int stays an int and a float stays a float. On a tie the input wins. Arrays have their own one-argument `min`: see the array page.
 
 ```
-3 -> min 2.5 -> print      ~ 2.5
-3 -> min 4 -> print        ~ 3
-1 -> min 1.0 -> print      ~ 1
+3 -> min 2.5 -> print-ln      ~ 2.5
+3 -> min 4 -> print-ln        ~ 3
+1 -> min 1.0 -> print-ln      ~ 1
 ```
 
 Errors: `other` is not an int or a float.
@@ -62,8 +62,8 @@ Errors: `other` is not an int or a float.
 Returns the larger of the two numbers, unchanged. On a tie the input wins. Arrays have their own one-argument `max`: see the array page.
 
 ```
-2.5 -> max 3 -> print      ~ 3
-1.0 -> max 1 -> print      ~ 1.0
+2.5 -> max 3 -> print-ln      ~ 3
+1.0 -> max 1 -> print-ln      ~ 1.0
 ```
 
 Errors: `other` is not an int or a float.
@@ -75,9 +75,9 @@ Errors: `other` is not an int or a float.
 Returns `low` when `number` is below it, `high` when `number` is above it, otherwise `number` itself. Whichever operand is returned keeps its own type.
 
 ```
-5 -> clamp 1 3 -> print    ~ 3
--5 -> clamp 1 3 -> print   ~ 1
-2 -> clamp 2.5 4 -> print  ~ 2.5
+5 -> clamp 1 3 -> print-ln    ~ 3
+-5 -> clamp 1 3 -> print-ln   ~ 1
+2 -> clamp 2.5 4 -> print-ln  ~ 2.5
 ```
 
 Errors: a bound is not an int or a float; `low` is greater than `high`.
@@ -89,9 +89,9 @@ Errors: a bound is not an int or a float; `low` is greater than `high`.
 Returns the int `-1`, `0` or `1` according to whether `number` is negative, zero or positive.
 
 ```
--7 -> sign -> print        ~ -1
-0.0 -> sign -> print       ~ 0
-3.5 -> sign -> print       ~ 1
+-7 -> sign -> print-ln        ~ -1
+0.0 -> sign -> print-ln       ~ 0
+3.5 -> sign -> print-ln       ~ 1
 ```
 
 ## is-even
@@ -101,8 +101,8 @@ Returns the int `-1`, `0` or `1` according to whether `number` is negative, zero
 Returns `yes` when the int is divisible by two. Zero is even.
 
 ```
-4 -> is-even -> print      ~ yes
--3 -> is-even -> print     ~ no
+4 -> is-even -> print-ln      ~ yes
+-3 -> is-even -> print-ln     ~ no
 ```
 
 Errors: the input is not an int.
@@ -114,7 +114,7 @@ Errors: the input is not an int.
 Returns `yes` when the int is not divisible by two.
 
 ```
--3 -> is-odd -> print      ~ yes
+-3 -> is-odd -> print-ln      ~ yes
 ```
 
 Errors: the input is not an int.
@@ -126,7 +126,7 @@ Errors: the input is not an int.
 Returns the int as a float. Ints above 2^53 in magnitude lose precision in the conversion.
 
 ```
-3 -> to-float -> print     ~ 3.0
+3 -> to-float -> print-ln     ~ 3.0
 ```
 
 Errors: the input is too large for a float.
@@ -138,7 +138,7 @@ Errors: the input is too large for a float.
 Returns the int unchanged. Floats, chars and booleans have their own `to-int`: see their pages.
 
 ```
-42 -> to-int -> print      ~ 42
+42 -> to-int -> print-ln      ~ 42
 ```
 
 ## to-char
@@ -148,8 +148,8 @@ Returns the int unchanged. Floats, chars and booleans have their own `to-int`: s
 Returns the char with this Unicode code point.
 
 ```
-97 -> to-char -> print     ~ a
-128077 -> to-char -> print ~ 👍
+97 -> to-char -> print-ln     ~ a
+128077 -> to-char -> print-ln ~ 👍
 ```
 
 Errors: the input is not between 0 and 1114111; the input is a surrogate code point (55296 to 57343).
@@ -158,9 +158,9 @@ Errors: the input is not between 0 and 1114111; the input is a surrogate code po
 
 `number -> to-string` (int, float)
 
-Returns the number as `print` shows it. Floats always keep a decimal point. Chars and booleans have their own `to-string`: see their pages.
+Returns the number as `print-ln` shows it. Floats always keep a decimal point. Chars and booleans have their own `to-string`: see their pages.
 
 ```
-42 -> to-string -> show -> print    ~ "42"
-2.0 -> to-string -> show -> print   ~ "2.0"
+42 -> to-string -> show -> print-ln    ~ "42"
+2.0 -> to-string -> show -> print-ln   ~ "2.0"
 ```

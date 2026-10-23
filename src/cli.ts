@@ -1,5 +1,5 @@
-import { readFileSync, readSync } from 'node:fs';
-import { Worker } from 'node:worker_threads';
+import { readFileSync, readSync, writeSync } from 'node:fs';
+import { Worker, isMainThread } from 'node:worker_threads';
 import { SloError } from './errors.ts';
 import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
 import { parse } from './parser.ts';
@@ -41,6 +41,7 @@ export function runProgram(source: string, file: string, io: CliIo, interp: Inte
     return EXIT_OK;
   } catch (error) {
     if (error instanceof ExitSignal) return error.code;
+    if (error instanceof BrokenPipe) return EXIT_OK;
     if (error instanceof SloError) {
       io.writeError(`${error.withFile(file).format()}\n`);
       return EXIT_PROGRAM_ERROR;
@@ -61,6 +62,39 @@ export function runProgram(source: string, file: string, io: CliIo, interp: Inte
   }
 }
 
+function isBrokenPipe(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'EPIPE';
+}
+
+function isWouldBlock(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'EAGAIN';
+}
+
+export class BrokenPipe {}
+
+const sleepCell = new Int32Array(new SharedArrayBuffer(4));
+
+function pauseBriefly(): void {
+  if (!isMainThread) Atomics.wait(sleepCell, 0, 0, 1);
+}
+
+function writeAll(fd: number, text: string): void {
+  const bytes = Buffer.from(text, 'utf8');
+  let offset = 0;
+  while (offset < bytes.length) {
+    try {
+      offset += writeSync(fd, bytes, offset, bytes.length - offset);
+    } catch (error) {
+      if (isWouldBlock(error)) {
+        pauseBriefly();
+        continue;
+      }
+      if (isBrokenPipe(error)) throw new BrokenPipe();
+      throw error;
+    }
+  }
+}
+
 function readLineFromStdin(): string | null {
   const buffer = Buffer.alloc(1);
   let line = '';
@@ -69,7 +103,10 @@ function readLineFromStdin(): string | null {
     try {
       read = readSync(0, buffer, 0, 1, null);
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'EAGAIN') continue;
+      if (isWouldBlock(error)) {
+        pauseBriefly();
+        continue;
+      }
       if (error instanceof Error && 'code' in error && error.code === 'EOF') read = 0;
       else throw error;
     }
@@ -81,12 +118,8 @@ function readLineFromStdin(): string | null {
 }
 
 export const nodeIo: CliIo = {
-  write: (text) => {
-    process.stdout.write(text);
-  },
-  writeError: (text) => {
-    process.stderr.write(text);
-  },
+  write: (text) => writeAll(1, text),
+  writeError: (text) => writeAll(2, text),
   readLine: readLineFromStdin,
 };
 
@@ -115,10 +148,6 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
   }
   if (io !== nodeIo) return runProgram(source, path, io);
   return runInWorker(source, path);
-}
-
-function isBrokenPipe(error: unknown): boolean {
-  return error instanceof Error && 'code' in error && error.code === 'EPIPE';
 }
 
 function runInWorker(source: string, file: string): Promise<number> {

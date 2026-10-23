@@ -1,23 +1,23 @@
 1 => x
 proc read-outer | x
-read-outer -> do -> print
+read-outer -> do -> print-ln
 
 proc shadow-param x | x * 10
-5 -> shadow-param -> print
-x -> print
+5 -> shadow-param -> print-ln
+x -> print-ln
 
 proc update-outer | 2 =>> x
 update-outer -> do
-x -> print
+x -> print-ln
 
 0 => count
 [1 2 3] -> each n
 | count + n =>> count
-count -> print
+count -> print-ln
 
 yes ? "branch" => from-branch : "other" => from-branch
-from-branch -> print
+from-branch -> print-ln
 
 while count < 10
 | count + 3 =>> count
-count -> print
+count -> print-ln

@@ -37,7 +37,7 @@ and exits with code 70. Setting the environment variable `SLOPERSONS_DEBUG=1` ad
 
 ## Input and output
 
-`print` writes to standard output. `read-line -> do` reads one line from standard input and gives `nothing` at end of input. Output is fully flushed before the process exits, including when `exit` is called. If the reader of standard output goes away early, as in `slopersons report.slop | head`, the program stops quietly with exit code 0.
+`print-ln` writes a line to standard output and `print` writes without a line break, which is how prompts are shown. `read-line -> do` reads one line from standard input and gives `nothing` at end of input; output written before it, including a prompt without a newline, is delivered before the program blocks waiting for input. Output is fully flushed before the process exits, including when `exit` is called. If the reader of standard output goes away early, as in `slopersons report.slop | head`, the program stops quietly with exit code 0.
 
 ## Execution and limits
 

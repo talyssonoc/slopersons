@@ -6,4 +6,4 @@ proc label n
 | : n
 
 1 -> to 15 -> each n
-| n -> label -> print
+| n -> label -> print-ln

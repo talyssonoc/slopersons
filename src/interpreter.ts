@@ -85,9 +85,9 @@ export class Env {
     return undefined;
   }
 
-  private ancestorHas(name: string): boolean {
+  private sameActivationAncestorHas(name: string): boolean {
     let env = this.parent;
-    while (env !== null) {
+    while (env !== null && env.activation === this.activation) {
       if (env.vars.has(name)) return true;
       env = env.parent;
     }
@@ -99,7 +99,7 @@ export class Env {
   }
 
   bindLocal(name: string, value: Value, pos: Pos): void {
-    if (!this.vars.has(name) && this.ancestorHas(name)) {
+    if (!this.vars.has(name) && this.sameActivationAncestorHas(name)) {
       throw runtimeError(`\`${name}\` already exists in an enclosing scope; use \`=>> ${name}\` to update it or choose another name`, pos);
     }
     this.vars.set(name, value);

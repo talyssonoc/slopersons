@@ -71,8 +71,13 @@ export function runLoopBody(body: () => void): boolean {
 }
 
 export function registerCore(interp: Interpreter): void {
-  interp.defineBuiltin('print', 1, (args, ctx) => {
+  interp.defineBuiltin('print-ln', 1, (args, ctx) => {
     ctx.interp.io.write(`${formatValue(arg(args, 0), 'print')}\n`);
+    return arg(args, 0);
+  });
+
+  interp.defineBuiltin('print', 1, (args, ctx) => {
+    ctx.interp.io.write(formatValue(arg(args, 0), 'print'));
     return arg(args, 0);
   });
 

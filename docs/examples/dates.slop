@@ -1,19 +1,19 @@
 ~ Calendar dates: construction, arithmetic, formatting and comparison.
 2024 -> date 1 31 => start
-start -> print
-start -> weekday -> print
-start -> add-months 1 -> print
-start -> add-days 366 -> print
-start -> add-years 1 -> print
+start -> print-ln
+start -> weekday -> print-ln
+start -> add-months 1 -> print-ln
+start -> add-days 366 -> print-ln
+start -> add-years 1 -> print-ln
 
 "2024-12-25" -> to-date => christmas
-start -> days-between christmas -> print
-christmas -> format "dddd, mmmm d yyyy" -> print
-christmas -> day-of-year -> print
-christmas > start -> print
+start -> days-between christmas -> print-ln
+christmas -> format "dddd, mmmm d yyyy" -> print-ln
+christmas -> day-of-year -> print-ln
+christmas > start -> print-ln
 
 [2000 1900 2024 2023] -> each y
-| "{y} leap: {y -> is-leap-year}" -> print
+| "{y} leap: {y -> is-leap-year}" -> print-ln
 
-christmas -> end-of-month -> print
-christmas -> start-of-month -> format "dd/mm/yy" -> print
+christmas -> end-of-month -> print-ln
+christmas -> start-of-month -> format "dd/mm/yy" -> print-ln

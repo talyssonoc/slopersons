@@ -5,7 +5,7 @@
 numbers -> each n
 | n mod 2 = 0 ? total + n =>> total
 
-"even total: {total}" -> print
+"even total: {total}" -> print-ln
 
 proc describe n
 | n > 20 ? "big" -> out
@@ -13,4 +13,4 @@ proc describe n
 | "small"
 
 numbers -> each n
-| "{n} is {n -> describe}" -> print
+| "{n} is {n -> describe}" -> print-ln

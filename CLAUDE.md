@@ -51,7 +51,7 @@ These hold for every change. They come from the project owner and are not negoti
 ## Language rules the implementation must keep
 
 - A bare name is a value lookup, never a call. Calls happen only via `->`; the piped value is the first argument; a trailing `| params | body` or margin block becomes the last argument.
-- `=>` binds in the current scope and errors if the name exists only in an enclosing scope; `=>>` updates the nearest existing binding searching from the current scope outward. Scopes: top level, `proc` bodies, lambda bodies. Conditionals and loops do not create scopes.
+- `=>` binds in the current scope and errors if the name exists only in an enclosing scope of the same procedure call (lambdas over their procedure's locals); a `proc` body may shadow anything outside the call. `=>>` updates the nearest existing binding searching from the current scope outward. Scopes: top level, `proc` bodies, lambda bodies. Conditionals and loops do not create scopes.
 - Builtins are a fallback namespace: a user binding may shadow a builtin without error.
 - Conditions must be `yes`/`no`. No truthiness, no coercion. `=` is deep structural equality across types; ordering across unrelated types is an error.
 - Ints are BigInt; `/` floors, `mod` is floored, a float operand promotes. Division by zero is an error.
@@ -60,7 +60,7 @@ These hold for every change. They come from the project owner and are not negoti
 
 ## Adding a builtin
 
-1. Implement it in `src/stdlib/<type>.ts`. Every builtin whose first argument is a typed receiver uses `interp.defineMethod(name, type, arity, fn)`, even if only one type has it today: the interpreter dispatches on the type of the piped value and reports `` `name` cannot be used with an int; it works on string `` for the wrong receiver. `interp.defineBuiltin(name, arity, fn)` is only for builtins that accept any value (`print`, `show`, `type-of`, `do`, `out`, `fail`, `exit`) or take no input (`today`, `read-line`). Registering a name twice, or both ways, throws at startup so collisions between modules are caught by the first test run. Use the `expect*` helpers in `src/stdlib/core.ts` for argument checks so messages stay uniform. Arity is exact (`2`) or `{ min, max }`.
+1. Implement it in `src/stdlib/<type>.ts`. Every builtin whose first argument is a typed receiver uses `interp.defineMethod(name, type, arity, fn)`, even if only one type has it today: the interpreter dispatches on the type of the piped value and reports `` `name` cannot be used with an int; it works on string `` for the wrong receiver. `interp.defineBuiltin(name, arity, fn)` is only for builtins that accept any value (`print`, `print-ln`, `show`, `type-of`, `do`, `out`, `fail`, `exit`) or take no input (`today`, `read-line`). Registering a name twice, or both ways, throws at startup so collisions between modules are caught by the first test run. Use the `expect*` helpers in `src/stdlib/core.ts` for argument checks so messages stay uniform. Arity is exact (`2`) or `{ min, max }`.
 2. Register it from the module's `register<Type>` function (already called by `registry.ts`).
 3. Document it in `docs/stdlib/<type>.md` with its signature in flow form and an example.
 4. Add a unit test in `test/stdlib/<type>.test.ts` using the `run` helper from `test/helpers/run.ts`, and a golden program under `test/programs/` if the behavior is user-visible.

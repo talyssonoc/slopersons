@@ -3,34 +3,34 @@ import assert from 'node:assert/strict';
 import { failure, output } from '../helpers/run.ts';
 
 test('to-set collapses duplicates structurally and keeps first-occurrence order', () => {
-  assert.equal(output('[3 1 3 2 1] -> to-set -> print'), 'set[3 1 2]\n');
-  assert.equal(output('[[1 2] "a" [1 2] 1 1.0] -> to-set -> print'), 'set[[1 2] "a" 1 1.0]\n');
-  assert.equal(output('[] -> to-set -> print'), 'set[]\n');
-  assert.equal(output('[1] -> to-set -> type-of -> print'), 'set\n');
+  assert.equal(output('[3 1 3 2 1] -> to-set -> print-ln'), 'set[3 1 2]\n');
+  assert.equal(output('[[1 2] "a" [1 2] 1 1.0] -> to-set -> print-ln'), 'set[[1 2] "a" 1 1.0]\n');
+  assert.equal(output('[] -> to-set -> print-ln'), 'set[]\n');
+  assert.equal(output('[1] -> to-set -> type-of -> print-ln'), 'set\n');
 });
 
 test('to-set on a set returns an independent copy', () => {
-  assert.equal(output('[1 2] -> to-set => s\ns -> to-set => c\nc -> add 3\ns -> print\nc -> print'), 'set[1 2]\nset[1 2 3]\n');
+  assert.equal(output('[1 2] -> to-set => s\ns -> to-set => c\nc -> add 3\ns -> print-ln\nc -> print-ln'), 'set[1 2]\nset[1 2 3]\n');
 });
 
 test('add inserts once, in place, and returns the same set', () => {
-  assert.equal(output('[1] -> to-set => s\ns -> add 2 -> add 1 -> add 3 -> length -> print\ns -> print'), '3\nset[1 2 3]\n');
+  assert.equal(output('[1] -> to-set => s\ns -> add 2 -> add 1 -> add 3 -> length -> print-ln\ns -> print-ln'), '3\nset[1 2 3]\n');
 });
 
 test('remove deletes in place, ignores absent values and a re-added value goes last', () => {
-  assert.equal(output('[1 2 3] -> to-set => s\ns -> remove 2 -> remove 9 -> print\ns -> add 2 -> print'), 'set[1 3]\nset[1 3 2]\n');
+  assert.equal(output('[1 2 3] -> to-set => s\ns -> remove 2 -> remove 9 -> print-ln\ns -> add 2 -> print-ln'), 'set[1 3]\nset[1 3 2]\n');
 });
 
 test('has and contains check membership structurally', () => {
-  assert.equal(output('[[1 2] "a"] -> to-set => s\ns -> has [1 2] -> print\ns -> contains [1 2] -> print\ns -> has [2 1] -> print\ns -> contains 1 -> print'), 'yes\nyes\nno\nno\n');
+  assert.equal(output('[[1 2] "a"] -> to-set => s\ns -> has [1 2] -> print-ln\ns -> contains [1 2] -> print-ln\ns -> has [2 1] -> print-ln\ns -> contains 1 -> print-ln'), 'yes\nyes\nno\nno\n');
 });
 
 test('length and is-empty', () => {
-  assert.equal(output('[] -> to-set -> length -> print\n[] -> to-set -> is-empty -> print\n[1 1 2] -> to-set -> length -> print\n[1] -> to-set -> is-empty -> print'), '0\nyes\n2\nno\n');
+  assert.equal(output('[] -> to-set -> length -> print-ln\n[] -> to-set -> is-empty -> print-ln\n[1 1 2] -> to-set -> length -> print-ln\n[1] -> to-set -> is-empty -> print-ln'), '0\nyes\n2\nno\n');
 });
 
 test('union, intersect and difference build new sets in left-to-right order and leave inputs untouched', () => {
-  const source = '[1 2 3] -> to-set => a\n[3 4] -> to-set => b\na -> union b -> print\na -> intersect b -> print\na -> difference b -> print\nb -> difference a -> print\na -> print\nb -> print';
+  const source = '[1 2 3] -> to-set => a\n[3 4] -> to-set => b\na -> union b -> print-ln\na -> intersect b -> print-ln\na -> difference b -> print-ln\nb -> difference a -> print-ln\na -> print-ln\nb -> print-ln';
   assert.equal(output(source), 'set[1 2 3 4]\nset[3]\nset[1 2]\nset[4]\nset[1 2 3]\nset[3 4]\n');
   assert.equal(failure('[1] -> to-set -> union [2]').message, 'the argument of `union` must be a set, got an array');
   assert.equal(failure('[1] -> to-set -> intersect 1').message, 'the argument of `intersect` must be a set, got an int');
@@ -38,26 +38,26 @@ test('union, intersect and difference build new sets in left-to-right order and 
 });
 
 test('to-array follows insertion order', () => {
-  assert.equal(output('[2 1 2] -> to-set -> to-array -> print'), '[2 1]\n');
+  assert.equal(output('[2 1 2] -> to-set -> to-array -> print-ln'), '[2 1]\n');
 });
 
 test('each visits elements in insertion order, honors stop and out, and returns nothing', () => {
-  assert.equal(output('[1 2 3] -> to-set -> each n | n -> print'), '1\n2\n3\n');
-  assert.equal(output('[1 2 3] -> to-set -> each n\n| n = 2 ? stop\n| n -> print'), '1\n');
-  assert.equal(output('([1] -> to-set -> each n | n) -> print'), 'nothing\n');
-  assert.equal(output('proc first-even s\n| s -> each n\n| | n mod 2 = 0 ? n -> out\n| nothing\n[1 3 4 6] -> to-set -> first-even -> print'), '4\n');
+  assert.equal(output('[1 2 3] -> to-set -> each n | n -> print-ln'), '1\n2\n3\n');
+  assert.equal(output('[1 2 3] -> to-set -> each n\n| n = 2 ? stop\n| n -> print-ln'), '1\n');
+  assert.equal(output('([1] -> to-set -> each n | n) -> print-ln'), 'nothing\n');
+  assert.equal(output('proc first-even s\n| s -> each n\n| | n mod 2 = 0 ? n -> out\n| nothing\n[1 3 4 6] -> to-set -> first-even -> print-ln'), '4\n');
 });
 
 test('each walks a snapshot, so adding during iteration does not extend the loop', () => {
-  assert.equal(output('[1 2] -> to-set => s\ns -> each n | s -> add n * 10\ns -> print'), 'set[1 2 10 20]\n');
+  assert.equal(output('[1 2] -> to-set => s\ns -> each n | s -> add n * 10\ns -> print-ln'), 'set[1 2 10 20]\n');
 });
 
 test('copy is independent from the original', () => {
-  assert.equal(output('[1] -> to-set => s\ns -> copy => c\nc -> add 2\ns -> remove 1\ns -> print\nc -> print'), 'set[]\nset[1 2]\n');
+  assert.equal(output('[1] -> to-set => s\ns -> copy => c\nc -> add 2\ns -> remove 1\ns -> print-ln\nc -> print-ln'), 'set[]\nset[1 2]\n');
 });
 
-test('sets print as set[...] with elements in show form', () => {
-  assert.equal(output('[1 2 3] -> to-set -> print\n["a" `b` [1]] -> to-set -> print\n[1] -> to-set -> show -> print'), 'set[1 2 3]\nset["a" `b` [1]]\nset[1]\n');
+test('sets print-ln as set[...] with elements in show form', () => {
+  assert.equal(output('[1 2 3] -> to-set -> print-ln\n["a" `b` [1]] -> to-set -> print-ln\n[1] -> to-set -> show -> print-ln'), 'set[1 2 3]\nset["a" `b` [1]]\nset[1]\n');
 });
 
 test('set builtins reject other receivers through dispatch', () => {

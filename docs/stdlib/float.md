@@ -9,9 +9,9 @@ Builtins whose input is a float. `abs`, `pow`, `sqrt`, `min`, `max`, `clamp`, `s
 Returns the nearest int. Halves round away from zero on both sides: `2.5` becomes `3` and `-2.5` becomes `-3`.
 
 ```
-2.5 -> round -> print      ~ 3
--2.5 -> round -> print     ~ -3
-2.4 -> round -> print      ~ 2
+2.5 -> round -> print-ln      ~ 3
+-2.5 -> round -> print-ln     ~ -3
+2.4 -> round -> print-ln      ~ 2
 ```
 
 Errors: the input is not a finite float.
@@ -23,8 +23,8 @@ Errors: the input is not a finite float.
 Returns the largest int that is not greater than the input.
 
 ```
-2.7 -> floor -> print      ~ 2
--2.3 -> floor -> print     ~ -3
+2.7 -> floor -> print-ln      ~ 2
+-2.3 -> floor -> print-ln     ~ -3
 ```
 
 Errors: the input is not a finite float.
@@ -36,8 +36,8 @@ Errors: the input is not a finite float.
 Returns the smallest int that is not less than the input.
 
 ```
-2.1 -> ceil -> print       ~ 3
--2.7 -> ceil -> print      ~ -2
+2.1 -> ceil -> print-ln       ~ 3
+-2.7 -> ceil -> print-ln      ~ -2
 ```
 
 Errors: the input is not a finite float.
@@ -49,8 +49,8 @@ Errors: the input is not a finite float.
 Returns the int part of the float, dropping the fraction toward zero: `-2.9` becomes `-2`. Use `round`, `floor` or `ceil` for the other roundings.
 
 ```
-2.9 -> to-int -> print     ~ 2
--2.9 -> to-int -> print    ~ -2
+2.9 -> to-int -> print-ln     ~ 2
+-2.9 -> to-int -> print-ln    ~ -2
 ```
 
 Errors: the input is not a finite float.
@@ -62,6 +62,6 @@ Errors: the input is not a finite float.
 Returns `yes` when the float has no fractional part.
 
 ```
-2.0 -> is-integer -> print ~ yes
-2.5 -> is-integer -> print ~ no
+2.0 -> is-integer -> print-ln ~ yes
+2.5 -> is-integer -> print-ln ~ no
 ```

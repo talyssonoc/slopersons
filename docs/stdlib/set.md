@@ -14,8 +14,8 @@ Builtins for sets. There is no set literal: a set is built with `to-set` from an
 Builds a set from an array: duplicates collapse and each element keeps the position of its first occurrence. On a set it returns a copy.
 
 ```
-[3 1 3 2 1] -> to-set -> print             ~ set[3 1 2]
-[] -> to-set -> print                      ~ set[]
+[3 1 3 2 1] -> to-set -> print-ln             ~ set[3 1 2]
+[] -> to-set -> print-ln                      ~ set[]
 ```
 
 Errors: the input is neither an array nor a set.
@@ -28,8 +28,8 @@ Adds `value` in place and returns the same set. Adding an element that is alread
 
 ```
 [1] -> to-set => s
-s -> add 2 -> add 1 -> print               ~ set[1 2]
-s -> print                                 ~ set[1 2]
+s -> add 2 -> add 1 -> print-ln               ~ set[1 2]
+s -> print-ln                                 ~ set[1 2]
 ```
 
 ## remove
@@ -39,7 +39,7 @@ s -> print                                 ~ set[1 2]
 Deletes `value` in place and returns the same set. Removing an element that is not there changes nothing.
 
 ```
-[1 2 3] -> to-set -> remove 2 -> remove 9 -> print    ~ set[1 3]
+[1 2 3] -> to-set -> remove 2 -> remove 9 -> print-ln    ~ set[1 3]
 ```
 
 ## has
@@ -49,8 +49,8 @@ Deletes `value` in place and returns the same set. Removing an element that is n
 Returns `yes` when `value` is in the set, `no` otherwise.
 
 ```
-[[1 2] "a"] -> to-set -> has [1 2] -> print    ~ yes
-[[1 2] "a"] -> to-set -> has [2 1] -> print    ~ no
+[[1 2] "a"] -> to-set -> has [1 2] -> print-ln    ~ yes
+[[1 2] "a"] -> to-set -> has [2 1] -> print-ln    ~ no
 ```
 
 ## contains
@@ -60,7 +60,7 @@ Returns `yes` when `value` is in the set, `no` otherwise.
 Same as `has`, so sets, arrays and strings can all be asked with one name.
 
 ```
-[1 2] -> to-set -> contains 2 -> print     ~ yes
+[1 2] -> to-set -> contains 2 -> print-ln     ~ yes
 ```
 
 ## length
@@ -70,7 +70,7 @@ Same as `has`, so sets, arrays and strings can all be asked with one name.
 Returns the number of elements as an int.
 
 ```
-[1 1 2] -> to-set -> length -> print       ~ 2
+[1 1 2] -> to-set -> length -> print-ln       ~ 2
 ```
 
 ## is-empty
@@ -80,8 +80,8 @@ Returns the number of elements as an int.
 Returns `yes` when the set has no elements.
 
 ```
-[] -> to-set -> is-empty -> print          ~ yes
-[1] -> to-set -> is-empty -> print         ~ no
+[] -> to-set -> is-empty -> print-ln          ~ yes
+[1] -> to-set -> is-empty -> print-ln         ~ no
 ```
 
 ## union
@@ -91,7 +91,7 @@ Returns `yes` when the set has no elements.
 Returns a new set with the elements of both: the input's elements in their order, then the elements only `other` has. Neither input changes.
 
 ```
-[1 2 3] -> to-set -> union ([3 4] -> to-set) -> print    ~ set[1 2 3 4]
+[1 2 3] -> to-set -> union ([3 4] -> to-set) -> print-ln    ~ set[1 2 3 4]
 ```
 
 Errors: `other` is not a set.
@@ -103,7 +103,7 @@ Errors: `other` is not a set.
 Returns a new set with the elements of the input that are also in `other`, in the input's order.
 
 ```
-[1 2 3] -> to-set -> intersect ([3 4] -> to-set) -> print    ~ set[3]
+[1 2 3] -> to-set -> intersect ([3 4] -> to-set) -> print-ln    ~ set[3]
 ```
 
 Errors: `other` is not a set.
@@ -115,7 +115,7 @@ Errors: `other` is not a set.
 Returns a new set with the elements of the input that are not in `other`, in the input's order.
 
 ```
-[1 2 3] -> to-set -> difference ([3 4] -> to-set) -> print    ~ set[1 2]
+[1 2 3] -> to-set -> difference ([3 4] -> to-set) -> print-ln    ~ set[1 2]
 ```
 
 Errors: `other` is not a set.
@@ -127,7 +127,7 @@ Errors: `other` is not a set.
 Returns the elements as an array, in insertion order.
 
 ```
-[2 1 2] -> to-set -> to-array -> print     ~ [2 1]
+[2 1 2] -> to-set -> to-array -> print-ln     ~ [2 1]
 ```
 
 ## each
@@ -137,7 +137,7 @@ Returns the elements as an array, in insertion order.
 Calls the body once per element, in insertion order, and returns `nothing`. `stop` ends the loop early and `out` leaves the enclosing procedure. The loop walks the elements as they were when it started, so adding or removing inside the body does not change which elements are visited.
 
 ```
-[1 2 3] -> to-set -> each n | n -> print   ~ 1
+[1 2 3] -> to-set -> each n | n -> print-ln   ~ 1
                                            ~ 2
                                            ~ 3
 ```
@@ -152,6 +152,6 @@ Returns a new set with the same elements in the same order. The copy is shallow:
 
 ```
 [1] -> to-set => s
-s -> copy -> add 2 -> print                ~ set[1 2]
-s -> print                                 ~ set[1]
+s -> copy -> add 2 -> print-ln                ~ set[1 2]
+s -> print-ln                                 ~ set[1]
 ```

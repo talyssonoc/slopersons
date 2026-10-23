@@ -1,0 +1,58 @@
+~ A guided calculator: asks for two numbers and an operator, shows the
+~ result, and offers another round. Answers are checked and asked again
+~ when they do not make sense. Division always gives a float.
+
+{"+": (a b | a + b)
+ "-": (a b | a - b)
+ "*": (a b | a * b)
+ "/": (a b | a * 1.0 / b)} => operations
+
+proc ask label
+| label -> print
+| read-line -> do => answer
+| answer = nothing ? nothing : answer -> trim
+
+proc looks-like-number text
+| text -> starts-with "-" ? text -> slice 1 (text -> length) => body : text => body
+| (body -> length) = 0 ? no -> out
+| (body -> count ".") > 1 ? no -> out
+| not (body -> chars -> any c | c -> is-digit) ? no -> out
+| body -> chars -> all c | (c -> is-digit) or (c = `.`)
+
+proc parse-number text
+| text -> contains "." ? text -> to-float : text -> to-int
+
+proc ask-number label
+| while yes
+| | label -> ask => text
+| | text = nothing ? nothing -> out
+| | text -> looks-like-number ? (text -> parse-number) -> out
+| | "'{text}' is not a number, try again." -> print-ln
+
+proc ask-operator
+| while yes
+| | "Operator (+, -, *, /): " -> ask => op
+| | op = nothing ? nothing -> out
+| | operations -> has op ? op -> out
+| | "'{op}' is not one of + - * /, try again." -> print-ln
+
+proc wants-another
+| "Another calculation? (y/n): " -> ask => answer
+| answer = nothing ? no -> out
+| answer -> lower => answer
+| answer = "y" or answer = "yes"
+
+"Welcome to the slopersons calculator." -> print-ln
+while yes
+| "First number: " -> ask-number => left
+| left = nothing ? stop
+| ask-operator -> do => op
+| op = nothing ? stop
+| "Second number: " -> ask-number => right
+| right = nothing ? stop
+| op = "/" and (right = 0 or right = 0.0) ?
+| | "Cannot divide by zero." -> print-ln
+| :
+| | "{left} {op} {right} = {left -> (operations -> at op) right}" -> print-ln
+| not (wants-another -> do) ? stop
+"Goodbye." -> print-ln

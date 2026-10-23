@@ -37,7 +37,7 @@ test('bin reports an unreadable file as a usage error', () => {
 });
 
 test('bin runs a program and prints its output', () => {
-  const path = writeTemp('hello.slop', '"hello" -> print\n1 -> to 3 -> each n | n * n -> print\n');
+  const path = writeTemp('hello.slop', '"hello" -> print-ln\n1 -> to 3 -> each n | n * n -> print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stderr, '');
   assert.equal(result.stdout, 'hello\n1\n4\n9\n');
@@ -45,7 +45,7 @@ test('bin runs a program and prints its output', () => {
 });
 
 test('bin reports program errors on stderr with file, line and column, exit 1, and no JS trace', () => {
-  const path = writeTemp('bad.slop', '"ok" -> print\n1 => x\nx -> unknown-proc\n');
+  const path = writeTemp('bad.slop', '"ok" -> print-ln\n1 => x\nx -> unknown-proc\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stdout, 'ok\n');
   assert.equal(result.stderr, `error: unknown name \`unknown-proc\`\n  at ${path}:3:6\n`);
@@ -60,20 +60,20 @@ test('bin reports parse errors the same way', () => {
 });
 
 test('exit sets the process exit code without losing output', () => {
-  const path = writeTemp('exit.slop', '"before" -> print\n3 -> exit\n"after" -> print\n');
+  const path = writeTemp('exit.slop', '"before" -> print-ln\n3 -> exit\n"after" -> print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stdout, 'before\n');
   assert.equal(result.status, 3);
 });
 
 test('read-line reads stdin one line at a time and gives nothing at the end', () => {
-  const path = writeTemp('input.slop', 'read-line -> do => a\nread-line -> do => b\nread-line -> do => c\n"{a}|{b}|{c}" -> print\n');
+  const path = writeTemp('input.slop', 'read-line -> do => a\nread-line -> do => b\nread-line -> do => c\n"{a}|{b}|{c}" -> print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8', input: 'first\nsecond\n' });
   assert.equal(result.stdout, 'first|second|nothing\n');
 });
 
 test('the binary runs programs on a large stack, so recursion thousands deep works', () => {
-  const path = writeTemp('deep.slop', 'proc count n | n = 0 ? 0 : ((n - 1) -> count) + 1\n5000 -> count -> print\n');
+  const path = writeTemp('deep.slop', 'proc count n | n = 0 ? 0 : ((n - 1) -> count) + 1\n5000 -> count -> print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stderr, '');
   assert.equal(result.stdout, '5000\n');
@@ -87,7 +87,7 @@ test('runaway recursion hits the call depth limit as a slopersons error, never a
 });
 
 test('large outputs are flushed completely before the process exits', () => {
-  const path = writeTemp('many.slop', '1 -> to 20000 -> each n | n -> print\n');
+  const path = writeTemp('many.slop', '1 -> to 20000 -> each n | n -> print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8', maxBuffer: 10_000_000 });
   assert.equal(result.stdout.split('\n').length, 20001);
   assert.equal(result.stdout.endsWith('20000\n'), true);
@@ -108,14 +108,14 @@ test('running out of memory is reported as a program error with no V8 output', (
 });
 
 test('the package script runs a program and passes the exit code through', () => {
-  const path = writeTemp('script.slop', '"via script" -> print\n7 -> exit\n');
+  const path = writeTemp('script.slop', '"via script" -> print-ln\n7 -> exit\n');
   const result = spawnSync('pnpm', ['--silent', 'slopersons', path], { encoding: 'utf8', cwd: root });
   assert.equal(result.stdout, 'via script\n');
   assert.equal(result.status, 7);
 });
 
 test('a reader that closes the pipe early ends the program quietly, with no JS trace', async () => {
-  const path = writeTemp('pipe.slop', '1 -> to 200000 -> each n | n -> print\n');
+  const path = writeTemp('pipe.slop', '1 -> to 200000 -> each n | n -> print-ln\n');
   const child = spawn(bin, [path], { stdio: ['ignore', 'pipe', 'pipe'] });
   let stderr = '';
   child.stderr.setEncoding('utf8');
@@ -125,6 +125,40 @@ test('a reader that closes the pipe early ends the program quietly, with no JS t
   child.stdout.once('data', () => child.stdout.destroy());
   const code = await new Promise<number | null>((resolve) => child.on('close', resolve));
   assert.equal(stderr, '');
+  assert.equal(code, 0);
+});
+
+test('a prompt written with print reaches the reader before the program blocks on read-line', async () => {
+  const path = writeTemp('prompt.slop', '"Welcome" -> print-ln\n"Name: " -> print\nread-line -> do => name\n"Age: " -> print\nread-line -> do => age\n"hello {name}, {age}" -> print-ln\n');
+  const child = spawn(bin, [path], { stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '';
+  child.stdout.setEncoding('utf8');
+  const waitFor = (expected: string): Promise<void> =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error(`timed out waiting for ${JSON.stringify(expected)}, got ${JSON.stringify(stdout)}`));
+      }, 5000);
+      const check = (): void => {
+        if (stdout === expected) {
+          clearTimeout(timer);
+          child.stdout.off('data', check);
+          resolve();
+        }
+      };
+      child.stdout.on('data', check);
+      check();
+    });
+  child.stdout.on('data', (chunk: string) => {
+    stdout += chunk;
+  });
+  await waitFor('Welcome\nName: ');
+  child.stdin.write('Ada\n');
+  await waitFor('Welcome\nName: Age: ');
+  child.stdin.write('36\n');
+  child.stdin.end();
+  const code = await new Promise<number | null>((resolve) => child.on('close', resolve));
+  assert.equal(stdout, 'Welcome\nName: Age: hello Ada, 36\n');
   assert.equal(code, 0);
 });
 

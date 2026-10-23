@@ -1,0 +1,7 @@
+Welcome to the slopersons calculator.
+First number: Operator (+, -, *, /): Second number: 3 + 4 = 7
+Another calculation? (y/n): First number: 'abc' is not a number, try again.
+First number: Operator (+, -, *, /): Second number: 7 / 2 = 3.5
+Another calculation? (y/n): First number: Operator (+, -, *, /): '^' is not one of + - * /, try again.
+Operator (+, -, *, /): Second number: 10 * 0 = 0
+Another calculation? (y/n): Goodbye.

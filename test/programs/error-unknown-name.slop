@@ -1,4 +1,4 @@
-"first" -> print
+"first" -> print-ln
 [1 2 3] => numbers
 numbers -> each n
 | n -> totl

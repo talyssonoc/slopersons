@@ -2,23 +2,23 @@
 "the quick brown fox jumps over the lazy dog" => sentence
 
 sentence -> words => words
-"{words -> length} words" -> print
-"starts with 'the': {sentence -> starts-with "the"}" -> print
-"'fox' at index {sentence -> index-of "fox"}" -> print
-"'cat' at index {sentence -> index-of "cat"}" -> print
+"{words -> length} words" -> print-ln
+"starts with 'the': {sentence -> starts-with "the"}" -> print-ln
+"'fox' at index {sentence -> index-of "fox"}" -> print-ln
+"'cat' at index {sentence -> index-of "cat"}" -> print-ln
 
 0 => vowels
 sentence -> each c
 | "aeiou" -> contains (c -> to-string) ? vowels + 1 =>> vowels
-"{vowels} vowels" -> print
+"{vowels} vowels" -> print-ln
 
-sentence -> upper -> print
-sentence -> replace "the" "a" -> print
-"the" -> repeat 3 -> print
-("42" -> to-int) + 1 -> print
+sentence -> upper -> print-ln
+sentence -> replace "the" "a" -> print-ln
+"the" -> repeat 3 -> print-ln
+("42" -> to-int) + 1 -> print-ln
 
 "  padded  " -> trim => word
-word -> pad-left 10 `.` -> print
-word -> pad-right 10 `.` -> print
-"a👍b" -> reverse -> print
-"a👍b" -> length -> print
+word -> pad-left 10 `.` -> print-ln
+word -> pad-right 10 `.` -> print-ln
+"a👍b" -> reverse -> print-ln
+"a👍b" -> length -> print-ln

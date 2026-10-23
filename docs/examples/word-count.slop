@@ -5,13 +5,13 @@
 text -> words -> each w
 | counts -> put w ((counts -> at-or w 0) + 1)
 
-counts -> print
-counts -> keys -> print
+counts -> print-ln
+counts -> keys -> print-ln
 
 counts -> entries
 -> sort-by a b | (a -> at 1) > (b -> at 1)
 -> each pair
-| "{pair -> at 0}: {pair -> at 1}" -> print
+| "{pair -> at 0}: {pair -> at 1}" -> print-ln
 
 counts -> keep k v | v > 1
--> keys -> print
+-> keys -> print-ln
