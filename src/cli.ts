@@ -96,9 +96,12 @@ function writeAll(fileDescriptor: number, text: string): void {
   }
 }
 
+const NEWLINE = 0x0a;
+const CARRIAGE_RETURN = 0x0d;
+
 function readLineFromStdin(): string | null {
   const buffer = Buffer.alloc(1);
-  let line = '';
+  const bytes: number[] = [];
   while (true) {
     let read: number;
     try {
@@ -111,10 +114,13 @@ function readLineFromStdin(): string | null {
       if (error instanceof Error && 'code' in error && error.code === 'EOF') read = 0;
       else throw error;
     }
-    if (read === 0) return line.length === 0 ? null : line;
-    const character = buffer.toString('utf8');
-    if (character === '\n') return line.endsWith('\r') ? line.slice(0, -1) : line;
-    line += character;
+    if (read === 0) return bytes.length === 0 ? null : Buffer.from(bytes).toString('utf8');
+    const byte = buffer.readUInt8(0);
+    if (byte === NEWLINE) {
+      if (bytes.at(-1) === CARRIAGE_RETURN) bytes.pop();
+      return Buffer.from(bytes).toString('utf8');
+    }
+    bytes.push(byte);
   }
 }
 

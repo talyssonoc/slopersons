@@ -73,6 +73,12 @@ test('read-line reads stdin one line at a time and gives nothing at the end', ()
   assert.equal(result.stdout, 'first|second|nothing\n');
 });
 
+test('read-line decodes characters that take several bytes in UTF-8', () => {
+  const path = writeTemp('accents.slop', 'io/read-line -> do => a\nio/read-line -> do => b\n"{a}|{a -> string/length}|{b}|{b -> string/length}" -> io/print-ln\n');
+  const result = spawnSync(bin, [path], { encoding: 'utf8', input: 'café ü\r\n日本 🎉' });
+  assert.equal(result.stdout, 'café ü|6|日本 🎉|4\n');
+});
+
 test('the binary runs programs on a large stack, so recursion thousands deep works', () => {
   const path = writeTemp('deep.slop', 'proc count n | n = 0 ? 0 : ((n - 1) -> count) + 1\n5000 -> count -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
