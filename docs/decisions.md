@@ -195,6 +195,10 @@ Missing *keys* are errors because they usually mean a typo, but "not found" is a
 
 Three layers keep a runaway program from ever showing a V8 message. Builtins that construct values of a requested size (`to`, `repeat`, `pad-left`, `pad-right`) check the size against a 50 million limit first and raise a slopersons error naming the builtin and the size. If a value still outgrows what JavaScript can represent (a string doubled 30 times), the resulting `RangeError` is caught at the CLI boundary and reported as "a value grew too large". And the worker thread runs with `resourceLimits.maxOldGenerationSizeMb` (1024 MB by default, `SLOPERSONS_MAX_HEAP_MB` to change it), so exceeding it terminates the worker with an error event the main thread turns into "the program ran out of memory" instead of the process dying with a fatal heap message.
 
+### A closed output pipe ends the program quietly
+
+`slopersons file.slop | head` closes standard output early; Node then raises `EPIPE` on the main thread's stdout, which by default prints a JavaScript stack trace. The CLI listens for that error on stdout and stderr, terminates the worker and exits with code 0, matching how Unix tools behave under SIGPIPE. Found by piping an example to `head` while adding the package script.
+
 ### The lexer and parser may use JS collections and string methods
 
 The "not a proxy" rule targets language-visible behavior: `src/values.ts`, `src/runtime/**` and `src/stdlib/**`. The lexer and parser operate on source text at compile time and may use `Set`, `startsWith` and friends; `src/cli.ts` is the I/O boundary and may use whatever Node provides. `test/no-proxy.test.ts` encodes exactly this split and fails on new violations.

@@ -4,7 +4,7 @@ A flow-shaped programming language and its interpreter. See [docs/overview.md](d
 
 ```
 pnpm install
-./bin/slopersons.mjs docs/examples/even-sum.slop
+pnpm slopersons docs/examples/even-sum.slop
 pnpm test
 ```
 

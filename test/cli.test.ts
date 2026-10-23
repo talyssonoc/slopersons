@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -105,6 +105,27 @@ test('running out of memory is reported as a program error with no V8 output', (
   const result = spawnSync(bin, [path], { encoding: 'utf8', env: { ...process.env, SLOPERSONS_MAX_HEAP_MB: '48' }, timeout: 60_000 });
   assert.equal(result.stderr, 'error: the program ran out of memory (the limit is 48 MB)\n');
   assert.equal(result.status, 1);
+});
+
+test('the package script runs a program and passes the exit code through', () => {
+  const path = writeTemp('script.slop', '"via script" -> print\n7 -> exit\n');
+  const result = spawnSync('pnpm', ['--silent', 'slopersons', path], { encoding: 'utf8', cwd: root });
+  assert.equal(result.stdout, 'via script\n');
+  assert.equal(result.status, 7);
+});
+
+test('a reader that closes the pipe early ends the program quietly, with no JS trace', async () => {
+  const path = writeTemp('pipe.slop', '1 -> to 200000 -> each n | n -> print\n');
+  const child = spawn(bin, [path], { stdio: ['ignore', 'pipe', 'pipe'] });
+  let stderr = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => {
+    stderr += chunk;
+  });
+  child.stdout.once('data', () => child.stdout.destroy());
+  const code = await new Promise<number | null>((resolve) => child.on('close', resolve));
+  assert.equal(stderr, '');
+  assert.equal(code, 0);
 });
 
 test('runProgram maps program errors to exit 1 and prints them in slopersons terms', () => {

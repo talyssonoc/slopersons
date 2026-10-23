@@ -11,6 +11,7 @@ pnpm install                      # once; Node 26.12.1 via asdf (.tool-versions)
 pnpm test                         # node --test over test/**/*.test.ts
 pnpm typecheck                    # tsc --noEmit; Node never type-checks, so this is the only type check
 ./bin/slopersons.mjs file.slop    # run a program through the shebang, no build
+pnpm slopersons file.slop         # same, as a package script (add --silent when piping; pnpm's banner goes to stdout)
 SLOPERSONS_DEBUG=1 ./bin/slopersons.mjs file.slop   # only way to see a JS stack for an internal error
 ```
 

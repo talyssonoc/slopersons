@@ -6,7 +6,7 @@ slopersons --version
 slopersons --help
 ```
 
-From a checkout, the command is `./bin/slopersons.mjs`. The `bin` field in `package.json` exposes it as `slopersons` after `pnpm link --global` or an install.
+From a checkout, the command is `./bin/slopersons.mjs`, or `pnpm slopersons <file.slop>` through the package script. pnpm prints its script banner on standard output, so when piping the program's output use `pnpm --silent slopersons <file.slop>`. The `bin` field in `package.json` exposes it as `slopersons` after `pnpm link --global` or an install.
 
 ## Exit codes
 
@@ -37,7 +37,7 @@ and exits with code 70. Setting the environment variable `SLOPERSONS_DEBUG=1` ad
 
 ## Input and output
 
-`print` writes to standard output. `read-line -> do` reads one line from standard input and gives `nothing` at end of input. Output is fully flushed before the process exits, including when `exit` is called.
+`print` writes to standard output. `read-line -> do` reads one line from standard input and gives `nothing` at end of input. Output is fully flushed before the process exits, including when `exit` is called. If the reader of standard output goes away early, as in `slopersons report.slop | head`, the program stops quietly with exit code 0.
 
 ## Execution and limits
 

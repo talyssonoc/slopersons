@@ -10,6 +10,7 @@
     "node": ">=26"
   },
   "scripts": {
+    "slopersons": "node bin/slopersons.mjs",
     "test": "node --test 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit"
   },

@@ -117,6 +117,10 @@ export async function main(argv: string[], io: CliIo = nodeIo): Promise<number> 
   return runInWorker(source, path);
 }
 
+function isBrokenPipe(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && error.code === 'EPIPE';
+}
+
 function runInWorker(source: string, file: string): Promise<number> {
   return new Promise((resolve) => {
     const worker = new Worker(new URL('./worker.ts', import.meta.url), {
@@ -124,8 +128,18 @@ function runInWorker(source: string, file: string): Promise<number> {
       resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() },
     });
     let code = EXIT_INTERNAL;
+    let pipeBroken = false;
+    const onBrokenPipe = (error: unknown): void => {
+      if (!isBrokenPipe(error)) throw error;
+      if (pipeBroken) return;
+      pipeBroken = true;
+      code = EXIT_OK;
+      void worker.terminate();
+    };
+    process.stdout.on('error', onBrokenPipe);
+    process.stderr.on('error', onBrokenPipe);
     worker.on('message', (message: unknown) => {
-      if (typeof message === 'number') code = message;
+      if (typeof message === 'number' && !pipeBroken) code = message;
     });
     worker.on('error', (error: unknown) => {
       if (error instanceof Error && 'code' in error && error.code === 'ERR_WORKER_OUT_OF_MEMORY') {
