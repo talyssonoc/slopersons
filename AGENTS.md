@@ -77,6 +77,7 @@ These hold for every change. They come from the project owner and are not negoti
 - Lexer and parser edits are easiest to verify with `node --test test/parser.test.ts`; the S-expression printer makes expected ASTs one line each.
 - The call depth limit (`MAX_CALL_DEPTH` in `src/interpreter.ts`) exists so deep recursion becomes a slopersons error before the JS stack overflows; the CLI still catches a JS `RangeError` as a backstop.
 - `python3` is not available in this environment through asdf; use Node scripts for scripted edits.
+- `test/repl-terminal.test.ts` drives the REPL inside a pseudo-terminal through the `script` command and skips when it is missing. Keystrokes are relayed through `cat` because macOS implements FIFOs and Node's stdio pipes as sockets, which `script` rejects; output is read from the flushed typescript file (`-t 0`) rather than from stdout. The Linux branch (`script -qefc`) has not been run yet.
 
 ## Architecture Decision Records
 
