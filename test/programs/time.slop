@@ -1,19 +1,19 @@
-9 -> time 5 7 42 => t
-t -> print-ln
-t -> format "H:MM" -> print-ln
-t -> add-hours 20 -> print-ln
-"23:59:59" -> to-time -> add-seconds 2 -> print-ln
-(9 -> time 0 0) -> seconds-between (10 -> time 30 0) -> print-ln
-2024 -> date 12 25 -> at-time (18 -> time 30 0) => dinner
-dinner -> print-ln
-dinner -> add-hours 6 -> print-ln
-dinner -> format "dddd d mmmm, HH:MM" -> print-ln
-"2024-12-27T06:00:00" -> to-datetime => departure
-dinner -> days-between departure -> print-ln
-dinner -> seconds-between departure -> print-ln
-departure -> date -> print-ln
-departure -> time -> print-ln
-departure > dinner -> print-ln
-now -> do -> type-of -> print-ln
-0 -> to-datetime -> print-ln
-[(12 -> time 0 0) dinner] -> print-ln
+9 -> time/make 5 7 42 => t
+t -> io/print-ln
+t -> time/format "H:MM" -> io/print-ln
+t -> time/add-hours 20 -> io/print-ln
+"23:59:59" -> time/parse -> time/add-seconds 2 -> io/print-ln
+(9 -> time/make 0 0) -> time/seconds-between (10 -> time/make 30 0) -> io/print-ln
+2024 -> date/make 12 25 -> date/at-time (18 -> time/make 30 0) => dinner
+dinner -> io/print-ln
+dinner -> datetime/add-hours 6 -> io/print-ln
+dinner -> datetime/format "dddd d mmmm, HH:MM" -> io/print-ln
+"2024-12-27T06:00:00" -> datetime/parse => departure
+dinner -> datetime/days-between departure -> io/print-ln
+dinner -> datetime/seconds-between departure -> io/print-ln
+departure -> datetime/date -> io/print-ln
+departure -> datetime/time -> io/print-ln
+departure > dinner -> io/print-ln
+datetime/now -> do -> type-of -> io/print-ln
+0 -> datetime/from-epoch -> io/print-ln
+[(12 -> time/make 0 0) dinner] -> io/print-ln

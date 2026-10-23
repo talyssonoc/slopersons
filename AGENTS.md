@@ -22,7 +22,7 @@ SLOPERSONS_DEBUG=1 ./bin/slopersons.mjs file.slop   # only way to see a JS stack
 bin/slopersons.mjs      shebang entry; imports src/cli.ts; last-resort catch so no JS error ever escapes
 src/cli.ts              argument handling, file reading, the error boundary (runProgram), stdin line reading, worker launch
 src/boundary.ts         exit codes, CliIo, BrokenPipe and the messages for JS-level failures, shared by cli.ts and repl.ts
-src/modules.ts          the use builtin: module resolution relative to the importing file, caching, cycle detection, module builtins
+src/modules.ts          the `use` builtin (module resolution relative to the importing file, caching, cycle detection) and the `module/*` builtins
 src/repl.ts             the --repl loop: complete lines run at once, incomplete ones collect a block until an empty line; in REPL mode cli.ts reads lines with readline on the main thread and hands them to the worker over shared memory
 src/worker.ts           worker-thread entry: runs the program on a 256 MB stack with a heap limit
 src/lexer.ts            physical lines -> margin depth + tokens; strings with interpolation segments
@@ -32,7 +32,7 @@ src/interpreter.ts      Environment, Interpreter (tree walker), control signals 
 src/values.ts           tagged runtime values, equality, hashing, ordering, formatting
 src/errors.ts           SlopersonsError with kind, position and file
 src/runtime/            hand-built algorithms: hashtable, hashing, sorting, text (code points), calendar, time (time of day, datetime parsing and formatting)
-src/stdlib/             builtins grouped by type; registry.ts registers each module with explicit calls
+src/stdlib/             the builtin modules, one file per type; core.ts holds the bare builtins, `io/*`, `error/*` and the loop builtins, `math/*` lives in int.ts; registry.ts registers each file with explicit calls
 test/                   mirrors src/; test/helpers/ast-print.ts prints ASTs as S-expressions; test/helpers/run.ts runs source in-process
 test/no-proxy.test.ts   greps src/ for forbidden JS APIs (invariant 5); extend its rules when adding an allowed exception
 test/programs/          golden .slop programs with .out/.err expectations, run through the real binary
@@ -57,19 +57,19 @@ These hold for every change. They come from the project owner and are not negoti
 
 - A bare name is a value lookup, never a call. Calls happen only via `->`; the piped value is the first argument; a trailing `| params | body` or margin block becomes the last argument.
 - `=>` binds in the current scope and errors if the name exists only in an enclosing scope of the same procedure call (lambdas over their procedure's locals); a `proc` body may shadow anything outside the call. `=>>` updates the nearest existing binding searching from the current scope outward. Scopes: top level, `proc` bodies, lambda bodies. Conditionals and loops do not create scopes.
-- Builtins are a fallback namespace: a user binding may shadow a builtin without error.
+- The fallback namespace below the program scope holds the seven bare builtins (`do`, `out`, `fail`, `exit`, `use`, `type-of`, `show`) and the builtin module names (`io`, `int`, `float`, `math`, `char`, `boolean`, `string`, `array`, `hashmap`, `set`, `date`, `time`, `datetime`, `error`, `module`); a user binding may shadow any of them without error. After `[1] => array`, `array/length` reports that `array` is an array, not a module.
 - Conditions must be `yes`/`no`. No truthiness, no coercion. `=` is deep structural equality across types; ordering across unrelated types is an error.
 - Ints are BigInt; `/` floors, `mod` is floored, a float operand promotes. Division by zero is an error.
-- `out` exits the nearest enclosing `proc` through lambdas; `stop` (a keyword statement) exits the innermost `while`, `each` or `repeat`.
+- `out` exits the nearest enclosing `proc` through lambdas; `stop` (a keyword statement) exits the innermost `while` or loop builtin (`array/each`, `string/each`, `hashmap/each`, `set/each`, `int/times`); other builtins let it pass through.
 - `attempt`/`recover` catch `SlopersonsError`s of kind `runtime` only. Control signals (`OutSignal`, `StopSignal`, `ExitSignal`) and JS errors pass through. A caught error becomes an `error` value; `fail` rethrows one unchanged.
 - Keywords: `proc while stop attempt recover export yes no nothing and or not mod`.
-- Modules: `path -> use` loads a file once per interpreter (cache keyed by absolute path in `src/modules.ts`), runs it with `runModule`, and exposes only names listed in `export` statements. Qualified names `a/b` are lexed as one token; `/` between letters joins, anything else is division. Positions carry their `file`, so errors inside modules point at the module.
+- Modules: `path -> use` loads a file once per interpreter (cache keyed by absolute path in `src/modules.ts`), runs it with `runModule`, and exposes only names listed in `export` statements. Qualified names `a/b` are lexed as one token; `/` between letters joins, anything else is division. Positions carry their `file`, so errors inside modules point at the module. The standard library is itself a set of module values created with `interpreter.builtinModule` and bound in the fallback namespace; `module/*` works on them and on user modules alike.
 
 ## Adding a builtin
 
-1. Implement it in `src/stdlib/<type>.ts`. Every builtin whose first argument is a typed receiver uses `interpreter.defineMethod(name, type, arity, implementation)`, even if only one type has it today: the interpreter dispatches on the type of the piped value and reports `` `name` cannot be used with an int; it works on string `` for the wrong receiver. `interpreter.defineBuiltin(name, arity, implementation)` is only for builtins that accept any value (`print`, `print-ln`, `show`, `type-of`, `do`, `out`, `fail`, `exit`) or take no input (`today`, `now`, `read-line`). Registering a name twice, or both ways, throws at startup so collisions between modules are caught by the first test run. Use the `expect*` helpers in `src/stdlib/core.ts` for argument checks so messages stay uniform. Arity is exact (`2`) or `{ min, max }`.
-2. Register it from the module's `register<Type>` function (already called by `registry.ts`).
-3. Document it in `docs/stdlib/<type>.md` with its signature in flow form and an example.
+1. Decide its module. A function lives in the module of its input's type (`array/length`, `string/length`, `hashmap/length` are three functions), a constructor in the module of the type it builds (`string/from-chars`, `array/to-set`, `date/parse`), and only control flow and inspection stay bare; see `docs/adr/202610231614-organize-the-standard-library-into-modules.md`. Implement it in the file of that module under `src/stdlib/` (`math/*` is in `int.ts`; `io/*`, `error/*`, `array/each`, `int/up-to` and `int/times` are in `core.ts`; `module/*` is in `src/modules.ts`).
+2. Register it with `interpreter.defineIn(module, name, arity, implementation)`. `interpreter.builtinModule(name)` creates or returns the builtin module value and `defineIn` calls it, so a new module needs no other registration. `interpreter.defineMethodIn(module, name, types, arity, implementation)` is only for a member that accepts several receiver types and dispatches on the piped value (today only `math/*` and `date/is-leap-year`); it reports `` `math/abs` cannot be used with a string; it works on int, float `` for the wrong receiver. `interpreter.defineBuiltin(name, arity, implementation)` is only for the bare builtins: `do`, `out`, `fail`, `exit`, `use`, `type-of`, `show`. Registering a member twice, or a bare name that is also a module name, throws at startup so collisions are caught by the first test run. Use the `expect*` helpers in `src/stdlib/core.ts` for argument checks and pass the qualified name in the message (`'the input of \`array/length\`'`) so it reads `` the input of `array/length` must be an array, got a string ``; arity errors read `` `array/each` expects 2 arguments, got 1 `` without extra work. Arity is exact (`2`) or `{ min, max }`. The call sits in the file's `register<Type>` function, already called by `registry.ts`.
+3. Document it in `docs/stdlib/<module>.md` with its signature in flow form (`xs -> array/length`) and an example. A new module also gets a row in the table in `docs/stdlib/core.md` and a link in `docs/overview.md`.
 4. Add a unit test in `test/stdlib/<type>.test.ts` using the `run` helper from `test/helpers/run.ts`, and a golden program under `test/programs/` if the behavior is user-visible.
 
 ## Working notes

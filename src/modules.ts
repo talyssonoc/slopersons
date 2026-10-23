@@ -59,24 +59,24 @@ export function registerModules(interpreter: Interpreter): void {
 
   interpreter.defineBuiltin('use', 1, (inputs, context) => load(expectString(input(inputs, 0), 'the path of `use`', context), context));
 
-  interpreter.defineMethod('at', 'module', 2, (inputs, context) => {
-    const module = expectModule(input(inputs, 0), 'the input of `at`', context);
-    const name = expectString(input(inputs, 1), 'the name of `at`', context);
+  interpreter.defineIn('module', 'at', 2, (inputs, context) => {
+    const module = expectModule(input(inputs, 0), 'the input of `module/at`', context);
+    const name = expectString(input(inputs, 1), 'the name of `module/at`', context);
     const member = module.members.get(name);
     if (member === undefined) throw runtimeError(`module \`${module.name}\` has no exported name ${formatValue(input(inputs, 1), 'show')}`, context.position);
     return member;
   });
 
-  interpreter.defineMethod('has', 'module', 2, (inputs, context) => {
-    const module = expectModule(input(inputs, 0), 'the input of `has`', context);
-    return boolean(module.members.has(expectString(input(inputs, 1), 'the name of `has`', context)));
+  interpreter.defineIn('module', 'has', 2, (inputs, context) => {
+    const module = expectModule(input(inputs, 0), 'the input of `module/has`', context);
+    return boolean(module.members.has(expectString(input(inputs, 1), 'the name of `module/has`', context)));
   });
 
-  interpreter.defineMethod('names', 'module', 1, (inputs, context) => {
-    const module = expectModule(input(inputs, 0), 'the input of `names`', context);
+  interpreter.defineIn('module', 'names', 1, (inputs, context) => {
+    const module = expectModule(input(inputs, 0), 'the input of `module/names`', context);
     return array([...module.members.keys()].map(string));
   });
 
-  interpreter.defineMethod('path', 'module', 1, (inputs, context) => string(displayPath(expectModule(input(inputs, 0), 'the input of `path`', context).path)));
+  interpreter.defineIn('module', 'path', 1, (inputs, context) => string(displayPath(expectModule(input(inputs, 0), 'the input of `module/path`', context).path)));
 
 }

@@ -27,7 +27,7 @@ From a checkout, the command is `./bin/slopersons.mjs`, or `pnpm slopersons <fil
 
 - A line that is a complete statement runs as soon as it is entered.
 - A line the parser finds incomplete, such as `proc double n`, `x > 1 ?`, `attempt` or an unclosed bracket, starts a block entry: the prompt changes to `..` and lines are collected until an empty line, then the whole entry runs.
-- A line that ends a call with names that are not bound, such as `xs -> each n`, also starts a block entry, because those names are almost certainly lambda parameters. Press Enter on an empty line to run it without a block.
+- A line that ends a call with names that are not bound, such as `xs -> array/each n`, also starts a block entry, because those names are almost certainly lambda parameters. Press Enter on an empty line to run it without a block.
 - The value of an entry is echoed as `-> value` in the same form `show` uses, so a string appears quoted. `nothing` is not echoed.
 - Errors are printed as `error: message` with the position inside the entry, and the session continues.
 - Ctrl-D leaves with exit code 0; `code -> exit` leaves with that code.
@@ -63,7 +63,7 @@ and exits with code 70. Setting the environment variable `SLOPERSONS_DEBUG=1` ad
 
 ## Input and output
 
-`print-ln` writes a line to standard output and `print` writes without a line break, which is how prompts are shown. `read-line -> do` reads one line from standard input and gives `nothing` at end of input; output written before it, including a prompt without a newline, is delivered before the program blocks waiting for input. Output is fully flushed before the process exits, including when `exit` is called. If the reader of standard output goes away early, as in `slopersons report.slop | head`, the program stops quietly with exit code 0.
+`io/print-ln` writes a line to standard output and `io/print` writes without a line break, which is how prompts are shown. `io/read-line -> do` reads one line from standard input and gives `nothing` at end of input; output written before it, including a prompt without a newline, is delivered before the program blocks waiting for input. Output is fully flushed before the process exits, including when `exit` is called. If the reader of standard output goes away early, as in `slopersons report.slop | head`, the program stops quietly with exit code 0.
 
 ## Execution and limits
 
@@ -74,7 +74,7 @@ Resource exhaustion is reported as a program error, never as a crash:
 | Situation | Message |
 | --- | --- |
 | more than 10000 nested calls | `too many nested procedure calls (the limit is 10000)` |
-| a builtin asked to build more than 50000000 elements or characters (`to`, `repeat`, padding) | ````name` would build a value of N ..., which is more than the limit of 50000000``` |
+| a builtin asked to build more than 50000000 elements or characters (`int/up-to`, `string/repeat`, padding) | ````name` would build a value of N ..., which is more than the limit of 50000000``` |
 | a string or array outgrows what the interpreter can hold | `a value grew too large for the interpreter to hold` |
 | the program's memory exceeds the heap limit (1024 MB by default) | `the program ran out of memory (the limit is 1024 MB)` |
 

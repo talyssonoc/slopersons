@@ -2,15 +2,15 @@
 [3 8 15 22 7] => numbers
 0 => total
 
-numbers -> each n
+numbers -> array/each n
 | n mod 2 = 0 ? total + n =>> total
 
-"even total: {total}" -> print-ln
+"even total: {total}" -> io/print-ln
 
 proc describe n
 | n > 20 ? "big" -> out
 | n > 10 ? "medium" -> out
 | "small"
 
-numbers -> each n
-| "{n} is {n -> describe}" -> print-ln
+numbers -> array/each n
+| "{n} is {n -> describe}" -> io/print-ln

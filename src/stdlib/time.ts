@@ -42,64 +42,64 @@ function describeTime(hour: number, minute: number, second: number, millisecond:
 }
 
 function receiver(inputs: Value[], name: string, context: CallContext): TimeValue {
-  return expectTime(input(inputs, 0), `the input of \`${name}\``, context);
+  return expectTime(input(inputs, 0), `the input of \`time/${name}\``, context);
 }
 
 function shift(name: string, unit: number, interpreter: Interpreter): void {
-  interpreter.defineMethod(name, 'time', 2, (inputs, context) => {
+  interpreter.defineIn('time', name, 2, (inputs, context) => {
     const value = receiver(inputs, name, context);
-    const count = expectCount(input(inputs, 1), `the count of \`${name}\``, `${name.slice(4, -1)} count`, context);
+    const count = expectCount(input(inputs, 1), `the count of \`time/${name}\``, `${name.slice(4, -1)} count`, context);
     return time(wrapIntoDay(value.milliseconds + count * unit));
   });
 }
 
 export function registerTime(interpreter: Interpreter): void {
-  interpreter.defineMethod('time', 'int', { min: 3, max: 4 }, (inputs, context) => {
-    const hour = expectComponent(input(inputs, 0), 'the hour of `time`', 'hour', context);
-    const minute = expectComponent(input(inputs, 1), 'the minute of `time`', 'minute', context);
-    const second = expectComponent(input(inputs, 2), 'the second of `time`', 'second', context);
-    const millisecond = inputs.length > 3 ? expectComponent(input(inputs, 3), 'the millisecond of `time`', 'millisecond', context) : 0;
+  interpreter.defineIn('time', 'make', { min: 3, max: 4 }, (inputs, context) => {
+    const hour = expectComponent(input(inputs, 0), 'the hour of `time/make`', 'hour', context);
+    const minute = expectComponent(input(inputs, 1), 'the minute of `time/make`', 'minute', context);
+    const second = expectComponent(input(inputs, 2), 'the second of `time/make`', 'second', context);
+    const millisecond = inputs.length > 3 ? expectComponent(input(inputs, 3), 'the millisecond of `time/make`', 'millisecond', context) : 0;
     if (!isValidTime(hour, minute, second, millisecond)) {
       throw runtimeError(`${describeTime(hour, minute, second, millisecond)} is not a valid time`, context.position);
     }
     return time(millisecondsFromTimeParts({ hour, minute, second, millisecond }));
   });
 
-  interpreter.defineMethod('to-time', 'string', 1, (inputs, context) => {
-    const text = expectString(input(inputs, 0), 'the input of `to-time`', context);
+  interpreter.defineIn('time', 'parse', 1, (inputs, context) => {
+    const text = expectString(input(inputs, 0), 'the input of `time/parse`', context);
     const milliseconds = parseIsoTime(text);
     if (milliseconds === null) throw runtimeError(`cannot convert ${formatValue(input(inputs, 0), 'show')} to a time`, context.position);
     return time(milliseconds);
   });
 
-  interpreter.defineMethod('hour', 'time', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'hour', context).milliseconds).hour)));
-  interpreter.defineMethod('minute', 'time', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'minute', context).milliseconds).minute)));
-  interpreter.defineMethod('second', 'time', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'second', context).milliseconds).second)));
-  interpreter.defineMethod('millisecond', 'time', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'millisecond', context).milliseconds).millisecond)));
-  interpreter.defineMethod('to-milliseconds', 'time', 1, (inputs, context) => int(BigInt(receiver(inputs, 'to-milliseconds', context).milliseconds)));
+  interpreter.defineIn('time', 'hour', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'hour', context).milliseconds).hour)));
+  interpreter.defineIn('time', 'minute', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'minute', context).milliseconds).minute)));
+  interpreter.defineIn('time', 'second', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'second', context).milliseconds).second)));
+  interpreter.defineIn('time', 'millisecond', 1, (inputs, context) => int(BigInt(timePartsFromMs(receiver(inputs, 'millisecond', context).milliseconds).millisecond)));
+  interpreter.defineIn('time', 'to-milliseconds', 1, (inputs, context) => int(BigInt(receiver(inputs, 'to-milliseconds', context).milliseconds)));
 
   shift('add-hours', MILLISECONDS_PER_HOUR, interpreter);
   shift('add-minutes', MILLISECONDS_PER_MINUTE, interpreter);
   shift('add-seconds', MILLISECONDS_PER_SECOND, interpreter);
   shift('add-milliseconds', 1, interpreter);
 
-  interpreter.defineMethod('milliseconds-between', 'time', 2, (inputs, context) => {
+  interpreter.defineIn('time', 'milliseconds-between', 2, (inputs, context) => {
     const start = receiver(inputs, 'milliseconds-between', context);
-    const end = expectTime(input(inputs, 1), 'the end of `milliseconds-between`', context);
+    const end = expectTime(input(inputs, 1), 'the end of `time/milliseconds-between`', context);
     return int(BigInt(end.milliseconds - start.milliseconds));
   });
 
-  interpreter.defineMethod('seconds-between', 'time', 2, (inputs, context) => {
+  interpreter.defineIn('time', 'seconds-between', 2, (inputs, context) => {
     const start = receiver(inputs, 'seconds-between', context);
-    const end = expectTime(input(inputs, 1), 'the end of `seconds-between`', context);
+    const end = expectTime(input(inputs, 1), 'the end of `time/seconds-between`', context);
     return int(BigInt(Math.floor((end.milliseconds - start.milliseconds) / MILLISECONDS_PER_SECOND)));
   });
 
-  interpreter.defineMethod('format', 'time', 2, (inputs, context) => {
+  interpreter.defineIn('time', 'format', 2, (inputs, context) => {
     const value = receiver(inputs, 'format', context);
-    const pattern = expectString(input(inputs, 1), 'the pattern of `format`', context);
+    const pattern = expectString(input(inputs, 1), 'the pattern of `time/format`', context);
     return string(formatTime(value.milliseconds, pattern));
   });
 
-  interpreter.defineMethod('to-string', 'time', 1, (inputs, context) => string(isoTime(receiver(inputs, 'to-string', context).milliseconds)));
+  interpreter.defineIn('time', 'to-string', 1, (inputs, context) => string(isoTime(receiver(inputs, 'to-string', context).milliseconds)));
 }

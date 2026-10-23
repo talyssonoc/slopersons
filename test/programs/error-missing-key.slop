@@ -1,2 +1,2 @@
 {"a": 1} => m
-m -> at "b"
+m -> hashmap/at "b"

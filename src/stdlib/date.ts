@@ -57,99 +57,99 @@ function lowerName(names: readonly string[], index: number): string {
 }
 
 export function registerDate(interpreter: Interpreter): void {
-  interpreter.defineBuiltin('today', 0, () => date(Math.floor(Date.now() / MILLISECONDS_PER_DAY)));
+  interpreter.defineIn('date', 'today', 0, () => date(Math.floor(Date.now() / MILLISECONDS_PER_DAY)));
 
-  interpreter.defineMethod('date', 'int', 3, (inputs, context) => {
-    const year = expectSmallInt(input(inputs, 0), 'the year of `date`', 'year', context);
-    const month = expectSmallInt(input(inputs, 1), 'the month of `date`', 'month', context);
-    const day = expectSmallInt(input(inputs, 2), 'the day of `date`', 'day', context);
+  interpreter.defineIn('date', 'make', 3, (inputs, context) => {
+    const year = expectSmallInt(input(inputs, 0), 'the year of `date/make`', 'year', context);
+    const month = expectSmallInt(input(inputs, 1), 'the month of `date/make`', 'month', context);
+    const day = expectSmallInt(input(inputs, 2), 'the day of `date/make`', 'day', context);
     if (!isValidDate(year, month, day)) throw runtimeError(`${describeComponents(year, month, day)} is not a valid date`, context.position);
     return date(daysFromCivil(year, month, day));
   });
 
-  interpreter.defineMethod('to-date', 'string', 1, (inputs, context) => {
-    const text = expectString(input(inputs, 0), 'the input of `to-date`', context);
+  interpreter.defineIn('date', 'parse', 1, (inputs, context) => {
+    const text = expectString(input(inputs, 0), 'the input of `date/parse`', context);
     const parsed = parseIsoDate(text);
     if (parsed === null) throw runtimeError(`cannot convert ${formatValue(input(inputs, 0), 'show')} to a date`, context.position);
     return fromCivil(parsed);
   });
 
-  interpreter.defineMethod('year', 'date', 1, (inputs, context) => int(BigInt(civil(expectDate(input(inputs, 0), 'the input of `year`', context)).year)));
+  interpreter.defineIn('date', 'year', 1, (inputs, context) => int(BigInt(civil(expectDate(input(inputs, 0), 'the input of `date/year`', context)).year)));
 
-  interpreter.defineMethod('month', 'date', 1, (inputs, context) => int(BigInt(civil(expectDate(input(inputs, 0), 'the input of `month`', context)).month)));
+  interpreter.defineIn('date', 'month', 1, (inputs, context) => int(BigInt(civil(expectDate(input(inputs, 0), 'the input of `date/month`', context)).month)));
 
-  interpreter.defineMethod('day', 'date', 1, (inputs, context) => int(BigInt(civil(expectDate(input(inputs, 0), 'the input of `day`', context)).day)));
+  interpreter.defineIn('date', 'day', 1, (inputs, context) => int(BigInt(civil(expectDate(input(inputs, 0), 'the input of `date/day`', context)).day)));
 
-  interpreter.defineMethod('weekday', 'date', 1, (inputs, context) => {
-    const value = expectDate(input(inputs, 0), 'the input of `weekday`', context);
+  interpreter.defineIn('date', 'weekday', 1, (inputs, context) => {
+    const value = expectDate(input(inputs, 0), 'the input of `date/weekday`', context);
     return string(lowerName(WEEKDAY_NAMES, weekday(value.days) - 1));
   });
 
-  interpreter.defineMethod('weekday-number', 'date', 1, (inputs, context) => {
-    const value = expectDate(input(inputs, 0), 'the input of `weekday-number`', context);
+  interpreter.defineIn('date', 'weekday-number', 1, (inputs, context) => {
+    const value = expectDate(input(inputs, 0), 'the input of `date/weekday-number`', context);
     return int(BigInt(weekday(value.days)));
   });
 
-  interpreter.defineMethod('month-name', 'date', 1, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `month-name`', context));
+  interpreter.defineIn('date', 'month-name', 1, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/month-name`', context));
     return string(lowerName(MONTH_NAMES, parts.month - 1));
   });
 
-  interpreter.defineMethod('day-of-year', 'date', 1, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `day-of-year`', context));
+  interpreter.defineIn('date', 'day-of-year', 1, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/day-of-year`', context));
     return int(BigInt(dayOfYear(parts.year, parts.month, parts.day)));
   });
 
-  interpreter.defineMethod('is-leap-year', ['date', 'int'], 1, (inputs, context) => {
+  interpreter.defineMethodIn('date', 'is-leap-year', ['date', 'int'], 1, (inputs, context) => {
     const given = input(inputs, 0);
-    const year = given.type === 'date' ? civil(given).year : expectSmallInt(given, 'the given of `is-leap-year`', 'year', context);
+    const year = given.type === 'date' ? civil(given).year : expectSmallInt(given, 'the input of `date/is-leap-year`', 'year', context);
     return boolean(isLeapYear(year));
   });
 
-  interpreter.defineMethod('add-days', 'date', 2, (inputs, context) => {
-    const value = expectDate(input(inputs, 0), 'the input of `add-days`', context);
-    const count = expectSmallInt(input(inputs, 1), 'the count of `add-days`', 'day count', context);
+  interpreter.defineIn('date', 'add-days', 2, (inputs, context) => {
+    const value = expectDate(input(inputs, 0), 'the input of `date/add-days`', context);
+    const count = expectSmallInt(input(inputs, 1), 'the count of `date/add-days`', 'day count', context);
     return date(value.days + count);
   });
 
-  interpreter.defineMethod('add-months', 'date', 2, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `add-months`', context));
-    const count = expectSmallInt(input(inputs, 1), 'the count of `add-months`', 'month count', context);
+  interpreter.defineIn('date', 'add-months', 2, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/add-months`', context));
+    const count = expectSmallInt(input(inputs, 1), 'the count of `date/add-months`', 'month count', context);
     return fromCivil(addMonths(parts.year, parts.month, parts.day, count));
   });
 
-  interpreter.defineMethod('add-years', 'date', 2, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `add-years`', context));
-    const count = expectSmallInt(input(inputs, 1), 'the count of `add-years`', 'year count', context);
+  interpreter.defineIn('date', 'add-years', 2, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/add-years`', context));
+    const count = expectSmallInt(input(inputs, 1), 'the count of `date/add-years`', 'year count', context);
     return fromCivil(addMonths(parts.year, parts.month, parts.day, count * 12));
   });
 
-  interpreter.defineMethod('days-between', 'date', 2, (inputs, context) => {
-    const start = expectDate(input(inputs, 0), 'the input of `days-between`', context);
-    const end = expectDate(input(inputs, 1), 'the end of `days-between`', context);
+  interpreter.defineIn('date', 'days-between', 2, (inputs, context) => {
+    const start = expectDate(input(inputs, 0), 'the input of `date/days-between`', context);
+    const end = expectDate(input(inputs, 1), 'the end of `date/days-between`', context);
     return int(BigInt(end.days - start.days));
   });
 
-  interpreter.defineMethod('days-in-month', 'date', 1, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `days-in-month`', context));
+  interpreter.defineIn('date', 'days-in-month', 1, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/days-in-month`', context));
     return int(BigInt(daysInMonth(parts.year, parts.month)));
   });
 
-  interpreter.defineMethod('start-of-month', 'date', 1, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `start-of-month`', context));
+  interpreter.defineIn('date', 'start-of-month', 1, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/start-of-month`', context));
     return fromCivil({ year: parts.year, month: parts.month, day: 1 });
   });
 
-  interpreter.defineMethod('end-of-month', 'date', 1, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `end-of-month`', context));
+  interpreter.defineIn('date', 'end-of-month', 1, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/end-of-month`', context));
     return fromCivil({ year: parts.year, month: parts.month, day: daysInMonth(parts.year, parts.month) });
   });
 
-  interpreter.defineMethod('format', 'date', 2, (inputs, context) => {
-    const parts = civil(expectDate(input(inputs, 0), 'the input of `format`', context));
-    const pattern = expectString(input(inputs, 1), 'the pattern of `format`', context);
+  interpreter.defineIn('date', 'format', 2, (inputs, context) => {
+    const parts = civil(expectDate(input(inputs, 0), 'the input of `date/format`', context));
+    const pattern = expectString(input(inputs, 1), 'the pattern of `date/format`', context);
     return string(formatDate(parts, pattern));
   });
 
-  interpreter.defineMethod('to-string', 'date', 1, (inputs, context) => string(formatDateValue(expectDate(input(inputs, 0), 'the input of `to-string`', context))));
+  interpreter.defineIn('date', 'to-string', 1, (inputs, context) => string(formatDateValue(expectDate(input(inputs, 0), 'the input of `date/to-string`', context))));
 }

@@ -1,27 +1,27 @@
 ~ Calendar dates: construction, arithmetic, formatting and comparison.
-2024 -> date 1 31 => start
-start -> print-ln
-start -> weekday -> print-ln
-start -> add-months 1 -> print-ln
-start -> add-days 366 -> print-ln
-start -> add-years 1 -> print-ln
+2024 -> date/make 1 31 => start
+start -> io/print-ln
+start -> date/weekday -> io/print-ln
+start -> date/add-months 1 -> io/print-ln
+start -> date/add-days 366 -> io/print-ln
+start -> date/add-years 1 -> io/print-ln
 
-"2024-12-25" -> to-date => christmas
-start -> days-between christmas -> print-ln
-christmas -> format "dddd, mmmm d yyyy" -> print-ln
-christmas -> day-of-year -> print-ln
-christmas > start -> print-ln
+"2024-12-25" -> date/parse => christmas
+start -> date/days-between christmas -> io/print-ln
+christmas -> date/format "dddd, mmmm d yyyy" -> io/print-ln
+christmas -> date/day-of-year -> io/print-ln
+christmas > start -> io/print-ln
 
-[2000 1900 2024 2023] -> each y
-| "{y} leap: {y -> is-leap-year}" -> print-ln
+[2000 1900 2024 2023] -> array/each y
+| "{y} leap: {y -> date/is-leap-year}" -> io/print-ln
 
-christmas -> end-of-month -> print-ln
-christmas -> start-of-month -> format "dd/mm/yy" -> print-ln
+christmas -> date/end-of-month -> io/print-ln
+christmas -> date/start-of-month -> date/format "dd/mm/yy" -> io/print-ln
 
 ~ Times and datetimes.
-christmas -> at-time (18 -> time 30 0) => dinner
-dinner -> print-ln
-dinner -> add-hours 7 -> print-ln
-dinner -> format "dddd at H:MM" -> print-ln
-"2024-12-31T23:59:59" -> to-datetime -> add-seconds 1 -> print-ln
-dinner -> time -> add-minutes 90 -> print-ln
+christmas -> date/at-time (18 -> time/make 30 0) => dinner
+dinner -> io/print-ln
+dinner -> datetime/add-hours 7 -> io/print-ln
+dinner -> datetime/format "dddd at H:MM" -> io/print-ln
+"2024-12-31T23:59:59" -> datetime/parse -> datetime/add-seconds 1 -> io/print-ln
+dinner -> datetime/time -> time/add-minutes 90 -> io/print-ln

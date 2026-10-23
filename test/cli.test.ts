@@ -38,7 +38,7 @@ test('bin reports an unreadable file as a usage error', () => {
 });
 
 test('bin runs a program and prints its output', () => {
-  const path = writeTemp('hello.slop', '"hello" -> print-ln\n1 -> to 3 -> each n | n * n -> print-ln\n');
+  const path = writeTemp('hello.slop', '"hello" -> io/print-ln\n1 -> int/up-to 3 -> array/each n | n * n -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stderr, '');
   assert.equal(result.stdout, 'hello\n1\n4\n9\n');
@@ -46,7 +46,7 @@ test('bin runs a program and prints its output', () => {
 });
 
 test('bin reports program errors on stderr with file, line and column, exit 1, and no JS trace', () => {
-  const path = writeTemp('bad.slop', '"ok" -> print-ln\n1 => x\nx -> unknown-proc\n');
+  const path = writeTemp('bad.slop', '"ok" -> io/print-ln\n1 => x\nx -> unknown-proc\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stdout, 'ok\n');
   assert.equal(result.stderr, `error: unknown name \`unknown-proc\`\n  at ${path}:3:6\n`);
@@ -61,20 +61,20 @@ test('bin reports parse errors the same way', () => {
 });
 
 test('exit sets the process exit code without losing output', () => {
-  const path = writeTemp('exit.slop', '"before" -> print-ln\n3 -> exit\n"after" -> print-ln\n');
+  const path = writeTemp('exit.slop', '"before" -> io/print-ln\n3 -> exit\n"after" -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stdout, 'before\n');
   assert.equal(result.status, 3);
 });
 
 test('read-line reads stdin one line at a time and gives nothing at the end', () => {
-  const path = writeTemp('input.slop', 'read-line -> do => a\nread-line -> do => b\nread-line -> do => c\n"{a}|{b}|{c}" -> print-ln\n');
+  const path = writeTemp('input.slop', 'io/read-line -> do => a\nio/read-line -> do => b\nio/read-line -> do => c\n"{a}|{b}|{c}" -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8', input: 'first\nsecond\n' });
   assert.equal(result.stdout, 'first|second|nothing\n');
 });
 
 test('the binary runs programs on a large stack, so recursion thousands deep works', () => {
-  const path = writeTemp('deep.slop', 'proc count n | n = 0 ? 0 : ((n - 1) -> count) + 1\n5000 -> count -> print-ln\n');
+  const path = writeTemp('deep.slop', 'proc count n | n = 0 ? 0 : ((n - 1) -> count) + 1\n5000 -> count -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stderr, '');
   assert.equal(result.stdout, '5000\n');
@@ -88,7 +88,7 @@ test('runaway recursion hits the call depth limit as a slopersons error, never a
 });
 
 test('large outputs are flushed completely before the process exits', () => {
-  const path = writeTemp('many.slop', '1 -> to 20000 -> each n | n -> print-ln\n');
+  const path = writeTemp('many.slop', '1 -> int/up-to 20000 -> array/each n | n -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8', maxBuffer: 10_000_000 });
   assert.equal(result.stdout.split('\n').length, 20001);
   assert.equal(result.stdout.endsWith('20000\n'), true);
@@ -102,21 +102,21 @@ test('a value that exceeds what the interpreter can hold is a program error, not
 });
 
 test('running out of memory is reported as a program error with no V8 output', () => {
-  const path = writeTemp('oom.slop', '[] => keep\nwhile yes\n| 1 -> to 200000 => chunk\n| [keep chunk] => keep\n');
+  const path = writeTemp('oom.slop', '[] => keep\nwhile yes\n| 1 -> int/up-to 200000 => chunk\n| [keep chunk] => keep\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8', env: { ...process.env, SLOPERSONS_MAX_HEAP_MB: '48' }, timeout: 60_000 });
   assert.equal(result.stderr, 'error: the program ran out of memory (the limit is 48 MB)\n');
   assert.equal(result.status, 1);
 });
 
 test('the package script runs a program and passes the exit code through', () => {
-  const path = writeTemp('script.slop', '"via script" -> print-ln\n7 -> exit\n');
+  const path = writeTemp('script.slop', '"via script" -> io/print-ln\n7 -> exit\n');
   const result = spawnSync('pnpm', ['--silent', 'slopersons', path], { encoding: 'utf8', cwd: root });
   assert.equal(result.stdout, 'via script\n');
   assert.equal(result.status, 7);
 });
 
 test('a reader that closes the pipe early ends the program quietly, with no JS trace', async () => {
-  const path = writeTemp('pipe.slop', '1 -> to 200000 -> each n | n -> print-ln\n');
+  const path = writeTemp('pipe.slop', '1 -> int/up-to 200000 -> array/each n | n -> io/print-ln\n');
   const child = spawn(bin, [path], { stdio: ['ignore', 'pipe', 'pipe'] });
   let stderr = '';
   child.stderr.setEncoding('utf8');
@@ -130,7 +130,7 @@ test('a reader that closes the pipe early ends the program quietly, with no JS t
 });
 
 test('a prompt written with print reaches the reader before the program blocks on read-line', async () => {
-  const path = writeTemp('prompt.slop', '"Welcome" -> print-ln\n"Name: " -> print\nread-line -> do => name\n"Age: " -> print\nread-line -> do => age\n"hello {name}, {age}" -> print-ln\n');
+  const path = writeTemp('prompt.slop', '"Welcome" -> io/print-ln\n"Name: " -> io/print\nio/read-line -> do => name\n"Age: " -> io/print\nio/read-line -> do => age\n"hello {name}, {age}" -> io/print-ln\n');
   const child = spawn(bin, [path], { stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '';
   child.stdout.setEncoding('utf8');
@@ -164,7 +164,7 @@ test('a prompt written with print reaches the reader before the program blocks o
 });
 
 test('the call depth limit is an ordinary error that attempt can recover from', () => {
-  const path = writeTemp('deep-recover.slop', 'proc forever n | (n + 1) -> forever\nattempt | 0 -> forever recover e | e -> print-ln\n');
+  const path = writeTemp('deep-recover.slop', 'proc forever n | (n + 1) -> forever\nattempt | 0 -> forever recover e | e -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stderr, '');
   assert.equal(result.stdout, 'too many nested procedure calls (the limit is 10000)\n');
@@ -172,7 +172,7 @@ test('the call depth limit is an ordinary error that attempt can recover from', 
 });
 
 test('a value that outgrows the interpreter is not catchable by attempt', () => {
-  const path = writeTemp('huge-recover.slop', 'attempt\n| "x" => s\n| while yes\n| | s + s => s\nrecover\n| "caught" -> print-ln\n');
+  const path = writeTemp('huge-recover.slop', 'attempt\n| "x" => s\n| while yes\n| | s + s => s\nrecover\n| "caught" -> io/print-ln\n');
   const result = spawnSync(bin, [path], { encoding: 'utf8' });
   assert.equal(result.stdout, '');
   assert.equal(result.stderr, 'error: a value grew too large for the interpreter to hold\n');
@@ -180,14 +180,14 @@ test('a value that outgrows the interpreter is not catchable by attempt', () => 
 });
 
 test('--repl runs an interactive session through the binary', () => {
-  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', input: '5 + 3\n"x" -> print-ln\n' });
+  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', input: '5 + 3\n"x" -> io/print-ln\n' });
   assert.equal(result.stdout, 'slopersons, Ctrl-D to leave\n> -> 8\n> x\n-> "x"\n> \n');
   assert.equal(result.stderr, '');
   assert.equal(result.status, 0);
 });
 
 test('read-line inside a REPL entry reads the next input line through the same channel', () => {
-  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', input: 'read-line -> do -> upper\nhello\n' });
+  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', input: 'io/read-line -> do -> string/upper\nhello\n' });
   assert.equal(result.stdout, 'slopersons, Ctrl-D to leave\n> -> "HELLO"\n> \n');
   assert.equal(result.status, 0);
 });

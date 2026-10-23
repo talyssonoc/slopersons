@@ -9,7 +9,7 @@ function expectBoolean(value: Value, what: string, context: CallContext): Boolea
 }
 
 export function registerBoolean(interpreter: Interpreter): void {
-  interpreter.defineMethod('to-string', 'boolean', 1, (inputs, context) => string(formatValue(expectBoolean(input(inputs, 0), 'the input of `to-string`', context), 'print')));
+  interpreter.defineIn('boolean', 'to-string', 1, (inputs, context) => string(formatValue(expectBoolean(input(inputs, 0), 'the input of `boolean/to-string`', context), 'print')));
 
-  interpreter.defineMethod('to-int', 'boolean', 1, (inputs, context) => int(expectBoolean(input(inputs, 0), 'the input of `to-int`', context).value ? 1n : 0n));
+  interpreter.defineIn('boolean', 'to-int', 1, (inputs, context) => int(expectBoolean(input(inputs, 0), 'the input of `boolean/to-int`', context).value ? 1n : 0n));
 }

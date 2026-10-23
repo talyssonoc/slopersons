@@ -2,142 +2,142 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { failure, output } from '../helpers/run.ts';
 
-const OCT_23 = '2026 -> date 10 23 => d\n';
+const OCT_23 = '2026 -> date/make 10 23 => d\n';
 
-test('date builds a calendar date from a year receiver and month and day arguments', () => {
-  assert.equal(output('2026 -> date 10 23 -> print-ln'), '2026-10-23\n');
-  assert.equal(output('2026 -> date 10 23 -> type-of -> print-ln'), 'date\n');
-  assert.equal(output('1 -> date 1 1 -> print-ln'), '0001-01-01\n');
-  assert.equal(output('2024 -> date 2 29 -> print-ln'), '2024-02-29\n');
+test('date/make builds a calendar date from a year receiver and month and day arguments', () => {
+  assert.equal(output('2026 -> date/make 10 23 -> io/print-ln'), '2026-10-23\n');
+  assert.equal(output('2026 -> date/make 10 23 -> type-of -> io/print-ln'), 'date\n');
+  assert.equal(output('1 -> date/make 1 1 -> io/print-ln'), '0001-01-01\n');
+  assert.equal(output('2024 -> date/make 2 29 -> io/print-ln'), '2024-02-29\n');
 });
 
-test('date rejects impossible dates and names the attempted components zero-padded', () => {
-  assert.equal(failure('2026 -> date 2 30').message, '2026-02-30 is not a valid date');
-  assert.equal(failure('2026 -> date 13 1').message, '2026-13-01 is not a valid date');
-  assert.equal(failure('2026 -> date 1 0').message, '2026-01-00 is not a valid date');
-  assert.equal(failure('2023 -> date 2 29').message, '2023-02-29 is not a valid date');
+test('date/make rejects impossible dates and names the attempted components zero-padded', () => {
+  assert.equal(failure('2026 -> date/make 2 30').message, '2026-02-30 is not a valid date');
+  assert.equal(failure('2026 -> date/make 13 1').message, '2026-13-01 is not a valid date');
+  assert.equal(failure('2026 -> date/make 1 0').message, '2026-01-00 is not a valid date');
+  assert.equal(failure('2023 -> date/make 2 29').message, '2023-02-29 is not a valid date');
 });
 
-test('date checks the types and range of its components', () => {
-  assert.equal(failure('2026 -> date "10" 23').message, 'the month of `date` must be an int, got a string');
-  assert.equal(failure('2026 -> date 10 2.5').message, 'the day of `date` must be an int, got a float');
-  assert.equal(failure('99999999999 -> date 1 1').message, 'year 99999999999 is out of range');
-  assert.equal(failure('2026 -> date 99999999999 1').message, 'month 99999999999 is out of range');
-  assert.match(failure('"2026" -> date 10 23').message, /^`date` cannot be used with a string/);
-  assert.equal(failure('2026 -> date 10').message, '`date` expects 3 arguments, got 2');
+test('date/make checks the types and range of its components', () => {
+  assert.equal(failure('2026 -> date/make "10" 23').message, 'the month of `date/make` must be an int, got a string');
+  assert.equal(failure('2026 -> date/make 10 2.5').message, 'the day of `date/make` must be an int, got a float');
+  assert.equal(failure('99999999999 -> date/make 1 1').message, 'year 99999999999 is out of range');
+  assert.equal(failure('2026 -> date/make 99999999999 1').message, 'month 99999999999 is out of range');
+  assert.equal(failure('"2026" -> date/make 10 23').message, 'the year of `date/make` must be an int, got a string');
+  assert.equal(failure('2026 -> date/make 10').message, '`date/make` expects 3 arguments, got 2');
 });
 
-test('to-date parses yyyy-mm-dd and rejects anything else', () => {
-  assert.equal(output('"2026-10-23" -> to-date -> print-ln'), '2026-10-23\n');
-  assert.equal(output('"2026-10-23" -> to-date -> type-of -> print-ln'), 'date\n');
-  assert.equal(output('"2024-02-29" -> to-date -> day -> print-ln'), '29\n');
-  assert.equal(failure('"2026/10/23" -> to-date').message, 'cannot convert "2026/10/23" to a date');
-  assert.equal(failure('"2026-02-30" -> to-date').message, 'cannot convert "2026-02-30" to a date');
-  assert.equal(failure('"2026-1-5" -> to-date').message, 'cannot convert "2026-1-5" to a date');
+test('date/parse parses yyyy-mm-dd and rejects anything else', () => {
+  assert.equal(output('"2026-10-23" -> date/parse -> io/print-ln'), '2026-10-23\n');
+  assert.equal(output('"2026-10-23" -> date/parse -> type-of -> io/print-ln'), 'date\n');
+  assert.equal(output('"2024-02-29" -> date/parse -> date/day -> io/print-ln'), '29\n');
+  assert.equal(failure('"2026/10/23" -> date/parse').message, 'cannot convert "2026/10/23" to a date');
+  assert.equal(failure('"2026-02-30" -> date/parse').message, 'cannot convert "2026-02-30" to a date');
+  assert.equal(failure('"2026-1-5" -> date/parse').message, 'cannot convert "2026-1-5" to a date');
 });
 
-test('year, month and day extract the components as ints', () => {
-  assert.equal(output(`${OCT_23}d -> year -> print-ln\nd -> month -> print-ln\nd -> day -> print-ln`), '2026\n10\n23\n');
-  assert.equal(output('"0001-01-01" -> to-date -> year -> print-ln'), '1\n');
+test('date/year, date/month and date/day extract the components as ints', () => {
+  assert.equal(output(`${OCT_23}d -> date/year -> io/print-ln\nd -> date/month -> io/print-ln\nd -> date/day -> io/print-ln`), '2026\n10\n23\n');
+  assert.equal(output('"0001-01-01" -> date/parse -> date/year -> io/print-ln'), '1\n');
 });
 
-test('weekday and weekday-number start the week on Monday', () => {
-  assert.equal(output('1970 -> date 1 1 -> weekday -> print-ln'), 'thursday\n');
-  assert.equal(output('2000 -> date 1 1 -> weekday -> print-ln'), 'saturday\n');
-  assert.equal(output('1970 -> date 1 1 -> weekday-number -> print-ln'), '4\n');
-  assert.equal(output('2000 -> date 1 1 -> weekday-number -> print-ln'), '6\n');
-  assert.equal(output('2026 -> date 10 26 -> weekday-number -> print-ln\n2026 -> date 10 25 -> weekday-number -> print-ln'), '1\n7\n');
-  assert.equal(output('2026 -> date 10 26 -> weekday -> print-ln\n2026 -> date 10 25 -> weekday -> print-ln'), 'monday\nsunday\n');
+test('date/weekday and date/weekday-number start the week on Monday', () => {
+  assert.equal(output('1970 -> date/make 1 1 -> date/weekday -> io/print-ln'), 'thursday\n');
+  assert.equal(output('2000 -> date/make 1 1 -> date/weekday -> io/print-ln'), 'saturday\n');
+  assert.equal(output('1970 -> date/make 1 1 -> date/weekday-number -> io/print-ln'), '4\n');
+  assert.equal(output('2000 -> date/make 1 1 -> date/weekday-number -> io/print-ln'), '6\n');
+  assert.equal(output('2026 -> date/make 10 26 -> date/weekday-number -> io/print-ln\n2026 -> date/make 10 25 -> date/weekday-number -> io/print-ln'), '1\n7\n');
+  assert.equal(output('2026 -> date/make 10 26 -> date/weekday -> io/print-ln\n2026 -> date/make 10 25 -> date/weekday -> io/print-ln'), 'monday\nsunday\n');
 });
 
-test('month-name is the lowercase English name', () => {
-  assert.equal(output(`${OCT_23}d -> month-name -> print-ln`), 'october\n');
-  assert.equal(output('2026 -> date 1 15 -> month-name -> print-ln\n2026 -> date 12 1 -> month-name -> print-ln'), 'january\ndecember\n');
+test('date/month-name is the lowercase English name', () => {
+  assert.equal(output(`${OCT_23}d -> date/month-name -> io/print-ln`), 'october\n');
+  assert.equal(output('2026 -> date/make 1 15 -> date/month-name -> io/print-ln\n2026 -> date/make 12 1 -> date/month-name -> io/print-ln'), 'january\ndecember\n');
 });
 
-test('day-of-year counts from 1 and knows leap years', () => {
-  assert.equal(output(`${OCT_23}d -> day-of-year -> print-ln`), '296\n');
-  assert.equal(output('2026 -> date 1 1 -> day-of-year -> print-ln'), '1\n');
-  assert.equal(output('2024 -> date 12 31 -> day-of-year -> print-ln\n2023 -> date 12 31 -> day-of-year -> print-ln'), '366\n365\n');
+test('date/day-of-year counts from 1 and knows leap years', () => {
+  assert.equal(output(`${OCT_23}d -> date/day-of-year -> io/print-ln`), '296\n');
+  assert.equal(output('2026 -> date/make 1 1 -> date/day-of-year -> io/print-ln'), '1\n');
+  assert.equal(output('2024 -> date/make 12 31 -> date/day-of-year -> io/print-ln\n2023 -> date/make 12 31 -> date/day-of-year -> io/print-ln'), '366\n365\n');
 });
 
-test('is-leap-year works on a date and on an int year', () => {
-  assert.equal(output('2024 -> is-leap-year -> print-ln\n1900 -> is-leap-year -> print-ln\n2000 -> is-leap-year -> print-ln\n2023 -> is-leap-year -> print-ln'), 'yes\nno\nyes\nno\n');
-  assert.equal(output('2024 -> date 6 1 -> is-leap-year -> print-ln\n2023 -> date 6 1 -> is-leap-year -> print-ln'), 'yes\nno\n');
-  assert.equal(failure('99999999999 -> is-leap-year').message, 'year 99999999999 is out of range');
-  assert.match(failure('"2024" -> is-leap-year').message, /^`is-leap-year` cannot be used with a string/);
+test('date/is-leap-year works on a date and on an int year', () => {
+  assert.equal(output('2024 -> date/is-leap-year -> io/print-ln\n1900 -> date/is-leap-year -> io/print-ln\n2000 -> date/is-leap-year -> io/print-ln\n2023 -> date/is-leap-year -> io/print-ln'), 'yes\nno\nyes\nno\n');
+  assert.equal(output('2024 -> date/make 6 1 -> date/is-leap-year -> io/print-ln\n2023 -> date/make 6 1 -> date/is-leap-year -> io/print-ln'), 'yes\nno\n');
+  assert.equal(failure('99999999999 -> date/is-leap-year').message, 'year 99999999999 is out of range');
+  assert.equal(failure('"2024" -> date/is-leap-year').message, '`date/is-leap-year` cannot be used with a string; it works on date, int');
 });
 
-test('add-days moves forwards and backwards across month and year boundaries', () => {
-  assert.equal(output(`${OCT_23}d -> add-days 10 -> print-ln\nd -> add-days -23 -> print-ln\nd -> print-ln`), '2026-11-02\n2026-09-30\n2026-10-23\n');
-  assert.equal(output('2024 -> date 2 28 -> add-days 1 -> print-ln\n2026 -> date 12 31 -> add-days 1 -> print-ln'), '2024-02-29\n2027-01-01\n');
-  assert.equal(output('1970 -> date 1 1 -> add-days -1 -> print-ln'), '1969-12-31\n');
-  assert.equal(failure(`${OCT_23}d -> add-days "x"`).message, 'the count of `add-days` must be an int, got a string');
-  assert.equal(failure(`${OCT_23}d -> add-days 99999999999`).message, 'day count 99999999999 is out of range');
+test('date/add-days moves forwards and backwards across month and year boundaries', () => {
+  assert.equal(output(`${OCT_23}d -> date/add-days 10 -> io/print-ln\nd -> date/add-days -23 -> io/print-ln\nd -> io/print-ln`), '2026-11-02\n2026-09-30\n2026-10-23\n');
+  assert.equal(output('2024 -> date/make 2 28 -> date/add-days 1 -> io/print-ln\n2026 -> date/make 12 31 -> date/add-days 1 -> io/print-ln'), '2024-02-29\n2027-01-01\n');
+  assert.equal(output('1970 -> date/make 1 1 -> date/add-days -1 -> io/print-ln'), '1969-12-31\n');
+  assert.equal(failure(`${OCT_23}d -> date/add-days "x"`).message, 'the count of `date/add-days` must be an int, got a string');
+  assert.equal(failure(`${OCT_23}d -> date/add-days 99999999999`).message, 'day count 99999999999 is out of range');
 });
 
-test('add-months clamps the day to the target month and handles negative counts', () => {
-  assert.equal(output('2024 -> date 1 31 -> add-months 1 -> print-ln'), '2024-02-29\n');
-  assert.equal(output('2023 -> date 1 31 -> add-months 1 -> print-ln'), '2023-02-28\n');
-  assert.equal(output('2026 -> date 1 15 -> add-months -3 -> print-ln'), '2025-10-15\n');
-  assert.equal(output('2026 -> date 3 31 -> add-months -1 -> print-ln'), '2026-02-28\n');
-  assert.equal(output(`${OCT_23}d -> add-months 14 -> print-ln\nd -> add-months 0 -> print-ln`), '2027-12-23\n2026-10-23\n');
+test('date/add-months clamps the day to the target month and handles negative counts', () => {
+  assert.equal(output('2024 -> date/make 1 31 -> date/add-months 1 -> io/print-ln'), '2024-02-29\n');
+  assert.equal(output('2023 -> date/make 1 31 -> date/add-months 1 -> io/print-ln'), '2023-02-28\n');
+  assert.equal(output('2026 -> date/make 1 15 -> date/add-months -3 -> io/print-ln'), '2025-10-15\n');
+  assert.equal(output('2026 -> date/make 3 31 -> date/add-months -1 -> io/print-ln'), '2026-02-28\n');
+  assert.equal(output(`${OCT_23}d -> date/add-months 14 -> io/print-ln\nd -> date/add-months 0 -> io/print-ln`), '2027-12-23\n2026-10-23\n');
 });
 
-test('add-years clamps February 29 in non-leap years', () => {
-  assert.equal(output('2024 -> date 2 29 -> add-years 1 -> print-ln\n2024 -> date 2 29 -> add-years 4 -> print-ln'), '2025-02-28\n2028-02-29\n');
-  assert.equal(output(`${OCT_23}d -> add-years -30 -> print-ln`), '1996-10-23\n');
+test('date/add-years clamps February 29 in non-leap years', () => {
+  assert.equal(output('2024 -> date/make 2 29 -> date/add-years 1 -> io/print-ln\n2024 -> date/make 2 29 -> date/add-years 4 -> io/print-ln'), '2025-02-28\n2028-02-29\n');
+  assert.equal(output(`${OCT_23}d -> date/add-years -30 -> io/print-ln`), '1996-10-23\n');
 });
 
-test('days-between is the end minus the start', () => {
-  assert.equal(output('(2026 -> date 1 1) -> days-between (2026 -> date 12 31) -> print-ln'), '364\n');
-  assert.equal(output('(2026 -> date 12 31) -> days-between (2026 -> date 1 1) -> print-ln'), '-364\n');
-  assert.equal(output('(2024 -> date 1 1) -> days-between (2025 -> date 1 1) -> print-ln'), '366\n');
-  assert.equal(output(`${OCT_23}d -> days-between d -> print-ln`), '0\n');
-  assert.equal(failure(`${OCT_23}d -> days-between 5`).message, 'the end of `days-between` must be a date, got an int');
+test('date/days-between is the end minus the start', () => {
+  assert.equal(output('(2026 -> date/make 1 1) -> date/days-between (2026 -> date/make 12 31) -> io/print-ln'), '364\n');
+  assert.equal(output('(2026 -> date/make 12 31) -> date/days-between (2026 -> date/make 1 1) -> io/print-ln'), '-364\n');
+  assert.equal(output('(2024 -> date/make 1 1) -> date/days-between (2025 -> date/make 1 1) -> io/print-ln'), '366\n');
+  assert.equal(output(`${OCT_23}d -> date/days-between d -> io/print-ln`), '0\n');
+  assert.equal(failure(`${OCT_23}d -> date/days-between 5`).message, 'the end of `date/days-between` must be a date, got an int');
 });
 
-test('days-in-month, start-of-month and end-of-month follow the receiver month', () => {
-  assert.equal(output('2024 -> date 2 10 -> days-in-month -> print-ln\n2023 -> date 2 10 -> days-in-month -> print-ln'), '29\n28\n');
-  assert.equal(output('2026 -> date 4 10 -> days-in-month -> print-ln\n2026 -> date 10 10 -> days-in-month -> print-ln'), '30\n31\n');
-  assert.equal(output(`${OCT_23}d -> start-of-month -> print-ln\nd -> end-of-month -> print-ln`), '2026-10-01\n2026-10-31\n');
-  assert.equal(output('2024 -> date 2 10 -> end-of-month -> print-ln\n2023 -> date 2 10 -> end-of-month -> print-ln'), '2024-02-29\n2023-02-28\n');
-  assert.equal(output('2026 -> date 10 1 -> start-of-month -> print-ln'), '2026-10-01\n');
+test('date/days-in-month, date/start-of-month and date/end-of-month follow the receiver month', () => {
+  assert.equal(output('2024 -> date/make 2 10 -> date/days-in-month -> io/print-ln\n2023 -> date/make 2 10 -> date/days-in-month -> io/print-ln'), '29\n28\n');
+  assert.equal(output('2026 -> date/make 4 10 -> date/days-in-month -> io/print-ln\n2026 -> date/make 10 10 -> date/days-in-month -> io/print-ln'), '30\n31\n');
+  assert.equal(output(`${OCT_23}d -> date/start-of-month -> io/print-ln\nd -> date/end-of-month -> io/print-ln`), '2026-10-01\n2026-10-31\n');
+  assert.equal(output('2024 -> date/make 2 10 -> date/end-of-month -> io/print-ln\n2023 -> date/make 2 10 -> date/end-of-month -> io/print-ln'), '2024-02-29\n2023-02-28\n');
+  assert.equal(output('2026 -> date/make 10 1 -> date/start-of-month -> io/print-ln'), '2026-10-01\n');
 });
 
-test('format replaces every pattern token and passes other characters through', () => {
-  const source = '2026 -> date 10 5 => d\n';
-  assert.equal(output(`${source}d -> format "yyyy-mm-dd" -> print-ln`), '2026-10-05\n');
-  assert.equal(output(`${source}d -> format "d/m/yy" -> print-ln`), '5/10/26\n');
-  assert.equal(output(`${source}d -> format "dddd, mmmm d" -> print-ln`), 'Monday, October 5\n');
-  assert.equal(output(`${source}d -> format "ddd dd mmm yyyy" -> print-ln`), 'Mon 05 Oct 2026\n');
-  assert.equal(output(`${source}d -> format "" -> print-ln`), '\n');
-  assert.equal(output(`${source}d -> format "yyyy" -> type-of -> print-ln`), 'string\n');
-  assert.equal(failure(`${source}d -> format 5`).message, 'the pattern of `format` must be a string, got an int');
+test('date/format replaces every pattern token and passes other characters through', () => {
+  const source = '2026 -> date/make 10 5 => d\n';
+  assert.equal(output(`${source}d -> date/format "yyyy-mm-dd" -> io/print-ln`), '2026-10-05\n');
+  assert.equal(output(`${source}d -> date/format "d/m/yy" -> io/print-ln`), '5/10/26\n');
+  assert.equal(output(`${source}d -> date/format "dddd, mmmm d" -> io/print-ln`), 'Monday, October 5\n');
+  assert.equal(output(`${source}d -> date/format "ddd dd mmm yyyy" -> io/print-ln`), 'Mon 05 Oct 2026\n');
+  assert.equal(output(`${source}d -> date/format "" -> io/print-ln`), '\n');
+  assert.equal(output(`${source}d -> date/format "yyyy" -> type-of -> io/print-ln`), 'string\n');
+  assert.equal(failure(`${source}d -> date/format 5`).message, 'the pattern of `date/format` must be a string, got an int');
 });
 
-test('to-string gives the yyyy-mm-dd form', () => {
-  assert.equal(output(`${OCT_23}d -> to-string -> print-ln\nd -> to-string -> type-of -> print-ln`), '2026-10-23\nstring\n');
-  assert.equal(output('1 -> date 2 3 -> to-string -> print-ln'), '0001-02-03\n');
+test('date/to-string gives the yyyy-mm-dd form', () => {
+  assert.equal(output(`${OCT_23}d -> date/to-string -> io/print-ln\nd -> date/to-string -> type-of -> io/print-ln`), '2026-10-23\nstring\n');
+  assert.equal(output('1 -> date/make 2 3 -> date/to-string -> io/print-ln'), '0001-02-03\n');
 });
 
 test('dates compare with the ordering and equality operators', () => {
-  const source = '2026 -> date 1 1 => a\n2026 -> date 1 2 => b\n';
-  assert.equal(output(`${source}a < b -> print-ln\na > b -> print-ln\na <= a -> print-ln\na >= b -> print-ln`), 'yes\nno\nyes\nno\n');
-  assert.equal(output(`${source}a = (2026 -> date 1 1) -> print-ln\na = b -> print-ln\na /= b -> print-ln`), 'yes\nno\nyes\n');
-  assert.equal(output(`${source}a = ("2026-01-01" -> to-date) -> print-ln`), 'yes\n');
+  const source = '2026 -> date/make 1 1 => a\n2026 -> date/make 1 2 => b\n';
+  assert.equal(output(`${source}a < b -> io/print-ln\na > b -> io/print-ln\na <= a -> io/print-ln\na >= b -> io/print-ln`), 'yes\nno\nyes\nno\n');
+  assert.equal(output(`${source}a = (2026 -> date/make 1 1) -> io/print-ln\na = b -> io/print-ln\na /= b -> io/print-ln`), 'yes\nno\nyes\n');
+  assert.equal(output(`${source}a = ("2026-01-01" -> date/parse) -> io/print-ln`), 'yes\n');
   assert.equal(failure(`${source}a < 5`).message, 'cannot compare a date with an int');
 });
 
-test('today is a zero-argument builtin returning a date', () => {
-  assert.equal(output('today -> do -> type-of -> print-ln'), 'date\n');
-  assert.equal(output('today -> do -> format "yyyy-mm-dd" -> type-of -> print-ln'), 'string\n');
-  assert.equal(failure('1 -> today').message, '`today` expects 0 arguments, got 1');
+test('date/today is a zero-argument builtin returning a date', () => {
+  assert.equal(output('date/today -> do -> type-of -> io/print-ln'), 'date\n');
+  assert.equal(output('date/today -> do -> date/format "yyyy-mm-dd" -> type-of -> io/print-ln'), 'string\n');
+  assert.equal(failure('1 -> date/today').message, '`date/today` expects 0 arguments, got 1');
 });
 
-test('date builtins report a dispatch error on other receivers', () => {
-  assert.match(failure('"x" -> year').message, /^`year` cannot be used with a string/);
-  assert.match(failure('5 -> add-days 1').message, /^`add-days` cannot be used with an int/);
-  assert.match(failure('5 -> to-date').message, /^`to-date` cannot be used with an int/);
-  assert.match(failure('[1] -> days-between 1').message, /^`days-between` cannot be used with an array/);
+test('date builtins name the receiver type they need on other inputs', () => {
+  assert.equal(failure('"x" -> date/year').message, 'the input of `date/year` must be a date, got a string');
+  assert.equal(failure('5 -> date/add-days 1').message, 'the input of `date/add-days` must be a date, got an int');
+  assert.equal(failure('5 -> date/parse').message, 'the input of `date/parse` must be a string, got an int');
+  assert.equal(failure('[1] -> date/days-between 1').message, 'the input of `date/days-between` must be a date, got an array');
 });

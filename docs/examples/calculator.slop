@@ -9,13 +9,13 @@
  "/": (a b | a * 1.0 / b)} => operations
 
 proc ask label
-| label -> print
-| read-line -> do => answer
-| answer = nothing ? nothing : answer -> trim
+| label -> io/print
+| io/read-line -> do => answer
+| answer = nothing ? nothing : answer -> string/trim
 
 proc parse-number text
 | attempt
-| | text -> contains "." ? text -> to-float : text -> to-int
+| | text -> string/contains "." ? text -> string/to-float : text -> string/to-int
 | recover
 | | nothing
 
@@ -25,22 +25,22 @@ proc ask-number label
 | | text = nothing ? nothing -> out
 | | text -> parse-number => value
 | | value /= nothing ? value -> out
-| | "'{text}' is not a number, try again." -> print-ln
+| | "'{text}' is not a number, try again." -> io/print-ln
 
 proc ask-operator
 | while yes
 | | "Operator (+, -, *, /): " -> ask => op
 | | op = nothing ? nothing -> out
-| | operations -> has op ? op -> out
-| | "'{op}' is not one of + - * /, try again." -> print-ln
+| | operations -> hashmap/has op ? op -> out
+| | "'{op}' is not one of + - * /, try again." -> io/print-ln
 
 proc wants-another
 | "Another calculation? (y/n): " -> ask => answer
 | answer = nothing ? no -> out
-| answer -> lower => answer
+| answer -> string/lower => answer
 | answer = "y" or answer = "yes"
 
-"Welcome to the slopersons calculator." -> print-ln
+"Welcome to the slopersons calculator." -> io/print-ln
 while yes
 | "First number: " -> ask-number => left
 | left = nothing ? stop
@@ -49,8 +49,8 @@ while yes
 | "Second number: " -> ask-number => right
 | right = nothing ? stop
 | op = "/" and (right = 0 or right = 0.0) ?
-| | "Cannot divide by zero." -> print-ln
+| | "Cannot divide by zero." -> io/print-ln
 | :
-| | "{left} {op} {right} = {left -> (operations -> at op) right}" -> print-ln
+| | "{left} {op} {right} = {left -> (operations -> hashmap/at op) right}" -> io/print-ln
 | not (wants-another -> do) ? stop
-"Goodbye." -> print-ln
+"Goodbye." -> io/print-ln

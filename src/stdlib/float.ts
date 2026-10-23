@@ -19,13 +19,13 @@ function roundHalfAwayFromZero(value: number): number {
 }
 
 export function registerFloat(interpreter: Interpreter): void {
-  interpreter.defineMethod('round', 'float', 1, (inputs, context) => int(BigInt(roundHalfAwayFromZero(finiteInput(inputs, 'round', context)))));
+  interpreter.defineIn('float', 'round', 1, (inputs, context) => int(BigInt(roundHalfAwayFromZero(finiteInput(inputs, 'float/round', context)))));
 
-  interpreter.defineMethod('floor', 'float', 1, (inputs, context) => int(BigInt(Math.floor(finiteInput(inputs, 'floor', context)))));
+  interpreter.defineIn('float', 'floor', 1, (inputs, context) => int(BigInt(Math.floor(finiteInput(inputs, 'float/floor', context)))));
 
-  interpreter.defineMethod('ceil', 'float', 1, (inputs, context) => int(BigInt(Math.ceil(finiteInput(inputs, 'ceil', context)))));
+  interpreter.defineIn('float', 'ceil', 1, (inputs, context) => int(BigInt(Math.ceil(finiteInput(inputs, 'float/ceil', context)))));
 
-  interpreter.defineMethod('to-int', 'float', 1, (inputs, context) => int(BigInt(Math.trunc(finiteInput(inputs, 'to-int', context)))));
+  interpreter.defineIn('float', 'to-int', 1, (inputs, context) => int(BigInt(Math.trunc(finiteInput(inputs, 'float/to-int', context)))));
 
-  interpreter.defineMethod('is-integer', 'float', 1, (inputs, context) => boolean(Number.isInteger(expectFloat(input(inputs, 0), 'the input of `is-integer`', context))));
+  interpreter.defineIn('float', 'is-integer', 1, (inputs, context) => boolean(Number.isInteger(expectFloat(input(inputs, 0), 'the input of `float/is-integer`', context))));
 }

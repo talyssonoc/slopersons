@@ -2,16 +2,16 @@
 "the cat and the dog and the bird" => text
 {} => counts
 
-text -> words -> each w
-| counts -> put w ((counts -> at-or w 0) + 1)
+text -> string/words -> array/each w
+| counts -> hashmap/put w ((counts -> hashmap/at-or w 0) + 1)
 
-counts -> print-ln
-counts -> keys -> print-ln
+counts -> io/print-ln
+counts -> hashmap/keys -> io/print-ln
 
-counts -> entries
--> sort-by a b | (a -> at 1) > (b -> at 1)
--> each pair
-| "{pair -> at 0}: {pair -> at 1}" -> print-ln
+counts -> hashmap/entries
+-> array/sort-by a b | (a -> array/at 1) > (b -> array/at 1)
+-> array/each pair
+| "{pair -> array/at 0}: {pair -> array/at 1}" -> io/print-ln
 
-counts -> keep k v | v > 1
--> keys -> print-ln
+counts -> hashmap/keep k v | v > 1
+-> hashmap/keys -> io/print-ln

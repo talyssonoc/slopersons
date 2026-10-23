@@ -8,26 +8,26 @@ function singleCodePointOr(original: string, mapped: string): string {
 }
 
 export function registerChar(interpreter: Interpreter): void {
-  interpreter.defineMethod('to-int', 'char', 1, (inputs, context) => {
-    const cursor = expectChar(input(inputs, 0), 'the input of `to-int`', context);
+  interpreter.defineIn('char', 'to-int', 1, (inputs, context) => {
+    const cursor = expectChar(input(inputs, 0), 'the input of `char/to-int`', context);
     return int(BigInt(cursor.codePointAt(0) ?? 0));
   });
 
-  interpreter.defineMethod('upper', 'char', 1, (inputs, context) => {
-    const cursor = expectChar(input(inputs, 0), 'the input of `upper`', context);
+  interpreter.defineIn('char', 'upper', 1, (inputs, context) => {
+    const cursor = expectChar(input(inputs, 0), 'the input of `char/upper`', context);
     return char(singleCodePointOr(cursor, upper(cursor)));
   });
 
-  interpreter.defineMethod('lower', 'char', 1, (inputs, context) => {
-    const cursor = expectChar(input(inputs, 0), 'the input of `lower`', context);
+  interpreter.defineIn('char', 'lower', 1, (inputs, context) => {
+    const cursor = expectChar(input(inputs, 0), 'the input of `char/lower`', context);
     return char(singleCodePointOr(cursor, lower(cursor)));
   });
 
-  interpreter.defineMethod('is-letter', 'char', 1, (inputs, context) => boolean(isLetter(expectChar(input(inputs, 0), 'the input of `is-letter`', context))));
+  interpreter.defineIn('char', 'is-letter', 1, (inputs, context) => boolean(isLetter(expectChar(input(inputs, 0), 'the input of `char/is-letter`', context))));
 
-  interpreter.defineMethod('is-digit', 'char', 1, (inputs, context) => boolean(isDigit(expectChar(input(inputs, 0), 'the input of `is-digit`', context))));
+  interpreter.defineIn('char', 'is-digit', 1, (inputs, context) => boolean(isDigit(expectChar(input(inputs, 0), 'the input of `char/is-digit`', context))));
 
-  interpreter.defineMethod('is-space', 'char', 1, (inputs, context) => boolean(isSpace(expectChar(input(inputs, 0), 'the input of `is-space`', context))));
+  interpreter.defineIn('char', 'is-space', 1, (inputs, context) => boolean(isSpace(expectChar(input(inputs, 0), 'the input of `char/is-space`', context))));
 
-  interpreter.defineMethod('to-string', 'char', 1, (inputs, context) => string(expectChar(input(inputs, 0), 'the input of `to-string`', context)));
+  interpreter.defineIn('char', 'to-string', 1, (inputs, context) => string(expectChar(input(inputs, 0), 'the input of `char/to-string`', context)));
 }

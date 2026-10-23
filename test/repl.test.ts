@@ -21,7 +21,7 @@ test('a complete line runs at once and its value is echoed in show form', () => 
 });
 
 test('printed output and the echo both appear, and nothing is not echoed', () => {
-  const result = session(['"hi" -> print-ln', 'proc f | 1', 'nothing']);
+  const result = session(['"hi" -> io/print-ln', 'proc f | 1', 'nothing']);
   assert.equal(result.out, `${BANNER}${P}hi\n-> "hi"\n${P}${P}${P}\n`);
 });
 
@@ -35,17 +35,17 @@ test('an incomplete line collects a block until an empty line', () => {
   assert.equal(result.out, `${BANNER}${P}${C}${C}${P}-> 42\n${P}\n`);
   const conditional = session(['1 > 0 ?', '| "big"', ': "small"', '']);
   assert.equal(conditional.out, `${BANNER}${P}${C}${C}${C}-> "big"\n${P}\n`);
-  const attempt = session(['attempt', '| 1 / 0', 'recover e', '| e -> message', '']);
+  const attempt = session(['attempt', '| 1 / 0', 'recover e', '| e -> error/message', '']);
   assert.equal(attempt.out, `${BANNER}${P}${C}${C}${C}${C}-> "division by zero"\n${P}\n`);
 });
 
 test('a call ending in unbound names waits for a block, a bound name runs at once', () => {
-  const waits = session(['[1 2] -> each n', '| n -> print-ln', '']);
+  const waits = session(['[1 2] -> array/each n', '| n -> io/print-ln', '']);
   assert.equal(waits.out, `${BANNER}${P}${C}${C}1\n2\n${P}\n`);
-  const runs = session(['[1 2] => xs', '7 => item', 'xs -> push item']);
+  const runs = session(['[1 2] => xs', '7 => item', 'xs -> array/push item']);
   assert.equal(runs.out, `${BANNER}${P}-> [1 2]\n${P}-> 7\n${P}-> [1 2 7]\n${P}\n`);
-  const unknown = session(['1 -> add y', '']);
-  assert.equal(unknown.err, 'error: unknown name `y`\n  at <repl>:1:10\n');
+  const unknown = session(['[1] -> array/push y', '']);
+  assert.equal(unknown.err, 'error: unknown name `y`\n  at <repl>:1:19\n');
 });
 
 test('errors report the position inside the entry and the session continues', () => {
@@ -60,13 +60,13 @@ test('a runtime error inside a block entry points at its line within the entry',
 });
 
 test('brackets spanning lines form one entry, and a pending entry runs at end of input', () => {
-  const result = session(['(1 +', '2) -> print-ln']);
+  const result = session(['(1 +', '2) -> io/print-ln']);
   assert.equal(result.out, `${BANNER}${P}${C}${C}\n3\n-> 3\n`);
   assert.equal(result.code, 0);
 });
 
 test('exit ends the session with its code without reading further lines', () => {
-  const result = session(['"before" -> print-ln', '3 -> exit', '"after" -> print-ln']);
+  const result = session(['"before" -> io/print-ln', '3 -> exit', '"after" -> io/print-ln']);
   assert.equal(result.out, `${BANNER}${P}before\n-> "before"\n${P}`);
   assert.equal(result.code, 3);
 });

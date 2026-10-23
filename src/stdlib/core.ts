@@ -1,6 +1,6 @@
 import { SlopersonsError, runtimeError } from '../errors.ts';
 import { ExitSignal, OutSignal, StopSignal, type CallContext, type Interpreter } from '../interpreter.ts';
-import { NOTHING, array, describeType, formatValue, int, string, typeName, type Value } from '../values.ts';
+import { NOTHING, array, describeType, formatValue, int, string, typeName, type ErrorValue, type Value } from '../values.ts';
 
 export const MAX_SIZE = 50_000_000n;
 
@@ -23,6 +23,11 @@ export function expectChar(value: Value, what: string, context: CallContext): st
 export function expectDecision(value: Value, what: string, context: CallContext): boolean {
   if (value.type !== 'boolean') throw runtimeError(`${what} must return \`yes\` or \`no\`, got ${describeType(value)}`, context.position);
   return value.value;
+}
+
+export function expectError(value: Value, what: string, context: CallContext): ErrorValue {
+  if (value.type !== 'error') throw runtimeError(`${what} must be an error, got ${describeType(value)}`, context.position);
+  return value;
 }
 
 export function expectInt(value: Value, what: string, context: CallContext): bigint {
@@ -71,12 +76,12 @@ export function runLoopBody(body: () => void): boolean {
 }
 
 export function registerCore(interpreter: Interpreter): void {
-  interpreter.defineBuiltin('print-ln', 1, (inputs, context) => {
+  interpreter.defineIn('io', 'print-ln', 1, (inputs, context) => {
     context.interpreter.io.write(`${formatValue(input(inputs, 0), 'print')}\n`);
     return input(inputs, 0);
   });
 
-  interpreter.defineBuiltin('print', 1, (inputs, context) => {
+  interpreter.defineIn('io', 'print', 1, (inputs, context) => {
     context.interpreter.io.write(formatValue(input(inputs, 0), 'print'));
     return input(inputs, 0);
   });
@@ -100,27 +105,24 @@ export function registerCore(interpreter: Interpreter): void {
     throw runtimeError(expectString(value, 'the message of `fail`', context), context.position);
   });
 
-  interpreter.defineMethod('message', 'error', 1, (inputs) => {
-    const value = input(inputs, 0);
-    return string(value.type === 'error' ? value.message : '');
+  interpreter.defineIn('error', 'message', 1, (inputs, context) => string(expectError(input(inputs, 0), 'the input of `error/message`', context).message));
+
+  interpreter.defineIn('error', 'line', 1, (inputs, context) => {
+    const value = expectError(input(inputs, 0), 'the input of `error/line`', context);
+    return value.position !== null ? int(BigInt(value.position.line)) : NOTHING;
   });
 
-  interpreter.defineMethod('line', 'error', 1, (inputs) => {
-    const value = input(inputs, 0);
-    return value.type === 'error' && value.position !== null ? int(BigInt(value.position.line)) : NOTHING;
+  interpreter.defineIn('error', 'column', 1, (inputs, context) => {
+    const value = expectError(input(inputs, 0), 'the input of `error/column`', context);
+    return value.position !== null ? int(BigInt(value.position.col)) : NOTHING;
   });
 
-  interpreter.defineMethod('column', 'error', 1, (inputs) => {
-    const value = input(inputs, 0);
-    return value.type === 'error' && value.position !== null ? int(BigInt(value.position.col)) : NOTHING;
+  interpreter.defineIn('error', 'file', 1, (inputs, context) => {
+    const value = expectError(input(inputs, 0), 'the input of `error/file`', context);
+    return value.position?.file !== undefined ? string(value.position.file) : NOTHING;
   });
 
-  interpreter.defineMethod('file', 'error', 1, (inputs) => {
-    const value = input(inputs, 0);
-    return value.type === 'error' && value.position?.file !== undefined ? string(value.position.file) : NOTHING;
-  });
-
-  interpreter.defineMethod('to-string', 'error', 1, (inputs) => string(formatValue(input(inputs, 0), 'print')));
+  interpreter.defineIn('error', 'to-string', 1, (inputs, context) => string(expectError(input(inputs, 0), 'the input of `error/to-string`', context).message));
 
   interpreter.defineBuiltin('exit', 1, (inputs, context) => {
     const code = expectInt(input(inputs, 0), 'the exit code', context);
@@ -128,32 +130,32 @@ export function registerCore(interpreter: Interpreter): void {
     throw new ExitSignal(Number(code));
   });
 
-  interpreter.defineBuiltin('read-line', 0, (_args, context) => {
+  interpreter.defineIn('io', 'read-line', 0, (_args, context) => {
     const line = context.interpreter.io.readLine();
     return line === null ? NOTHING : string(line);
   });
 
-  interpreter.defineBuiltin('to', 2, (inputs, context) => {
-    const from = expectInt(input(inputs, 0), 'the start of `to`', context);
-    const to = expectInt(input(inputs, 1), 'the end of `to`', context);
-    if (to >= from) checkSize(to - from + 1n, 'to', 'elements', context);
+  interpreter.defineIn('int', 'up-to', 2, (inputs, context) => {
+    const from = expectInt(input(inputs, 0), 'the start of `int/up-to`', context);
+    const to = expectInt(input(inputs, 1), 'the end of `int/up-to`', context);
+    if (to >= from) checkSize(to - from + 1n, 'int/up-to', 'elements', context);
     const items: Value[] = [];
     for (let i = from; i <= to; i++) items.push(int(i));
     return array(items);
   });
 
-  interpreter.defineMethod('each', 'array', 2, (inputs, context) => {
-    const items = expectArray(input(inputs, 0), 'the input of `each`', context);
-    const procedure = expectProc(input(inputs, 1), 'the body of `each`', context);
+  interpreter.defineIn('array', 'each', 2, (inputs, context) => {
+    const items = expectArray(input(inputs, 0), 'the input of `array/each`', context);
+    const procedure = expectProc(input(inputs, 1), 'the body of `array/each`', context);
     for (const item of items.slice()) {
       if (!runLoopBody(() => callLambda(procedure, [item], context))) break;
     }
     return NOTHING;
   });
 
-  interpreter.defineMethod('repeat', 'int', 2, (inputs, context) => {
-    const times = expectInt(input(inputs, 0), 'the count of `repeat`', context);
-    const procedure = expectProc(input(inputs, 1), 'the body of `repeat`', context);
+  interpreter.defineIn('int', 'times', 2, (inputs, context) => {
+    const times = expectInt(input(inputs, 0), 'the count of `int/times`', context);
+    const procedure = expectProc(input(inputs, 1), 'the body of `int/times`', context);
     for (let i = 0n; i < times; i++) {
       if (!runLoopBody(() => callWithOptionalArgument(procedure, int(i), context))) break;
     }

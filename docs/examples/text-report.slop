@@ -1,24 +1,24 @@
 ~ String handling: words, cases, searching and building text.
 "the quick brown fox jumps over the lazy dog" => sentence
 
-sentence -> words => words
-"{words -> length} words" -> print-ln
-"starts with 'the': {sentence -> starts-with "the"}" -> print-ln
-"'fox' at index {sentence -> index-of "fox"}" -> print-ln
-"'cat' at index {sentence -> index-of "cat"}" -> print-ln
+sentence -> string/words => words
+"{words -> array/length} words" -> io/print-ln
+"starts with 'the': {sentence -> string/starts-with "the"}" -> io/print-ln
+"'fox' at index {sentence -> string/index-of "fox"}" -> io/print-ln
+"'cat' at index {sentence -> string/index-of "cat"}" -> io/print-ln
 
 0 => vowels
-sentence -> each c
-| "aeiou" -> contains (c -> to-string) ? vowels + 1 =>> vowels
-"{vowels} vowels" -> print-ln
+sentence -> string/each c
+| "aeiou" -> string/contains (c -> char/to-string) ? vowels + 1 =>> vowels
+"{vowels} vowels" -> io/print-ln
 
-sentence -> upper -> print-ln
-sentence -> replace "the" "a" -> print-ln
-"the" -> repeat 3 -> print-ln
-("42" -> to-int) + 1 -> print-ln
+sentence -> string/upper -> io/print-ln
+sentence -> string/replace "the" "a" -> io/print-ln
+"the" -> string/repeat 3 -> io/print-ln
+("42" -> string/to-int) + 1 -> io/print-ln
 
-"  padded  " -> trim => word
-word -> pad-left 10 `.` -> print-ln
-word -> pad-right 10 `.` -> print-ln
-"a👍b" -> reverse -> print-ln
-"a👍b" -> length -> print-ln
+"  padded  " -> string/trim => word
+word -> string/pad-left 10 `.` -> io/print-ln
+word -> string/pad-right 10 `.` -> io/print-ln
+"a👍b" -> string/reverse -> io/print-ln
+"a👍b" -> string/length -> io/print-ln

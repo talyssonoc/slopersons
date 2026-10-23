@@ -1,47 +1,47 @@
 [5 3 8 1] => xs
-xs -> sort -> print-ln
-xs -> print-ln
-xs -> push 2 -> print-ln
-xs -> pop -> print-ln
-xs -> map n | n * 10
--> print-ln
-xs -> keep n | n > 3
--> print-ln
-xs -> reduce 0 acc n | acc + n
--> print-ln
-xs -> any n | n > 7
--> print-ln
-xs -> all n | n > 7
--> print-ln
-xs -> find n | n > 4
--> print-ln
-xs -> index-of 8 -> print-ln
-xs -> index-of 9 -> print-ln
-xs -> contains 9 -> print-ln
-xs -> first -> print-ln
-xs -> last -> print-ln
-xs -> slice 1 3 -> print-ln
-xs -> reverse -> print-ln
-xs -> sum -> print-ln
-xs -> min -> print-ln
-xs -> max -> print-ln
-xs -> length -> print-ln
-[1 2 2 3 3 3] -> to-set => s
-s -> print-ln
-s -> add 4 -> has 4 -> print-ln
-[3 4 5] -> to-set => t
-s -> intersect t -> print-ln
-s -> union t -> to-array -> print-ln
-s -> difference t -> print-ln
-[[1 2] [3 4]] -> flatten -> print-ln
-[1 2 3] -> zip ["a" "b"] -> print-ln
-["b" "a" "c"] -> sort -> join ", " -> print-ln
-[3 1 2] -> with-index -> print-ln
-[[1] [1] [2]] -> unique -> print-ln
+xs -> array/sort -> io/print-ln
+xs -> io/print-ln
+xs -> array/push 2 -> io/print-ln
+xs -> array/pop -> io/print-ln
+xs -> array/map n | n * 10
+-> io/print-ln
+xs -> array/keep n | n > 3
+-> io/print-ln
+xs -> array/reduce 0 acc n | acc + n
+-> io/print-ln
+xs -> array/any n | n > 7
+-> io/print-ln
+xs -> array/all n | n > 7
+-> io/print-ln
+xs -> array/find n | n > 4
+-> io/print-ln
+xs -> array/index-of 8 -> io/print-ln
+xs -> array/index-of 9 -> io/print-ln
+xs -> array/contains 9 -> io/print-ln
+xs -> array/first -> io/print-ln
+xs -> array/last -> io/print-ln
+xs -> array/slice 1 3 -> io/print-ln
+xs -> array/reverse -> io/print-ln
+xs -> array/sum -> io/print-ln
+xs -> array/min -> io/print-ln
+xs -> array/max -> io/print-ln
+xs -> array/length -> io/print-ln
+[1 2 2 3 3 3] -> array/to-set => s
+s -> io/print-ln
+s -> set/add 4 -> set/has 4 -> io/print-ln
+[3 4 5] -> array/to-set => t
+s -> set/intersect t -> io/print-ln
+s -> set/union t -> set/to-array -> io/print-ln
+s -> set/difference t -> io/print-ln
+[[1 2] [3 4]] -> array/flatten -> io/print-ln
+[1 2 3] -> array/zip ["a" "b"] -> io/print-ln
+["b" "a" "c"] -> array/sort -> array/join ", " -> io/print-ln
+[3 1 2] -> array/with-index -> io/print-ln
+[[1] [1] [2]] -> array/unique -> io/print-ln
 {"x": 1} => m
-m -> put "y" 2 -> print-ln
-m -> remove "x" -> print-ln
-m -> has "x" -> print-ln
-m -> merge {"z": 3} -> values -> print-ln
-m -> each k v
-| "{k} = {v}" -> print-ln
+m -> hashmap/put "y" 2 -> io/print-ln
+m -> hashmap/remove "x" -> io/print-ln
+m -> hashmap/has "x" -> io/print-ln
+m -> hashmap/merge {"z": 3} -> hashmap/values -> io/print-ln
+m -> hashmap/each k v
+| "{k} = {v}" -> io/print-ln

@@ -1,325 +1,325 @@
 # String builtins
 
-Strings are immutable: every operation here returns a new string and leaves its input untouched. Positions, lengths and widths count code points, not UTF-16 units, so `"a👍b"` has length 3 and `👍` sits at index 1. Names marked *shared* also exist for other types (see their pages); the string version is chosen when a string flows in. Type errors follow the convention from the core page: `the input of \`trim\` must be a string, got an int`.
+These functions live in the `string` module and are called with their qualified name, as in `text -> string/upper`. Strings are immutable: every operation here returns a new string and leaves its input untouched. Positions, lengths and widths count code points, not UTF-16 units, so `"a👍b"` has length 3 and `👍` sits at index 1. Other modules have functions with the same short names (`array/length`, `char/upper`); they are separate functions that take their own module's type. Type errors follow the convention from the core page: `the input of \`string/trim\` must be a string, got an int`.
 
 ## length
 
-`text -> length` (shared)
+`text -> string/length`
 
 Returns the number of code points in `text` as an int.
 
 ```
-"a👍b" -> length -> print-ln   ~ 3
+"a👍b" -> string/length -> io/print-ln   ~ 3
 ```
 
 ## chars
 
-`text -> chars`
+`text -> string/chars`
 
 Returns an array with one char per code point of `text`.
 
 ```
-"a👍b" -> chars -> print-ln    ~ [`a` `👍` `b`]
+"a👍b" -> string/chars -> io/print-ln    ~ [`a` `👍` `b`]
 ```
 
 ## at
 
-`text -> at index` (shared)
+`text -> string/at index`
 
 Returns the char at code point position `index`, counting from 0.
 
 ```
-"a👍b" -> at 1 -> print-ln     ~ 👍
+"a👍b" -> string/at 1 -> io/print-ln     ~ 👍
 ```
 
 Errors: `index` is not an int; `index` is outside `0` to `length - 1`, reported as `index 5 is out of range for a string of length 3`.
 
 ## slice
 
-`text -> slice start end` (shared)
+`text -> string/slice start end`
 
 Returns the code points from `start` (inclusive) to `end` (exclusive). Both bounds are clamped into the string, so an `end` past the length is not an error, and `start >= end` yields `""`.
 
 ```
-"a👍bc" -> slice 1 3 -> print-ln   ~ 👍b
-"abc" -> slice 1 10 -> print-ln    ~ bc
+"a👍bc" -> string/slice 1 3 -> io/print-ln   ~ 👍b
+"abc" -> string/slice 1 10 -> io/print-ln    ~ bc
 ```
 
 Errors: `start` or `end` is not an int.
 
 ## upper
 
-`text -> upper` (shared)
+`text -> string/upper`
 
 Returns `text` with every code point in upper case.
 
 ```
-"héllo" -> upper -> print-ln   ~ HÉLLO
+"héllo" -> string/upper -> io/print-ln   ~ HÉLLO
 ```
 
 ## lower
 
-`text -> lower` (shared)
+`text -> string/lower`
 
 Returns `text` with every code point in lower case.
 
 ```
-"HÉLLO" -> lower -> print-ln   ~ héllo
+"HÉLLO" -> string/lower -> io/print-ln   ~ héllo
 ```
 
 ## trim
 
-`text -> trim`
+`text -> string/trim`
 
 Returns `text` without leading and trailing whitespace (spaces, tabs, line breaks and other Unicode spaces).
 
 ```
-"  a b \n" -> trim -> show -> print-ln   ~ "a b"
+"  a b \n" -> string/trim -> show -> io/print-ln   ~ "a b"
 ```
 
 ## trim-start
 
-`text -> trim-start`
+`text -> string/trim-start`
 
 Returns `text` without leading whitespace.
 
 ```
-"  a  " -> trim-start -> show -> print-ln   ~ "a  "
+"  a  " -> string/trim-start -> show -> io/print-ln   ~ "a  "
 ```
 
 ## trim-end
 
-`text -> trim-end`
+`text -> string/trim-end`
 
 Returns `text` without trailing whitespace.
 
 ```
-"  a  " -> trim-end -> show -> print-ln   ~ "  a"
+"  a  " -> string/trim-end -> show -> io/print-ln   ~ "  a"
 ```
 
 ## split
 
-`text -> split separator`
+`text -> string/split separator`
 
 Returns the array of pieces between occurrences of `separator`. Adjacent separators produce empty strings, and an empty `text` gives `[""]`. An empty `separator` splits into one-code-point strings.
 
 ```
-"a,b,,c" -> split "," -> print-ln   ~ ["a" "b" "" "c"]
-"a👍b" -> split "" -> print-ln       ~ ["a" "👍" "b"]
+"a,b,,c" -> string/split "," -> io/print-ln   ~ ["a" "b" "" "c"]
+"a👍b" -> string/split "" -> io/print-ln       ~ ["a" "👍" "b"]
 ```
 
 Errors: `separator` is not a string.
 
 ## contains
 
-`text -> contains needle` (shared)
+`text -> string/contains needle`
 
 Returns `yes` when `needle` occurs in `text`.
 
 ```
-"a👍b" -> contains "👍b" -> print-ln   ~ yes
+"a👍b" -> string/contains "👍b" -> io/print-ln   ~ yes
 ```
 
 Errors: `needle` is not a string.
 
 ## starts-with
 
-`text -> starts-with prefix`
+`text -> string/starts-with prefix`
 
 Returns `yes` when `text` begins with `prefix`.
 
 ```
-"hello" -> starts-with "he" -> print-ln   ~ yes
+"hello" -> string/starts-with "he" -> io/print-ln   ~ yes
 ```
 
 Errors: `prefix` is not a string.
 
 ## ends-with
 
-`text -> ends-with suffix`
+`text -> string/ends-with suffix`
 
 Returns `yes` when `text` ends with `suffix`.
 
 ```
-"ab👍" -> ends-with "b👍" -> print-ln   ~ yes
+"ab👍" -> string/ends-with "b👍" -> io/print-ln   ~ yes
 ```
 
 Errors: `suffix` is not a string.
 
 ## index-of
 
-`text -> index-of needle` (shared)
+`text -> string/index-of needle`
 
 Returns the code point index of the first occurrence of `needle` as an int, or `nothing` when `needle` does not occur. This is one of the few builtins whose result can be `nothing`; compare with `= nothing` before using the index.
 
 ```
-"ab👍cd" -> index-of "cd" -> print-ln   ~ 3
-"abc" -> index-of "z" -> print-ln       ~ nothing
+"ab👍cd" -> string/index-of "cd" -> io/print-ln   ~ 3
+"abc" -> string/index-of "z" -> io/print-ln       ~ nothing
 ```
 
 Errors: `needle` is not a string.
 
 ## replace
 
-`text -> replace old new`
+`text -> string/replace old new`
 
 Returns `text` with every non-overlapping occurrence of `old` replaced by `new`, scanning left to right.
 
 ```
-"banana" -> replace "an" "AN" -> print-ln   ~ bANANa
-"aaa" -> replace "aa" "b" -> print-ln       ~ ba
+"banana" -> string/replace "an" "AN" -> io/print-ln   ~ bANANa
+"aaa" -> string/replace "aa" "b" -> io/print-ln       ~ ba
 ```
 
 Errors: `old` or `new` is not a string; `old` is empty, reported as `` `replace` needs a non-empty text to look for ``.
 
 ## repeat
 
-`text -> repeat count` (shared)
+`text -> string/repeat count`
 
-Returns `count` copies of `text` joined together. `0` gives `""`. With an int on the left, `repeat` is the loop from the core page instead.
+Returns `count` copies of `text` joined together. `0` gives `""`. To run a body a number of times instead, use `int/times` from the int page.
 
 ```
-"👍a" -> repeat 2 -> print-ln   ~ 👍a👍a
+"👍a" -> string/repeat 2 -> io/print-ln   ~ 👍a👍a
 ```
 
 Errors: `count` is not an int; `count` is negative.
 
 ## reverse
 
-`text -> reverse` (shared)
+`text -> string/reverse`
 
 Returns the code points of `text` in reverse order.
 
 ```
-"a👍b" -> reverse -> print-ln   ~ b👍a
+"a👍b" -> string/reverse -> io/print-ln   ~ b👍a
 ```
 
 ## pad-left
 
-`text -> pad-left width fill`
+`text -> string/pad-left width fill`
 
 Returns `text` preceded by as many `fill` chars as needed to reach `width` code points. A `text` already at least `width` long comes back unchanged.
 
 ```
-"7" -> pad-left 3 `0` -> print-ln    ~ 007
-"👍" -> pad-left 3 `.` -> print-ln   ~ ..👍
+"7" -> string/pad-left 3 `0` -> io/print-ln    ~ 007
+"👍" -> string/pad-left 3 `.` -> io/print-ln   ~ ..👍
 ```
 
 Errors: `width` is not an int; `fill` is not a char.
 
 ## pad-right
 
-`text -> pad-right width fill`
+`text -> string/pad-right width fill`
 
 Returns `text` followed by as many `fill` chars as needed to reach `width` code points. A `text` already at least `width` long comes back unchanged.
 
 ```
-"ab" -> pad-right 4 `.` -> print-ln   ~ ab..
+"ab" -> string/pad-right 4 `.` -> io/print-ln   ~ ab..
 ```
 
 Errors: `width` is not an int; `fill` is not a char.
 
 ## lines
 
-`text -> lines`
+`text -> string/lines`
 
 Returns the array of lines in `text`, split at `\n`. A `\r` before a line break is dropped, and a trailing line break does not produce an empty last line.
 
 ```
-"a\r\nb\n" -> lines -> print-ln   ~ ["a" "b"]
+"a\r\nb\n" -> string/lines -> io/print-ln   ~ ["a" "b"]
 ```
 
 ## words
 
-`text -> words`
+`text -> string/words`
 
 Returns the array of maximal runs of non-whitespace in `text`. Leading, trailing and repeated whitespace produce no empty strings.
 
 ```
-"  one two\tthree  " -> words -> print-ln   ~ ["one" "two" "three"]
+"  one two\tthree  " -> string/words -> io/print-ln   ~ ["one" "two" "three"]
 ```
 
 ## is-empty
 
-`text -> is-empty` (shared)
+`text -> string/is-empty`
 
 Returns `yes` when `text` has no code points.
 
 ```
-"" -> is-empty -> print-ln    ~ yes
-" " -> is-empty -> print-ln   ~ no
+"" -> string/is-empty -> io/print-ln    ~ yes
+" " -> string/is-empty -> io/print-ln   ~ no
 ```
 
 ## to-int
 
-`text -> to-int` (shared)
+`text -> string/to-int`
 
 Parses `text` as an int: an optional `+` or `-` followed by one or more decimal digits, with nothing else around them. Ints are arbitrary precision, so long digit strings keep every digit.
 
 ```
-"-42" -> to-int -> print-ln   ~ -42
+"-42" -> string/to-int -> io/print-ln   ~ -42
 ```
 
 Errors: `text` is not in that form, reported with its literal form as `cannot convert "abc" to an int`.
 
 ## to-float
 
-`text -> to-float` (shared)
+`text -> string/to-float`
 
 Parses `text` as a float: an optional sign, digits, an optional `.` followed by digits, and an optional exponent such as `e3` or `E-2`. Digits are required on both sides of the point (`".5"` and `"5."` are rejected).
 
 ```
-"2.5" -> to-float -> print-ln    ~ 2.5
-"-1e2" -> to-float -> print-ln   ~ -100.0
+"2.5" -> string/to-float -> io/print-ln    ~ 2.5
+"-1e2" -> string/to-float -> io/print-ln   ~ -100.0
 ```
 
 Errors: `text` is not in that form, reported as `cannot convert "x" to a float`.
 
 ## to-string
 
-`text -> to-string` (shared)
+`text -> string/to-string`
 
-Returns `text` itself. It exists so a flow can call `to-string` without checking whether the value is already a string.
+Returns `text` itself. Every scalar module has a `to-string`, so a flow that converts values to text reads the same whatever the module.
 
 ```
-"abc" -> to-string -> print-ln   ~ abc
+"abc" -> string/to-string -> io/print-ln   ~ abc
 ```
 
 ## from-chars
 
-`chars -> from-chars`
+`chars -> string/from-chars`
 
-Joins an array of chars into a string. The receiver is an array, so this is the inverse of `chars`.
+Builds a string from an array of chars. This is the one function in the module whose input is not a string: it is the constructor that inverts `string/chars`.
 
 ```
-[`a` `👍` `b`] -> from-chars -> print-ln   ~ a👍b
+[`a` `👍` `b`] -> string/from-chars -> io/print-ln   ~ a👍b
 ```
 
-Errors: the input is not an array; an element is not a char, reported as `` element 1 of the input of `from-chars` must be a char, got an int ``.
+Errors: the input is not an array, reported as `` the input of `string/from-chars` must be an array, got a string ``; an element is not a char, reported as `` element 1 of the input of `string/from-chars` must be a char, got an int ``.
 
 ## each
 
-`text -> each c | body` (shared)
+`text -> string/each c | body`
 
-Calls the body once per code point, in order, with the code point as a char. Returns `nothing`. `stop` ends the loop early and `out` leaves the enclosing procedure, as with arrays.
+Calls the body once per char of `text`, in order, with the char as its argument. Returns `nothing`. `stop` ends the loop early and `out` leaves the enclosing procedure, as with `array/each`.
 
 ```
-"a👍b" -> each c
+"a👍b" -> string/each c
 | c = `👍` ? stop
-| c -> print-ln                  ~ a
+| c -> io/print-ln                  ~ a
 ```
 
 Errors: the body is not a procedure.
 
 ## count
 
-`text -> count needle`
+`text -> string/count needle`
 
 Returns the number of non-overlapping occurrences of `needle` in `text` as an int, scanning left to right.
 
 ```
-"banana" -> count "an" -> print-ln   ~ 2
-"aaaa" -> count "aa" -> print-ln     ~ 2
+"banana" -> string/count "an" -> io/print-ln   ~ 2
+"aaaa" -> string/count "aa" -> io/print-ln     ~ 2
 ```
 
 Errors: `needle` is not a string; `needle` is empty, reported as `` `count` needs a non-empty text to look for ``.

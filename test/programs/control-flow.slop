@@ -4,28 +4,28 @@ proc classify n
 | n < 10 ? "small"
 | : "large"
 
-[-5 0 3 42] -> each n
-| "{n}: {n -> classify}" -> print-ln
+[-5 0 3 42] -> array/each n
+| "{n}: {n -> classify}" -> io/print-ln
 
 proc first-over xs limit
-| xs -> each x
+| xs -> array/each x
 | | x > limit ? x -> out
 | nothing
 
-[1 5 9 12 20] -> first-over 8 -> print-ln
-[1 5] -> first-over 8 -> print-ln
+[1 5 9 12 20] -> first-over 8 -> io/print-ln
+[1 5] -> first-over 8 -> io/print-ln
 
 0 => i
 while yes
 | i >= 3 ? stop
-| "loop {i}" -> print-ln
+| "loop {i}" -> io/print-ln
 | i + 1 =>> i
 
-3 -> repeat k
+3 -> int/times k
 | k = 1 ? stop
-| "repeat {k}" -> print-ln
+| "repeat {k}" -> io/print-ln
 
-[1 2] -> each a
-| [10 20 30] -> each b
+[1 2] -> array/each a
+| [10 20 30] -> array/each b
 | | b = 30 ? stop
-| | "{a}-{b}" -> print-ln
+| | "{a}-{b}" -> io/print-ln

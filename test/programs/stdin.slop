@@ -1,4 +1,4 @@
-read-line -> do => name
-read-line -> do => missing
-"hello, {name}" -> print-ln
-missing -> print-ln
+io/read-line -> do => name
+io/read-line -> do => missing
+"hello, {name}" -> io/print-ln
+missing -> io/print-ln

@@ -20,7 +20,7 @@ import {
   typeName,
   type Arity,
   type BuiltinImplementation,
-  type BuiltinValue,
+  type ModuleValue,
   type ProcedureValue,
   type TypeName,
   type Value,
@@ -138,7 +138,7 @@ interface MethodImpl {
 
 export class Interpreter {
   readonly io: Io;
-  private readonly builtins: Map<string, BuiltinValue>;
+  private readonly builtins: Map<string, Value>;
   private readonly methods: Map<string, Map<TypeName, MethodImpl>>;
   private depth: number;
   private nextActivation: number;
@@ -163,21 +163,40 @@ export class Interpreter {
     this.builtins.set(name, { type: 'builtin', id: freshId(), name, arity: normalized, implementation: procedure });
   }
 
-  builtin(name: string): BuiltinValue | undefined {
+  builtin(name: string): Value | undefined {
     return this.builtins.get(name);
   }
 
-  defineMethod(name: string, types: TypeName | TypeName[], arity: number | Arity, procedure: BuiltinImplementation): void {
-    let table = this.methods.get(name);
+  builtinModule(name: string): ModuleValue {
+    const existing = this.builtins.get(name);
+    if (existing !== undefined) {
+      if (existing.type === 'module') return existing;
+      throw new Error(`builtin \`${name}\` is registered twice`);
+    }
+    const module: ModuleValue = { type: 'module', id: freshId(), name, path: `<builtin ${name}>`, members: new Map() };
+    this.builtins.set(name, module);
+    return module;
+  }
+
+  defineIn(moduleName: string, name: string, arity: number | Arity, procedure: BuiltinImplementation): void {
+    const module = this.builtinModule(moduleName);
+    const qualified = `${moduleName}/${name}`;
+    if (module.members.has(name)) throw new Error(`builtin \`${qualified}\` is registered twice`);
+    const normalized: Arity = typeof arity === 'number' ? { min: arity, max: arity } : arity;
+    module.members.set(name, { type: 'builtin', id: freshId(), name: qualified, arity: normalized, implementation: procedure });
+  }
+
+  defineMethodIn(moduleName: string, name: string, types: TypeName | TypeName[], arity: number | Arity, procedure: BuiltinImplementation): void {
+    const qualified = `${moduleName}/${name}`;
+    let table = this.methods.get(qualified);
     if (table === undefined) {
-      if (this.builtins.has(name)) throw new Error(`\`${name}\` is already a plain builtin and cannot also dispatch on a type`);
       table = new Map();
-      this.methods.set(name, table);
-      this.defineBuiltin(name, { min: 1, max: null }, (inputs, context) => this.dispatch(name, inputs, context));
+      this.methods.set(qualified, table);
+      this.defineIn(moduleName, name, { min: 1, max: null }, (inputs, context) => this.dispatch(qualified, inputs, context));
     }
     const normalized: Arity = typeof arity === 'number' ? { min: arity, max: arity } : arity;
     for (const type of Array.isArray(types) ? types : [types]) {
-      if (table.has(type)) throw new Error(`\`${name}\` is registered twice for ${type}`);
+      if (table.has(type)) throw new Error(`\`${qualified}\` is registered twice for ${type}`);
       table.set(type, { arity: normalized, implementation: procedure });
     }
   }

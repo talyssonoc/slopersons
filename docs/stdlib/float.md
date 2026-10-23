@@ -1,67 +1,79 @@
 # Float builtins
 
-Builtins whose input is a float. `abs`, `pow`, `sqrt`, `min`, `max`, `clamp`, `sign` and `to-string` accept floats too and are documented on the [int page](int.md). The conversions to int below need a finite float: arithmetic can overflow a float past its range, and converting such a value is an error rather than a wrong int.
+Builtins whose input is a float. The numeric functions that accept an int as well (`abs`, `pow`, `sqrt`, `min`, `max`, `clamp`, `sign`) live in the [math module](math.md). Any other receiver stops the program with `` the input of `float/round` must be a float, got an int ``. The conversions to int below need a finite float: arithmetic can overflow a float past its range, and converting such a value is an error rather than a wrong int.
 
 ## round
 
-`float -> round`
+`float -> float/round`
 
 Returns the nearest int. Halves round away from zero on both sides: `2.5` becomes `3` and `-2.5` becomes `-3`.
 
 ```
-2.5 -> round -> print-ln      ~ 3
--2.5 -> round -> print-ln     ~ -3
-2.4 -> round -> print-ln      ~ 2
+2.5 -> float/round -> io/print-ln      ~ 3
+-2.5 -> float/round -> io/print-ln     ~ -3
+2.4 -> float/round -> io/print-ln      ~ 2
 ```
 
-Errors: the input is not a finite float.
+Errors: the input is not a float; the input is not a finite float.
 
 ## floor
 
-`float -> floor`
+`float -> float/floor`
 
 Returns the largest int that is not greater than the input.
 
 ```
-2.7 -> floor -> print-ln      ~ 2
--2.3 -> floor -> print-ln     ~ -3
+2.7 -> float/floor -> io/print-ln      ~ 2
+-2.3 -> float/floor -> io/print-ln     ~ -3
 ```
 
-Errors: the input is not a finite float.
+Errors: the input is not a float; the input is not a finite float.
 
 ## ceil
 
-`float -> ceil`
+`float -> float/ceil`
 
 Returns the smallest int that is not less than the input.
 
 ```
-2.1 -> ceil -> print-ln       ~ 3
--2.7 -> ceil -> print-ln      ~ -2
+2.1 -> float/ceil -> io/print-ln       ~ 3
+-2.7 -> float/ceil -> io/print-ln      ~ -2
 ```
 
-Errors: the input is not a finite float.
+Errors: the input is not a float; the input is not a finite float.
 
 ## to-int
 
-`float -> to-int`
+`float -> float/to-int`
 
-Returns the int part of the float, dropping the fraction toward zero: `-2.9` becomes `-2`. Use `round`, `floor` or `ceil` for the other roundings.
+Returns the int part of the float, dropping the fraction toward zero: `-2.9` becomes `-2`. Use `float/round`, `float/floor` or `float/ceil` for the other roundings.
 
 ```
-2.9 -> to-int -> print-ln     ~ 2
--2.9 -> to-int -> print-ln    ~ -2
+2.9 -> float/to-int -> io/print-ln     ~ 2
+-2.9 -> float/to-int -> io/print-ln    ~ -2
 ```
 
-Errors: the input is not a finite float.
+Errors: the input is not a float; the input is not a finite float.
 
 ## is-integer
 
-`float -> is-integer`
+`float -> float/is-integer`
 
 Returns `yes` when the float has no fractional part.
 
 ```
-2.0 -> is-integer -> print-ln ~ yes
-2.5 -> is-integer -> print-ln ~ no
+2.0 -> float/is-integer -> io/print-ln ~ yes
+2.5 -> float/is-integer -> io/print-ln ~ no
+```
+
+Errors: the input is not a float.
+
+## to-string
+
+`float -> float/to-string`
+
+Returns the float as `io/print-ln` shows it: a float always keeps a decimal point. Ints have `int/to-string`.
+
+```
+2.0 -> float/to-string -> show -> io/print-ln   ~ "2.0"
 ```
