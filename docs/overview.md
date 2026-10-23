@@ -33,7 +33,7 @@ even total: 30
 - [syntax.md](syntax.md): every construct, with the parsing rules that make them unambiguous
 - [semantics.md](semantics.md): values, arithmetic, equality, scoping, procedures, errors
 - [cli.md](cli.md): running programs, exit codes, error output
-- [decisions.md](decisions.md): what was decided and why, including rejected alternatives
+- [adr/README.md](adr/README.md): the Architecture Decision Records, one file per decision with its context, rejected alternatives and consequences
 - [stdlib/core.md](stdlib/core.md), [int](stdlib/int.md), [float](stdlib/float.md), [char](stdlib/char.md), [boolean](stdlib/boolean.md), [string](stdlib/string.md), [array](stdlib/array.md), [hashmap](stdlib/hashmap.md), [set](stdlib/set.md), [date](stdlib/date.md): the standard library
 - [examples/](examples/): complete programs; each has a `.out` file with its exact output and runs as part of the test suite
 

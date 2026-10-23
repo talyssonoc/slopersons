@@ -2,7 +2,7 @@
 
 Interpreter and standard library for **slopersons**, a dynamically typed structured programming language whose syntax is a left-to-right flow: data on the left, steps on the right, joined by `->`. Blocks are margin bars (`|`). Procedures are first-class. Programs use the `.slop` extension. The interpreter is TypeScript executed directly by Node 26 with no build step.
 
-Language reference: `docs/syntax.md`, `docs/semantics.md`, `docs/stdlib/*.md`. Rationale for every design choice: `docs/decisions.md`. Read `docs/decisions.md` before proposing a language change; if the change is accepted, record it there in the same commit.
+Language reference: `docs/syntax.md`, `docs/semantics.md`, `docs/stdlib/*.md`. Rationale for every design choice: the Architecture Decision Records in `docs/adr/`, indexed in `docs/adr/README.md`. Read the index before proposing a language change; if the change is accepted, record it as a new ADR in the same commit (see the section at the end of this file).
 
 ## Commands
 
@@ -45,7 +45,7 @@ These hold for every change. They come from the project owner and are not negoti
 4. **No inline comments** unless they explain a non-obvious *why*. No JSDoc banners.
 5. **The interpreter is not a proxy over JavaScript.** This applies to everything that implements language-visible behavior: `src/values.ts`, `src/runtime/**`, `src/stdlib/**`. The lexer and parser work on source text and may use JS collections and string methods; `src/cli.ts` is the I/O boundary. `test/no-proxy.test.ts` enforces the split. Data structures and algorithms are ours: `src/runtime/hashtable.ts` (not `Map`/`Set`), `src/runtime/sorting.ts` (not `Array.prototype.sort`), `src/runtime/text.ts` (not `indexOf`/`split`/`trim`/`pad*`/`replace`/regex), `src/runtime/calendar.ts` (not `Date`/`Temporal`/`Intl`). Allowed from JS: number and BigInt arithmetic, `codePointAt`/`String.fromCodePoint`/`for...of` over strings, per-code-point `toUpperCase`/`toLowerCase`, the `\p{L}`/`\p{Nd}`/`\s` single-code-point tests, `Date.now()` for the clock, stdin/stdout. JS `Map` is allowed only for interpreter-internal bookkeeping (environments, the builtin registry), never to hold slopersons values. JS `Date` and `Array.prototype.sort` may be oracles in tests, never in `src/`.
 6. **Nobody running a `.slop` program ever sees JavaScript.** All failures go through `SloError` or the boundary in `src/cli.ts`: program errors print `error: <message>` and `  at file:line:col`, exit 1; usage errors exit 2; interpreter bugs print a one-line internal error with no stack and exit 70. Error messages never mention JS types or values (`undefined`, `NaN`, `TypeError`, `BigInt`). Never call `process.exit`; throw `ExitSignal` so buffered output is not lost. Process warnings are suppressed in `main`.
-7. **Decisions are documented when they are made.** Any syntax or semantics choice, including ones made while implementing, gets an entry in `docs/decisions.md` (what, why, rejected alternatives). Stdlib behavior is documented in `docs/stdlib/<module>.md` in the same change that adds it.
+7. **Decisions are documented when they are made.** Any syntax or semantics choice, including ones made while implementing, gets an ADR in `docs/adr/` (context, the decision with its rejected alternatives, consequences), following the Architecture Decision Records section below. Stdlib behavior is documented in `docs/stdlib/<module>.md` in the same change that adds it.
 8. **Spaces around binary operators are mandatory in slopersons source** because names are kebab-case (`a-b` is a name). Keep examples and golden programs consistent with that.
 
 ## Language rules the implementation must keep
@@ -70,3 +70,18 @@ These hold for every change. They come from the project owner and are not negoti
 - Lexer and parser edits are easiest to verify with `node --test test/parser.test.ts`; the S-expression printer makes expected ASTs one line each.
 - The call depth limit (`MAX_CALL_DEPTH` in `src/interpreter.ts`) exists so deep recursion becomes a slopersons error before the JS stack overflows; the CLI still catches a JS `RangeError` as a backstop.
 - `python3` is not available in this environment through asdf; use Node scripts for scripted edits.
+
+## Architecture Decision Records
+
+Architectural decisions are recorded in `docs/adr/`, indexed in `docs/adr/README.md`.
+
+- Before an architectural change (new dependency, data model, module boundaries, infrastructure, cross-cutting patterns), read the index and the relevant ADRs.
+- Follow Accepted ADRs. If a requested change conflicts with one, say so and stop for confirmation instead of silently breaking it.
+- When your work makes a decision future developers will need the "why" for, or one that is architecturally significant, cross-team, or hard to reverse, write an ADR:
+  - copy `docs/adr/template.md` to `docs/adr/$(date +%Y%m%d%H%M)-<decision-slug>.md`, naming the decision, not the topic;
+  - status Proposed unless the user has agreed to it;
+  - describe the real context and the alternatives considered, not generic pros and cons;
+  - add it to the index.
+- Don't write ADRs for tiny, temporary, or already-documented decisions.
+- Never edit an existing ADR except its status. To change a decision, write a new ADR and set the old one's status to `Superseded by [title](./file.md)`.
+- After adding an ADR or changing a status, regenerate the index table from the files.
