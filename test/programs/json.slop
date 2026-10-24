@@ -1,0 +1,8 @@
+~ reads an order as JSON from standard input
+io/stdin -> stream/read-all -> json/parse => order
+order -> hashmap/at "customer" -> io/print-line
+order -> hashmap/at "items" -> array/each item
+| "{item -> hashmap/at "quantity"} x {item -> hashmap/at "name"}" -> io/print-line
+order -> hashmap/at "paid" -> io/print-line
+order -> hashmap/at "note" -> io/print-line
+attempt | "[1, 2" -> json/parse recover e | e -> error/message -> io/print-line

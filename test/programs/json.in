@@ -1,0 +1,9 @@
+{
+  "customer": "Ada Lovelace",
+  "items": [
+    {"name": "notebook", "quantity": 2, "price": 12.5},
+    {"name": "pen \u2712", "quantity": 10, "price": 1.25}
+  ],
+  "paid": true,
+  "note": null
+}

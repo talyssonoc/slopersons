@@ -117,3 +117,5 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Reject invalid UTF-8 when reading text](./202610231946-reject-invalid-utf-8-when-reading-text.md) | Accepted |
 | 2026-10-23 | [Report file system failures as runtime errors in slopersons terms](./202610231947-report-file-system-failures-as-runtime-errors-in-slopersons-terms.md) | Accepted |
 | 2026-10-23 | [Keep the operating-system calls for files in one boundary module](./202610231948-keep-the-operating-system-calls-for-files-in-one-boundary-module.md) | Accepted |
+| 2026-10-24 | [Write host-independent standard library modules in slopersons](./202610240926-write-host-independent-standard-library-modules-in-slopersons.md) | Accepted |
+| 2026-10-24 | [Parse JSON into slopersons values without a reviver](./202610240927-parse-json-into-slopersons-values-without-a-reviver.md) | Accepted |

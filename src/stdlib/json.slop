@@ -1,0 +1,212 @@
+~ The json module of the standard library. The interpreter loads this file at startup and registers what it
+~ exports as members of the builtin module `json`; errors raised here are reported at the caller's `json/parse`.
+~ Offsets in messages count characters (code points) from the start of the text, starting at 0.
+
+[] => characters
+0 => size
+0 => position
+
+55296 => first-high-surrogate
+56319 => last-high-surrogate
+56320 => first-low-surrogate
+57343 => last-low-surrogate
+
+proc describe-type value
+| value -> type-of => name
+| (name = "int" or name = "array" or name = "error") ? "an {name}" -> out
+| "a {name}"
+
+proc peek
+| position < size ? characters -> array/at position -> out
+| nothing
+
+proc found
+| position < size ? characters -> array/at position -> show -> out
+| "the end of the text"
+
+proc unexpected expected
+| "invalid JSON at offset {position}: expected {expected}, found {found -> do}" -> fail
+
+proc is-digit c
+| c = nothing ? no -> out
+| c -> char/to-int => code
+| code >= 48 and code <= 57
+
+proc is-whitespace c
+| c = ` ` or c = `\t` or c = `\n` or c = `\r`
+
+proc skip-whitespace
+| while peek -> do -> is-whitespace
+| | position + 1 =>> position
+
+proc skip-digits
+| while peek -> do -> is-digit
+| | position + 1 =>> position
+
+proc require-digits expected
+| not (peek -> do -> is-digit) ? expected -> unexpected
+| skip-digits -> do
+
+proc hex-value c
+| c = nothing ? nothing -> out
+| c -> char/to-int => code
+| code >= 48 and code <= 57 ? code - 48 -> out
+| code >= 97 and code <= 102 ? code - 87 -> out
+| code >= 65 and code <= 70 ? code - 55 -> out
+| nothing
+
+proc read-hex-quad
+| 0 => value
+| 4 -> int/times
+| | peek -> do -> hex-value => digit
+| | digit = nothing ? "a hexadecimal digit" -> unexpected
+| | value * 16 + digit =>> value
+| | position + 1 =>> position
+| value
+
+proc unpaired-surrogate offset
+| "invalid JSON at offset {offset}: the \\u escape is half of a surrogate pair without its other half, which a string cannot hold" -> fail
+
+proc read-unicode-escape start
+| read-hex-quad -> do => unit
+| unit >= first-low-surrogate and unit <= last-low-surrogate ? start -> unpaired-surrogate
+| unit < first-high-surrogate or unit > last-high-surrogate ? unit -> int/to-char -> out
+| (peek -> do) /= `\\` ? start -> unpaired-surrogate
+| position + 1 =>> position
+| (peek -> do) /= `u` ? start -> unpaired-surrogate
+| position + 1 =>> position
+| read-hex-quad -> do => low
+| low < first-low-surrogate or low > last-low-surrogate ? start -> unpaired-surrogate
+| 65536 + (unit - first-high-surrogate) * 1024 + (low - first-low-surrogate) -> int/to-char
+
+proc read-escape
+| position => start
+| position + 1 =>> position
+| peek -> do => kind
+| position + 1 =>> position
+| kind = `"` ? `"` -> out
+| kind = `\\` ? `\\` -> out
+| kind = `/` ? `/` -> out
+| kind = `b` ? 8 -> int/to-char -> out
+| kind = `f` ? 12 -> int/to-char -> out
+| kind = `n` ? `\n` -> out
+| kind = `r` ? `\r` -> out
+| kind = `t` ? `\t` -> out
+| kind = `u` ? start -> read-unicode-escape -> out
+| start + 1 =>> position
+| "one of \" \\ / b f n r t u after the backslash" -> unexpected
+
+proc read-string
+| position + 1 =>> position
+| [] => text
+| while yes
+| | peek -> do => next
+| | next = `"` ?
+| | | position + 1 =>> position
+| | | text -> string/from-chars -> out
+| | next = `\\` ? text -> array/push (read-escape -> do)
+| | : next = nothing ? "a closing quote" -> unexpected
+| | : (next -> char/to-int) < 32 ? "invalid JSON at offset {position}: a control character must be escaped inside a string" -> fail
+| | :
+| | | text -> array/push next
+| | | position + 1 =>> position
+
+proc read-number
+| position => start
+| (peek -> do) = `-` ? position + 1 =>> position
+| (peek -> do) = `0` ?
+| | position + 1 =>> position
+| : peek -> do -> is-digit ?
+| | skip-digits -> do
+| :
+| | "a digit" -> unexpected
+| no => fractional
+| (peek -> do) = `.` ?
+| | position + 1 =>> position
+| | "a digit after the decimal point" -> require-digits
+| | yes =>> fractional
+| (peek -> do) = `e` or (peek -> do) = `E` ?
+| | position + 1 =>> position
+| | ((peek -> do) = `+` or (peek -> do) = `-`) ? position + 1 =>> position
+| | "a digit in the exponent" -> require-digits
+| | yes =>> fractional
+| characters -> array/slice start position -> string/from-chars => literal
+| not fractional ? literal -> string/to-int -> out
+| attempt
+| | literal -> string/to-float -> out
+| recover
+| | "invalid JSON at offset {start}: the number {literal} is too large for a float" -> fail
+
+proc read-word word value
+| word -> string/chars -> array/each expected
+| | (peek -> do) /= expected ? "\"{word}\"" -> unexpected
+| | position + 1 =>> position
+| value
+
+proc read-array
+| position + 1 =>> position
+| [] => items
+| skip-whitespace -> do
+| (peek -> do) = `]` ?
+| | position + 1 =>> position
+| | items -> out
+| while yes
+| | items -> array/push (read-value -> do)
+| | skip-whitespace -> do
+| | peek -> do => next
+| | next = `]` ?
+| | | position + 1 =>> position
+| | | items -> out
+| | next /= `,` ? "a comma or a closing bracket" -> unexpected
+| | position + 1 =>> position
+
+proc read-object
+| position + 1 =>> position
+| {} => members
+| skip-whitespace -> do
+| (peek -> do) = `}` ?
+| | position + 1 =>> position
+| | members -> out
+| while yes
+| | skip-whitespace -> do
+| | (peek -> do) /= `"` ? "a member name in double quotes" -> unexpected
+| | read-string -> do => name
+| | skip-whitespace -> do
+| | (peek -> do) /= `:` ? "a colon" -> unexpected
+| | position + 1 =>> position
+| | members -> hashmap/put name (read-value -> do)
+| | skip-whitespace -> do
+| | peek -> do => next
+| | next = `}` ?
+| | | position + 1 =>> position
+| | | members -> out
+| | next /= `,` ? "a comma or a closing brace" -> unexpected
+| | position + 1 =>> position
+
+proc read-value
+| skip-whitespace -> do
+| peek -> do => next
+| next = `{` ? read-object -> do -> out
+| next = `[` ? read-array -> do -> out
+| next = `"` ? read-string -> do -> out
+| next = `t` ? "true" -> read-word yes -> out
+| next = `f` ? "false" -> read-word no -> out
+| next = `n` ? "null" -> read-word nothing -> out
+| next = `-` or (next -> is-digit) ? read-number -> do -> out
+| "a value" -> unexpected
+
+proc parse text
+| (text -> type-of) /= "string" ? "the input of `json/parse` must be a string, got {text -> describe-type}" -> fail
+| attempt
+| | text -> string/chars =>> characters
+| | characters -> array/length =>> size
+| | 0 =>> position
+| | read-value -> do => result
+| | skip-whitespace -> do
+| | position < size ? "the end of the text" -> unexpected
+| | result -> out
+| always
+| | [] =>> characters
+| | 0 =>> size
+
+export parse

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { runProgram } from '../src/cli.ts';
+import { pathToFileURL } from 'node:url';
+import { createInterpreter, runProgram } from '../src/cli.ts';
+import { registerSourceModule } from '../src/modules.ts';
 import { fakeIo } from './helpers/run.ts';
 
 function project(files: Record<string, string>, main: string): { out: string; err: string; code: number; dir: string } {
@@ -73,4 +75,25 @@ test('errors raised inside a module point at the module file, and its parse erro
 test('export in the main program is allowed and ignored, and a module without exports is empty', () => {
   const result = project({ 'empty.slop': '"side effect" -> io/print-line\n' }, 'export whatever\n"./empty" -> use -> module/names -> io/print-line\n');
   assert.equal(result.out, 'side effect\n[]\n');
+});
+
+test('a source module becomes a builtin module: exports become members, and errors raised inside it point at the caller', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-source-'));
+  const path = join(directory, 'tool.slop');
+  writeFileSync(path, 'proc helper | "hidden"\nproc broken | 1 / 0\nproc apply x f | x -> f\n42 => answer\nexport broken apply answer\n');
+  const io = fakeIo();
+  const interpreter = createInterpreter(io);
+  registerSourceModule(interpreter, 'tool', pathToFileURL(path));
+  const source = 'tool -> module/names -> io/print-line\ntool/answer -> io/print-line\ntool/apply -> io/print-line\n"x" -> tool/apply (s | s + "!") -> io/print-line\nattempt | tool/broken -> do recover e | "{e -> error/line}:{e -> error/column}" -> io/print-line\n"y" -> tool/apply (n | n / 0)\n';
+  const code = runProgram(source, 'main.slop', io, interpreter);
+  assert.equal(io.out, '["broken" "apply" "answer"]\n42\n<proc tool/apply>\nx!\n5:23\n');
+  assert.equal(io.error, 'error: cannot divide a string and an int\n  at main.slop:6:26\n');
+  assert.equal(code, 1);
+});
+
+test('a source module that exports a name it never binds fails at startup', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-source-'));
+  const path = join(directory, 'empty.slop');
+  writeFileSync(path, 'export missing\n');
+  assert.throws(() => registerSourceModule(createInterpreter(fakeIo()), 'empty', pathToFileURL(path)), /the builtin module `empty` exports `missing`, which it does not bind/);
 });

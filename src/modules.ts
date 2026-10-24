@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
-import { runtimeError } from './errors.ts';
+import type { Statement } from './ast.ts';
+import { SlopersonsError, runtimeError } from './errors.ts';
 import type { CallContext, Interpreter } from './interpreter.ts';
 import { parse } from './parser.ts';
-import { array, boolean, describeType, formatValue, freshId, string, type ModuleValue, type Value } from './values.ts';
+import { array, boolean, describeType, formatValue, freshId, string, type ModuleValue, type ProcedureValue, type Value } from './values.ts';
 import { expectString, input } from './stdlib/core.ts';
 
 const EXTENSION = '.slop';
@@ -11,6 +12,36 @@ const EXTENSION = '.slop';
 function displayPath(absolute: string): string {
   const shown = relative(process.cwd(), absolute);
   return shown === '' || shown.startsWith('..') ? absolute : shown;
+}
+
+const parsedSourceModules = new Map<string, Statement[]>();
+
+function callFromOutside(procedure: ProcedureValue, file: string, inputs: Value[], context: CallContext): Value {
+  try {
+    return context.interpreter.callValue(procedure, inputs, context.position, context.environment);
+  } catch (error) {
+    if (error instanceof SlopersonsError && error.position?.file === file) throw runtimeError(error.message, context.position);
+    throw error;
+  }
+}
+
+export function registerSourceModule(interpreter: Interpreter, name: string, location: URL): void {
+  const file = `<builtin ${name}>`;
+  let program = parsedSourceModules.get(location.href);
+  if (program === undefined) {
+    program = parse(readFileSync(location, 'utf8'), file);
+    parsedSourceModules.set(location.href, program);
+  }
+  const run = interpreter.runModule(program, file);
+  for (const request of run.exports) {
+    const value = run.environment.lookup(request.name);
+    if (value === undefined) throw new Error(`the builtin module \`${name}\` exports \`${request.name}\`, which it does not bind`);
+    if (value.type === 'proc') {
+      interpreter.defineIn(name, request.name, value.parameters.length, (inputs, context) => callFromOutside(value, file, inputs, context));
+    } else {
+      interpreter.defineValueIn(name, request.name, value);
+    }
+  }
 }
 
 function expectModule(value: Value, what: string, context: CallContext): ModuleValue {
