@@ -1,48 +1,70 @@
-~ A user registry kept in users.json, in the directory the program is run from.
-~   slopersons users.slop add "Ada Lovelace" 1815-12-10
-~   slopersons users.slop list
-~ Each save writes a temporary file and renames it over users.json, so a crash
-~ in the middle of a save never leaves a half-written registry behind.
+~ An interactive user registry: register users with a name and a birthday,
+~ and list them. Users are kept in users.json, in the directory the program
+~ is run from, so they are still there the next time it runs. Each save writes
+~ a temporary file and renames it over users.json, so a crash in the middle of
+~ a save never leaves a half-written registry behind. Ids count up and are
+~ never reused.
 
 "users.json" => registry-path
 "users.json.tmp" => temporary-path
 
-proc refuse message
-| io/stderr -> stream/write-line "users: {message}"
-| 1 -> exit
-
-proc usage
-| io/stderr -> stream/write-line "usage: slopersons users.slop add <name> <yyyy-mm-dd>"
-| io/stderr -> stream/write-line "       slopersons users.slop list"
-| 2 -> exit
+proc ask label
+| label -> io/print
+| io/read-line -> do => answer
+| answer = nothing ? nothing : answer -> string/trim
 
 proc load
 | not (registry-path -> file/exists) ? {"next-id": 1  "users": []} -> out
 | attempt
 | | registry-path -> file/read -> json/parse -> out
 | recover e
-| | "{registry-path} cannot be read, so it was left untouched: {e -> error/message}" -> refuse
+| | io/stderr -> stream/write-line "{registry-path} cannot be read, so it was left untouched: {e -> error/message}"
+| | 1 -> exit
 
 proc save registry
 | temporary-path -> file/write (registry -> json/stringify) -> file/rename registry-path
 
-proc register registry name birthday-text
-| name -> string/trim => trimmed
-| trimmed -> string/is-empty ? "the name cannot be empty" -> refuse
-| attempt
-| | birthday-text -> date/parse => birthday
-| recover
-| | "the birthday must be a date written as yyyy-mm-dd, got \"{birthday-text}\"" -> refuse
-| birthday > (date/today -> do) ? "a birthday cannot be in the future" -> refuse
+proc ask-choice
+| while yes
+| | "Register, list or quit? (r/l/q): " -> ask => answer
+| | answer = nothing ? "q" -> out
+| | answer -> string/lower => answer
+| | answer = "r" or answer = "register" ? "r" -> out
+| | answer = "l" or answer = "list" ? "l" -> out
+| | answer = "q" or answer = "quit" ? "q" -> out
+| | "'{answer}' is not r, l or q, try again." -> io/print-line
+
+proc ask-name
+| while yes
+| | "Name: " -> ask => name
+| | name = nothing ? nothing -> out
+| | not (name -> string/is-empty) ? name -> out
+| | "The name cannot be empty, try again." -> io/print-line
+
+proc ask-birthday
+| while yes
+| | "Birthday (yyyy-mm-dd): " -> ask => text
+| | text = nothing ? nothing -> out
+| | (attempt | text -> date/parse recover | nothing) => birthday
+| | birthday = nothing ? "'{text}' is not a date written as yyyy-mm-dd, try again." -> io/print-line
+| | : birthday > (date/today -> do) ? "A birthday cannot be in the future, try again." -> io/print-line
+| | : birthday -> out
+
+proc register registry
+| ask-name -> do => name
+| name = nothing ? no -> out
+| ask-birthday -> do => birthday
+| birthday = nothing ? no -> out
 | registry -> hashmap/at "next-id" => id
-| registry -> hashmap/at "users" -> array/push {"id": id  "name": trimmed  "birthday": (birthday -> date/to-string)}
+| registry -> hashmap/at "users" -> array/push {"id": id  "name": name  "birthday": (birthday -> date/to-string)}
 | registry -> hashmap/put "next-id" (id + 1)
 | registry -> save
-| "registered #{id}: {trimmed}, born {birthday -> date/to-string}" -> io/print-line
+| "Registered #{id}: {name}, born {birthday -> date/to-string}." -> io/print-line
+| yes
 
 proc list registry
 | registry -> hashmap/at "users" => users
-| users -> array/is-empty ? "no users registered yet" -> io/print-line -> out
+| users -> array/is-empty ? "No users registered yet." -> io/print-line -> out
 | 0 => width
 | users -> array/each user
 | | user -> hashmap/at "name" -> string/length => length
@@ -52,10 +74,13 @@ proc list registry
 | | user -> hashmap/at "name" -> string/pad-right (width + 2) ` ` => name
 | | "{id}{name}{user -> hashmap/at "birthday"}" -> io/print-line
 
-io/arguments -> do => arguments
-arguments -> array/length => count
-count = 0 ? usage -> do
-arguments -> array/at 0 => command
-command = "add" and count = 3 ? load -> do -> register (arguments -> array/at 1) (arguments -> array/at 2)
-: command = "list" and count = 1 ? load -> do -> list
-: usage -> do
+load -> do => registry
+"Welcome to the user registry." -> io/print-line
+while yes
+| ask-choice -> do => choice
+| choice = "q" ? stop
+| choice = "l" ? registry -> list
+| choice = "r" ?
+| | registry -> register => going-on
+| | not going-on ? stop
+"Goodbye." -> io/print-line

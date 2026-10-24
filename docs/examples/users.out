@@ -1,1 +1,11 @@
-registered #1: Ada Lovelace, born 1815-12-10
+Welcome to the user registry.
+Register, list or quit? (r/l/q): No users registered yet.
+Register, list or quit? (r/l/q): Name: Birthday (yyyy-mm-dd): Registered #1: Ada Lovelace, born 1815-12-10.
+Register, list or quit? (r/l/q): 'x' is not r, l or q, try again.
+Register, list or quit? (r/l/q): Name: The name cannot be empty, try again.
+Name: Birthday (yyyy-mm-dd): '1912-13-01' is not a date written as yyyy-mm-dd, try again.
+Birthday (yyyy-mm-dd): A birthday cannot be in the future, try again.
+Birthday (yyyy-mm-dd): Registered #2: Alan Turing, born 1912-06-23.
+Register, list or quit? (r/l/q): #1    Ada Lovelace  1815-12-10
+#2    Alan Turing   1912-06-23
+Register, list or quit? (r/l/q): Goodbye.

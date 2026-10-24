@@ -9,19 +9,26 @@ import { fileURLToPath } from 'node:url';
 const bin = fileURLToPath(new URL('../bin/slopersons.mjs', import.meta.url));
 const usersExample = fileURLToPath(new URL('../docs/examples/users.slop', import.meta.url));
 
-function users(directory: string, ...words: string[]): { out: string; error: string; code: number | null } {
-  const result = spawnSync(bin, [usersExample, ...words], { encoding: 'utf8', cwd: directory });
+const WELCOME = 'Welcome to the user registry.\n';
+const CHOICE = 'Register, list or quit? (r/l/q): ';
+
+function session(directory: string, input: string): { out: string; error: string; code: number | null } {
+  const result = spawnSync(bin, [usersExample], { encoding: 'utf8', cwd: directory, input });
   return { out: result.stdout, error: result.stderr, code: result.status };
 }
 
-const USAGE = 'usage: slopersons users.slop add <name> <yyyy-mm-dd>\n       slopersons users.slop list\n';
-
-test('the users example keeps its registry in users.json from one run to the next', () => {
+test('the users example keeps its registry in users.json from one session to the next', () => {
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-users-'));
-  assert.deepEqual(users(directory, 'list'), { out: 'no users registered yet\n', error: '', code: 0 });
-  assert.deepEqual(users(directory, 'add', 'Ada Lovelace', '1815-12-10'), { out: 'registered #1: Ada Lovelace, born 1815-12-10\n', error: '', code: 0 });
-  assert.deepEqual(users(directory, 'add', '  Alan Turing ', '1912-06-23'), { out: 'registered #2: Alan Turing, born 1912-06-23\n', error: '', code: 0 });
-  assert.deepEqual(users(directory, 'list'), { out: '#1    Ada Lovelace  1815-12-10\n#2    Alan Turing   1912-06-23\n', error: '', code: 0 });
+  assert.deepEqual(session(directory, 'r\nAda Lovelace\n1815-12-10\nq\n'), {
+    out: `${WELCOME}${CHOICE}Name: Birthday (yyyy-mm-dd): Registered #1: Ada Lovelace, born 1815-12-10.\n${CHOICE}Goodbye.\n`,
+    error: '',
+    code: 0,
+  });
+  assert.deepEqual(session(directory, 'r\nAlan Turing\n1912-06-23\nl\nq\n'), {
+    out: `${WELCOME}${CHOICE}Name: Birthday (yyyy-mm-dd): Registered #2: Alan Turing, born 1912-06-23.\n${CHOICE}#1    Ada Lovelace  1815-12-10\n#2    Alan Turing   1912-06-23\n${CHOICE}Goodbye.\n`,
+    error: '',
+    code: 0,
+  });
   assert.deepEqual(JSON.parse(readFileSync(join(directory, 'users.json'), 'utf8')), {
     'next-id': 3,
     users: [
@@ -32,14 +39,9 @@ test('the users example keeps its registry in users.json from one run to the nex
   assert.equal(existsSync(join(directory, 'users.json.tmp')), false);
 });
 
-test('the users example refuses bad input without creating or changing the registry', () => {
+test('input that ends in the middle of a registration saves nothing', () => {
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-users-'));
-  assert.deepEqual(users(directory, 'add', '  ', '2000-01-01'), { out: '', error: 'users: the name cannot be empty\n', code: 1 });
-  assert.deepEqual(users(directory, 'add', 'Bob', '2000-13-01'), { out: '', error: 'users: the birthday must be a date written as yyyy-mm-dd, got "2000-13-01"\n', code: 1 });
-  assert.deepEqual(users(directory, 'add', 'Bob', '3000-01-01'), { out: '', error: 'users: a birthday cannot be in the future\n', code: 1 });
-  assert.deepEqual(users(directory), { out: '', error: USAGE, code: 2 });
-  assert.deepEqual(users(directory, 'add', 'Bob'), { out: '', error: USAGE, code: 2 });
-  assert.deepEqual(users(directory, 'remove', '1'), { out: '', error: USAGE, code: 2 });
+  assert.deepEqual(session(directory, 'r\nGrace Hopper\n'), { out: `${WELCOME}${CHOICE}Name: Birthday (yyyy-mm-dd): Goodbye.\n`, error: '', code: 0 });
   assert.equal(existsSync(join(directory, 'users.json')), false);
 });
 
@@ -47,9 +49,9 @@ test('the users example leaves a registry it cannot read exactly as it found it'
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-users-'));
   const damaged = '{"next-id": 1, "users": [';
   writeFileSync(join(directory, 'users.json'), damaged);
-  assert.deepEqual(users(directory, 'add', 'Bob', '2000-01-01'), {
+  assert.deepEqual(session(directory, 'l\nq\n'), {
     out: '',
-    error: 'users: users.json cannot be read, so it was left untouched: invalid JSON at offset 25: expected a value, found the end of the text\n',
+    error: 'users.json cannot be read, so it was left untouched: invalid JSON at offset 25: expected a value, found the end of the text\n',
     code: 1,
   });
   assert.equal(readFileSync(join(directory, 'users.json'), 'utf8'), damaged);
