@@ -24,7 +24,15 @@ export class Repl {
   }
 
   run(): number {
-    return finishProgram(this.interpreter, this.io, this.loop());
+    let code: number;
+    try {
+      code = this.loop();
+    } catch (error) {
+      if (!(error instanceof ExitSignal)) throw error;
+      this.io.write('\n');
+      code = error.code;
+    }
+    return finishProgram(this.interpreter, this.io, code);
   }
 
   private loop(): number {

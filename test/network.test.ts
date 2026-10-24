@@ -2,9 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { WAITING_CONNECTIONS_LIMIT } from '../src/network.ts';
+import { WAITING_CONNECTIONS_LIMIT } from '../src/bridge.ts';
 import { BANNER, PROMPT } from '../src/repl.ts';
-import { closedPort, listeningPort, openClient, startProgram, startServer, talkToEchoServer, within, type Client } from './helpers/network.ts';
+import { closedPort, listeningPort, openClient, portIsFree, startProgram, startServer, talkToEchoServer, within, type Client } from './helpers/network.ts';
 
 const bin = fileURLToPath(new URL('../bin/slopersons.mjs', import.meta.url));
 const command = [bin];
@@ -176,3 +176,42 @@ test('the REPL can use sockets', () => {
   assert.equal(result.stdout, `${BANNER}${PROMPT}-> "int"\n${PROMPT}\n`);
   assert.equal(result.status, 0);
 });
+
+const ENDINGS = [
+  { name: 'finishing', ending: '', stop: 'input', code: 0, stderr: /^$/ },
+  { name: 'failing with a runtime error', ending: '1 / 0\n', stop: 'input', code: 1, stderr: /^error: division by zero/ },
+  { name: 'calling exit', ending: '3 -> exit\n', stop: 'input', code: 3, stderr: /^$/ },
+  { name: 'being stopped with Ctrl-C', ending: '', stop: 'ctrl-c', code: 130, stderr: /^$/ },
+] as const;
+
+for (const { name, ending, stop, code, stderr } of ENDINGS) {
+  test(`a program ${name} frees its port at once, sends what it wrote, disconnects every client and exits`, TIMEOUT, async () => {
+    const source = [
+      '"127.0.0.1" -> socket/listen 0 => listener',
+      'listener -> socket/port -> io/print-line',
+      'listener -> socket/accept => connection',
+      'connection -> socket/set-timeout nothing -> stream/write "partial"',
+      '"accepted" -> io/print-line',
+      'io/read-line -> do',
+      ending,
+    ].join('\n');
+    const program = startProgram(command, source);
+    try {
+      const port = await listeningPort(program);
+      const accepted = await openClient(port);
+      await program.printed('accepted\n');
+      const waiting = await openClient(port);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      if (stop === 'ctrl-c') program.child.kill('SIGINT');
+      else program.child.stdin?.write('go\n');
+      const finished = await within(program.finished, 10_000, 'the program to exit');
+      assert.equal(finished.code, code);
+      assert.match(finished.stderr, stderr);
+      assert.equal((await within(accepted.ended, 5000, 'the accepted client to be disconnected')).data, 'partial');
+      assert.equal((await within(waiting.ended, 5000, 'the waiting client to be disconnected')).data, '');
+      assert.equal(await portIsFree(port), true);
+    } finally {
+      program.child.kill();
+    }
+  });
+}

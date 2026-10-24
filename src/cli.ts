@@ -1,4 +1,4 @@
-import { readFileSync, readSync, writeSync } from 'node:fs';
+import { readFileSync, writeSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MessageChannel, Worker, isMainThread } from 'node:worker_threads';
 import {
@@ -9,6 +9,7 @@ import {
   EXIT_USAGE,
   INTERNAL_ERROR_LINE,
   LINE_ENDED,
+  LINE_INTERRUPTED,
   LINE_READY,
   REPL_LINE_BUFFER_BYTES,
   finishProgram,
@@ -16,9 +17,8 @@ import {
   isReadLineRequest,
 } from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
-import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
-import { hostNetwork, type NetworkBridge } from './network.ts';
-import type { Network } from './runtime/network.ts';
+import { INTERRUPT_NONE, INTERRUPT_REQUESTED, hostBridge, type Bridge } from './bridge.ts';
+import { ExitSignal, Interpreter, type InterpreterOptions, type Io } from './interpreter.ts';
 import { parse } from './parser.ts';
 import { registerModules } from './modules.ts';
 import { registerStdlib } from './stdlib/registry.ts';
@@ -34,8 +34,8 @@ function workerHeapMb(): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_WORKER_HEAP_MB;
 }
 
-export function createInterpreter(io: Io, programArguments: readonly string[] = [], network?: Network): Interpreter {
-  const interpreter = new Interpreter(io, programArguments, network);
+export function createInterpreter(io: Io, options: InterpreterOptions = {}): Interpreter {
+  const interpreter = new Interpreter(io, options);
   registerStdlib(interpreter);
   registerModules(interpreter);
   return interpreter;
@@ -101,31 +101,15 @@ function writeAll(fileDescriptor: number, text: string): void {
   }
 }
 
-function readStandardInput(buffer: Uint8Array): number {
-  while (true) {
-    try {
-      return readSync(0, buffer, 0, buffer.length, null);
-    } catch (error) {
-      if (isWouldBlock(error)) {
-        pauseBriefly();
-        continue;
-      }
-      if (error instanceof Error && 'code' in error && error.code === 'EOF') return 0;
-      throw error;
-    }
-  }
-}
-
-export const nodeIo: Io = {
+export const nodeOutput: Pick<Io, 'write' | 'writeError'> = {
   write: (text) => writeAll(1, text),
   writeError: (text) => writeAll(2, text),
-  readInput: readStandardInput,
 };
 
 const USAGE = 'usage: slopersons <file.slop> [arguments...]\n       slopersons --repl\n       slopersons --version\n';
 
 export async function main(argv: string[]): Promise<number> {
-  const io = nodeIo;
+  const io = nodeOutput;
   process.removeAllListeners('warning');
   process.on('warning', () => {});
   const [path, ...programArguments] = argv;
@@ -164,7 +148,13 @@ export async function main(argv: string[]): Promise<number> {
 
 type WorkerTask = { mode: 'program'; source: string; file: string; programArguments: string[] } | { mode: 'repl'; control: SharedArrayBuffer; data: SharedArrayBuffer };
 
-export type WorkerData = WorkerTask & { network: NetworkBridge };
+export type WorkerData = WorkerTask & { bridge: Bridge };
+
+interface WorkerHooks {
+  onReadLine?: (prompt: string) => void;
+  onInterrupt?: () => void;
+  onExit?: () => void;
+}
 
 function runReplInWorker(): Promise<number> {
   const control = new SharedArrayBuffer(8);
@@ -175,28 +165,29 @@ function runReplInWorker(): Promise<number> {
   const queued: string[] = [];
   let ended = false;
   let waiting = false;
+  let interrupted = false;
   const reader = createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY === true, historySize: 200 });
-  const deliver = (line: string | null): void => {
+  const deliver = (state: number, length: number): void => {
     waiting = false;
-    if (line === null) {
-      Atomics.store(controlView, 1, 0);
-      Atomics.store(controlView, 0, LINE_ENDED);
-    } else {
-      const { written } = encoder.encodeInto(line, dataView);
-      Atomics.store(controlView, 1, written);
-      Atomics.store(controlView, 0, LINE_READY);
-    }
+    Atomics.store(controlView, 1, length);
+    Atomics.store(controlView, 0, state);
     Atomics.notify(controlView, 0);
   };
+  const deliverLine = (line: string | null): void => {
+    if (line === null) deliver(LINE_ENDED, 0);
+    else deliver(LINE_READY, encoder.encodeInto(line, dataView).written);
+  };
   reader.on('line', (line: string) => {
-    if (waiting) deliver(line);
+    if (waiting) deliverLine(line);
     else queued.push(line);
   });
   reader.on('close', () => {
     ended = true;
-    if (waiting) deliver(null);
+    if (waiting) deliverLine(null);
   });
+  reader.on('SIGINT', () => process.emit('SIGINT'));
   const onRequest = (prompt: string): void => {
+    if (interrupted) return deliver(LINE_INTERRUPTED, 0);
     if (ended) {
       writeAll(1, prompt);
     } else {
@@ -204,29 +195,35 @@ function runReplInWorker(): Promise<number> {
       reader.prompt();
     }
     const next = queued.shift();
-    if (next !== undefined) deliver(next);
-    else if (ended) deliver(null);
+    if (next !== undefined) deliverLine(next);
+    else if (ended) deliverLine(null);
     else waiting = true;
   };
-  return runInWorker({ mode: 'repl', control, data }, onRequest, () => reader.close());
+  const onInterrupt = (): void => {
+    interrupted = true;
+    if (waiting) deliver(LINE_INTERRUPTED, 0);
+  };
+  return runInWorker({ mode: 'repl', control, data }, { onReadLine: onRequest, onInterrupt, onExit: () => reader.close() });
 }
 
 declare const SLOPERSONS_WORKER_SOURCE: string | undefined;
 
 function startWorker(data: WorkerData): Worker {
-  const options = { workerData: data, transferList: [data.network.messages], resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() } };
+  const options = { workerData: data, transferList: [data.bridge.messages], resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() } };
   if (typeof SLOPERSONS_WORKER_SOURCE === 'string') return new Worker(SLOPERSONS_WORKER_SOURCE, { ...options, eval: true });
   return new Worker(new URL('./worker.ts', import.meta.url), options);
 }
 
-function runInWorker(task: WorkerTask, onReadLine?: (prompt: string) => void, onExit?: () => void): Promise<number> {
+function runInWorker(task: WorkerTask, hooks: WorkerHooks = {}): Promise<number> {
   return new Promise((resolve) => {
     const channel = new MessageChannel();
-    const signal = new SharedArrayBuffer(4);
-    const closeNetwork = hostNetwork({ messages: channel.port1, signal });
-    const worker = startWorker({ ...task, network: { messages: channel.port2, signal } });
+    const shared = { signal: new SharedArrayBuffer(4), interrupt: new SharedArrayBuffer(4) };
+    const host = hostBridge({ messages: channel.port1, ...shared }, () => process.stdin);
+    const worker = startWorker({ ...task, bridge: { messages: channel.port2, ...shared } });
+    const interruptCell = new Int32Array(shared.interrupt);
     let code = EXIT_INTERNAL;
     let pipeBroken = false;
+    let failed = false;
     const onBrokenPipe = (error: unknown): void => {
       if (!isBrokenPipe(error)) throw error;
       if (pipeBroken) return;
@@ -234,11 +231,31 @@ function runInWorker(task: WorkerTask, onReadLine?: (prompt: string) => void, on
       code = EXIT_OK;
       void worker.terminate();
     };
+    const onInterrupt = (): void => {
+      if (Atomics.load(interruptCell, 0) !== INTERRUPT_NONE) {
+        // The worker may be stuck in a system call that terminate() cannot interrupt, so the second Ctrl-C ends the process the way an unhandled SIGINT does.
+        process.removeListener('SIGINT', onInterrupt);
+        process.kill(process.pid, 'SIGINT');
+        return;
+      }
+      Atomics.store(interruptCell, 0, INTERRUPT_REQUESTED);
+      host.interrupt();
+      hooks.onInterrupt?.();
+    };
+    const onUncaught = (error: unknown): void => {
+      process.stderr.write(INTERNAL_ERROR_LINE);
+      if (process.env['SLOPERSONS_DEBUG'] === '1') process.stderr.write(`${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
+      failed = true;
+      code = EXIT_INTERNAL;
+      void worker.terminate();
+    };
     process.stdout.on('error', onBrokenPipe);
     process.stderr.on('error', onBrokenPipe);
+    process.on('SIGINT', onInterrupt);
+    process.on('uncaughtException', onUncaught);
     worker.on('message', (message: unknown) => {
-      if (typeof message === 'number' && !pipeBroken) code = message;
-      if (isReadLineRequest(message) && onReadLine !== undefined) onReadLine(message.prompt);
+      if (typeof message === 'number' && !pipeBroken && !failed) code = message;
+      if (isReadLineRequest(message) && hooks.onReadLine !== undefined) hooks.onReadLine(message.prompt);
     });
     worker.on('error', (error: unknown) => {
       if (error instanceof Error && 'code' in error && error.code === 'ERR_WORKER_OUT_OF_MEMORY') {
@@ -250,9 +267,14 @@ function runInWorker(task: WorkerTask, onReadLine?: (prompt: string) => void, on
       code = EXIT_INTERNAL;
     });
     worker.on('exit', () => {
-      closeNetwork();
-      onExit?.();
-      resolve(code);
+      process.removeListener('SIGINT', onInterrupt);
+      process.removeListener('uncaughtException', onUncaught);
+      try {
+        host.close();
+        hooks.onExit?.();
+      } finally {
+        resolve(code);
+      }
     });
   });
 }

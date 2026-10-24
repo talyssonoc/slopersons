@@ -11,10 +11,10 @@
   },
   "scripts": {
     "slopersons": "node bin/slopersons.mjs",
-    "test": "node --test 'test/**/*.test.ts'",
+    "test": "node --test --test-force-exit 'test/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "build": "node scripts/build-binary.ts",
-    "test:binary": "SLOPERSONS_TEST_BINARY=1 node --test test/binary.test.ts"
+    "test:binary": "SLOPERSONS_TEST_BINARY=1 node --test --test-force-exit test/binary.test.ts"
   },
   "packageManager": "pnpm@10.23.0",
   "devDependencies": {

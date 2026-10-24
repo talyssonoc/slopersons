@@ -21,7 +21,7 @@ Writes to a connection are buffered like writes to a file: they go out when 64 K
 
 Reads and writes on a connection time out after 30 seconds without progress, so one silent client cannot hold up a server forever; `socket/set-timeout` changes that per connection. `socket/accept` has no timeout.
 
-Connections and listeners a program leaves open are closed when it ends, after what was written to the connections is sent.
+Connections and listeners a program leaves open are closed when it ends, after what was written to the connections is sent. However the program ends (finishing, a runtime error, `exit`, Ctrl-C, or an internal interpreter error), every client is disconnected and its ports can be listened on again straight away; `socket/close` frees a listener's port while the program keeps running. A server loop like the one above runs until the program is stopped; Ctrl-C stops it the way `exit` does, even while it waits for a client (see [Ctrl-C](../cli.md#ctrl-c)).
 
 Failures are runtime errors that `attempt` can handle. Their messages name the operation, the address and the reason: `cannot listen on 127.0.0.1:8080: the address is already in use`, `cannot connect to example.com:80: the connection was refused`, `cannot read the connection from 127.0.0.1:53114: nothing arrived within 30 seconds`, `cannot write the connection to example.com:80: the other side reset the connection`.
 

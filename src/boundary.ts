@@ -72,6 +72,7 @@ export function finishProgram(interpreter: Interpreter, io: Io, code: number): n
 export const LINE_WAITING = 0;
 export const LINE_READY = 1;
 export const LINE_ENDED = 2;
+export const LINE_INTERRUPTED = 3;
 export const REPL_LINE_BUFFER_BYTES = 1 << 20;
 
 export interface ReadLineRequest {

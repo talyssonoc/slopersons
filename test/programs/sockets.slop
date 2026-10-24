@@ -6,4 +6,8 @@ listener -> show -> string/starts-with "<listener 127.0.0.1:" -> io/print-line
 listener -> socket/close
 attempt | listener -> socket/accept recover problem | problem -> error/message -> string/starts-with "cannot accept a connection on 127.0.0.1:" -> io/print-line
 attempt | "127.0.0.1" -> socket/listen 70000 recover problem | problem -> io/print-line
+listener -> socket/port => port
+"127.0.0.1" -> socket/listen port => again
+(again -> socket/port) = port -> io/print-line
+again -> socket/close
 io/stdout -> socket/set-timeout 5000

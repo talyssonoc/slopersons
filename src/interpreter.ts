@@ -48,6 +48,20 @@ export class ExitSignal {
   }
 }
 
+export const EXIT_INTERRUPTED = 130;
+
+export interface Interruption {
+  take(): boolean;
+}
+
+export const NO_INTERRUPTION: Interruption = { take: () => false };
+
+export interface InterpreterOptions {
+  programArguments?: readonly string[];
+  network?: Network;
+  interruption?: Interruption;
+}
+
 export class OutSignal {
   readonly activation: number;
   readonly value: Value;
@@ -149,14 +163,16 @@ export class Interpreter {
   currentFile: string | null;
   readonly programArguments: readonly string[];
   readonly network: Network;
+  private readonly interruption: Interruption;
   readonly streams: StreamRegistry;
   readonly endHooks: (() => number)[];
   private readonly exportStack: ExportRequest[][];
 
-  constructor(io: Io, programArguments: readonly string[] = [], network: Network = NO_NETWORK) {
+  constructor(io: Io, options: InterpreterOptions = {}) {
     this.io = io;
-    this.programArguments = programArguments;
-    this.network = network;
+    this.programArguments = options.programArguments ?? [];
+    this.network = options.network ?? NO_NETWORK;
+    this.interruption = options.interruption ?? NO_INTERRUPTION;
     this.streams = new StreamRegistry();
     this.endHooks = [];
     this.builtins = new Map();
@@ -303,6 +319,7 @@ export class Interpreter {
       }
       case 'while':
         while (this.evalCondition(statement.condition, environment)) {
+          this.checkInterruption();
           try {
             this.execBlock(statement.body, environment);
           } catch (signal) {
@@ -456,7 +473,12 @@ export class Interpreter {
     return this.callValue(callee, inputs, step.position, environment);
   }
 
+  private checkInterruption(): void {
+    if (this.interruption.take()) throw new ExitSignal(EXIT_INTERRUPTED);
+  }
+
   callValue(callee: Value, inputs: Value[], location: Position, environment: Environment): Value {
+    this.checkInterruption();
     if (callee.type === 'builtin') {
       this.checkArity(callee.name, callee.arity, inputs.length, location);
       return callee.implementation(inputs, { interpreter: this, position: location, environment });

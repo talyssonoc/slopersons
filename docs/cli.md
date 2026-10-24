@@ -34,7 +34,7 @@ Everything after the program file is passed to the program, which reads it with 
 - A line that ends a call with names that are not bound, such as `xs -> array/each n`, also starts a block entry, because those names are almost certainly lambda parameters. Press Enter on an empty line to run it without a block.
 - The value of an entry is echoed as `-> value` in the same form `show` uses, so a string appears quoted. `nothing` is not echoed.
 - Errors are printed as `error: message` with the position inside the entry, and the session continues.
-- Ctrl-D leaves with exit code 0; `code -> exit` leaves with that code.
+- Ctrl-D leaves with exit code 0; `code -> exit` leaves with that code; Ctrl-C leaves with 130, whether an entry is running or the prompt is waiting (see [Ctrl-C](#ctrl-c)).
 
 Line editing comes from Node's readline: the arrow keys move within the line and recall earlier entries, and the usual shortcuts work. Up to 200 entries are kept in the session's history. This path is exercised by a test that drives the REPL inside a pseudo-terminal (`test/repl-terminal.test.ts`), not only through pipes.
 
@@ -46,6 +46,7 @@ Line editing comes from Node's readline: the arrow keys move within the line and
 | 1 | the program failed with a parse or runtime error, or a file it left open could not be written when it ended |
 | 2 | usage error: no file given, an unknown option, words after `--repl`, or the file could not be read |
 | 70 | an internal interpreter error; a bug in slopersons, not in the program |
+| 130 | Ctrl-C ended the program (see [Ctrl-C](#ctrl-c)) |
 | other | the value passed to `exit` |
 
 ## Errors
@@ -70,6 +71,12 @@ and exits with code 70. Setting the environment variable `SLOPERSONS_DEBUG=1` ad
 `io/print-line` writes a line to standard output and `io/print` writes without a line break, which is how prompts are shown. `io/read-line -> do` reads one line from standard input and gives `nothing` at end of input; output written before it, including a prompt without a newline, is delivered before the program blocks waiting for input. Output is fully flushed before the process exits, including when `exit` is called. If the reader of standard output goes away early, as in `slopersons report.slop | head`, the program stops quietly with exit code 0.
 
 Standard input is read as UTF-8; bytes that are not valid UTF-8 stop the program with `error: cannot read standard input: it is not valid UTF-8 text (invalid byte at offset N)` unless an `attempt` handles it. Writes to files opened with `file/open` are buffered, and every file a program leaves open is written and closed when it ends, whether it finishes, calls `exit` or stops with an error. If that last write fails, for example because the disk is full, the failure is printed as an `error:` line and a program that would have exited with 0 exits with 1. Relative paths in `file/*` calls are resolved against the directory `slopersons` was started in; `path/this-directory -> do` gives the directory of the program's own file.
+
+## Ctrl-C
+
+Ctrl-C ends a program the way `130 -> exit` does: the program stops where it is, `test` prints its summary, every file and connection it left open is written out and closed, and the process exits with 130. As with `exit`, `attempt` does not catch it and `always` blocks do not run. It works whether the program is computing, waiting for a line of standard input, or waiting on a socket.
+
+A second Ctrl-C ends the process at once, without writing anything out. It is for a program that does not stop after the first, which happens when it is stuck in a call the interpreter cannot interrupt, such as opening a named pipe that nothing writes to. The shell then reports the process as ended by the signal, with status 130.
 
 ## Execution and limits
 

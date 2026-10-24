@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BANNER, PROMPT } from '../../src/repl.ts';
-import { talkToEchoServer } from './network.ts';
+import { startProgram, talkToEchoServer } from './network.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const GOLDEN_DIRECTORIES = [join(root, 'test/programs'), join(root, 'docs/examples')];
@@ -73,6 +73,17 @@ export function defineEntryPointTests(prefix: string, command: () => readonly st
     assert.equal(result.stderr, '');
     assert.equal(result.stdout, `${BANNER}${PROMPT}-> 8\n${PROMPT}-> {"a": 1}\n${PROMPT}\n`);
     assert.equal(result.status, 0);
+  });
+
+  test(`${prefix}Ctrl-C ends a busy program with exit code 130`, { timeout: 20_000 }, async () => {
+    const program = startProgram(command(), '"ready" -> io/print-line\nwhile yes\n| 1 => x\n');
+    try {
+      await program.printed('ready\n');
+      program.child.kill('SIGINT');
+      assert.deepEqual(await program.finished, { stdout: 'ready\n', stderr: '', code: 130 });
+    } finally {
+      program.child.kill();
+    }
   });
 
   test(`${prefix}a server answers clients over real sockets`, { timeout: 20_000 }, async () => {

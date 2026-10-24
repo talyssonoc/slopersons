@@ -38,7 +38,7 @@ export function fakeIo(inputLines: string[] = []): FakeIo {
 
 export function run(source: string, inputLines: string[] = [], network: Network = NO_NETWORK): RunResult {
   const io = fakeIo(inputLines);
-  const interpreter = new Interpreter(io, [], network);
+  const interpreter = new Interpreter(io, { network });
   registerStdlib(interpreter);
   try {
     interpreter.run(parse(source));
@@ -65,6 +65,6 @@ export function failure(source: string): SlopersonsError {
 
 export function runCli(source: string, inputLines: string[] = [], programArguments: string[] = []): { code: number; io: FakeIo } {
   const io = fakeIo(inputLines);
-  const code = runProgram(source, 'test.slop', io, createInterpreter(io, programArguments));
+  const code = runProgram(source, 'test.slop', io, createInterpreter(io, { programArguments }));
   return { code, io };
 }

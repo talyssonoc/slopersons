@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
@@ -23,6 +23,22 @@ function stripEscapes(text: string): string {
   return text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '').replace(/\r/g, '');
 }
 
+const sessions: ChildProcess[] = [];
+
+// Killing only the sh that starts a session would leave cat, script and the REPL running, so each session is its own process group.
+function killGroup(child: ChildProcess): void {
+  if (child.pid === undefined || child.exitCode !== null) return;
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    // the group has already ended
+  }
+}
+
+after(() => {
+  for (const child of sessions) killGroup(child);
+});
+
 // macOS implements FIFOs and Node's stdio pipes as sockets, which script rejects with
 // "Operation not supported on socket"; relaying the keystrokes through cat gives script a real pipe.
 function openTerminalSession(): TerminalSession {
@@ -33,7 +49,8 @@ function openTerminalSession(): TerminalSession {
     process.platform === 'darwin'
       ? 'cat | script -q -t 0 "$0" "$1" --repl > /dev/null 2> "$2"'
       : 'cat | script -qefc "$1 --repl" "$0" > /dev/null 2> "$2"';
-  const child = spawn('sh', ['-c', command, log, bin, errorLog], { stdio: ['pipe', 'ignore', 'ignore'] });
+  const child = spawn('sh', ['-c', command, log, bin, errorLog], { stdio: ['pipe', 'ignore', 'ignore'], detached: true });
+  sessions.push(child);
   const transcript = (): string => stripEscapes(existsSync(log) ? readFileSync(log, 'utf8') : '');
   return {
     child,
@@ -54,7 +71,7 @@ function openTerminalSession(): TerminalSession {
             resolve();
           } else if (Date.now() - started > 10_000) {
             clearInterval(timer);
-            child.kill();
+            killGroup(child);
             const stderr = existsSync(errorLog) ? readFileSync(errorLog, 'utf8') : '';
             reject(new Error(`timed out waiting for ${JSON.stringify(needle)}; transcript so far: ${JSON.stringify(transcript())}; stderr: ${stderr}`));
           }
@@ -63,7 +80,7 @@ function openTerminalSession(): TerminalSession {
     end: () =>
       new Promise((resolve) => {
         const timer = setTimeout(() => {
-          child.kill();
+          killGroup(child);
           resolve(null);
         }, 10_000);
         child.on('close', (code) => {
@@ -78,6 +95,7 @@ function openTerminalSession(): TerminalSession {
 const LEFT = '\x1b[D';
 const UP = '\x1b[A';
 const CTRL_D = '\x04';
+const CTRL_C = '\x03';
 
 test('in a real terminal the REPL supports line editing, history, block entries and end of input', { skip: supported ? false : 'needs the script command on macOS or Linux', timeout: 60_000 }, async () => {
   const session = openTerminalSession();
@@ -109,3 +127,16 @@ test('in a real terminal the REPL supports line editing, history, block entries 
   assert.equal(code, 0);
   assert.doesNotMatch(session.transcript(), /error:/);
 });
+
+// The session only closes once its input ends, and an end of input alone would make the REPL exit with 0, so 130 shows Ctrl-C got there first.
+for (const entry of ['', 'while yes | 1 => x\r']) {
+  test(`in a real terminal Ctrl-C ends the REPL with 130 ${entry === '' ? 'at the prompt' : 'while an entry runs'}`, { skip: supported ? false : 'needs the script command on macOS or Linux', timeout: 60_000 }, async () => {
+    const session = openTerminalSession();
+    await session.waitFor('> ');
+    if (entry !== '') await session.send(entry);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await session.send(CTRL_C);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.equal(await session.end(), 130, `transcript: ${JSON.stringify(session.transcript())}`);
+  });
+}

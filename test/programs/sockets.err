@@ -1,2 +1,2 @@
 error: the input of `socket/set-timeout` must be a connection from `socket/accept` or `socket/connect`, got a stream
-  at <file>:9:11
+  at <file>:13:11
