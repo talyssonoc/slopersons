@@ -21,8 +21,31 @@ An ADR is not a changelog and not a feature spec.
 
 1. Copy `template.md` to `YYYYMMDDHHMM-<decision-slug>.md` (`date +%Y%m%d%H%M`).
 2. Name the decision, not the topic: `use-postgresql-as-primary-database`, not `database`. If the name needs "and", split it into two ADRs.
-3. Fill in Context, Decision, and Consequences. Start with status Proposed.
+3. Fill in Context, Decision, and Consequences, following "How to write one" below. Start with status Proposed.
 4. Add a row to the index below.
+
+## How to write one
+
+Write each record for a developer who joins later and has nothing but the record: Nygard's "conversation with a future developer". That reader has to be able to tell whether the decision still holds when circumstances change, so every record carries its reasons. "A record without justification loses its value over time as stakeholders can't evaluate whether the decision still applies when circumstances change" (Microsoft).
+
+- **Context states the forces at play, as facts:**
+  - the problem;
+  - the constraints;
+  - the requirements and qualities that matter;
+  - where they pull against each other.
+
+  Nygard: "The language in this section is value-neutral. It is simply describing facts."
+- **Give reasons, not authority.** Who asked for something is not a reason, and a reader cannot weigh it. State a requirement as a requirement, with its reason when there is one: "Programs that keep their state in files need to read JSON", not "the owner asked for `json/parse`".
+- **Don't narrate how the decision was reached.** No "this was proposed", "the owner chose", "after discussion" or "the user reported". Record the outcome and why. If who took part ever matters, it belongs in metadata, like MADR's `decision-makers` field, not in the argument.
+- **For a choice between reasonable options,** say what was chosen and why it beat the others. Give each rejected option the reason it lost.
+- **Decision says what is done,** in full sentences, one decision per record.
+- **Consequences lists all of them:** good, bad and neutral, and the follow-up decisions this one requires.
+- **Cite only what a reader can open:** other records, files in the repository, public documentation. A conversation, a chat or a brief that is not in the repository is not a source.
+- **Keep it short:** one or two pages.
+
+`test/adr.test.ts` fails on a record that gives who asked as a reason or cites the brief.
+
+Sources: Michael Nygard, [Documenting Architecture Decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions) (2011); [MADR](https://adr.github.io/madr/), Markdown Architectural Decision Records; Microsoft, [Maintain an architecture decision record](https://learn.microsoft.com/en-us/azure/well-architected/architect-role/architecture-decision-record).
 
 ## Statuses
 
@@ -36,7 +59,7 @@ An ADR is not a changelog and not a feature spec.
 
 ## ADRs are immutable
 
-Once written, an ADR is not edited. Only its status changes. When a decision changes, write a new ADR that explains the new context, and set the old one's status to `Superseded by [title](./file.md)`. Older code may still follow the earlier decision; the log explains why.
+Once written, an ADR is not edited. Only its status changes. There has been one exception: on 2026-10-24 the wording of 39 records was changed, without changing what they decided, because they gave who asked for a decision instead of why it was made. When a decision changes, write a new ADR that explains the new context, and set the old one's status to `Superseded by [title](./file.md)`. Older code may still follow the earlier decision; the log explains why.
 
 ## Index
 
@@ -134,4 +157,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Make Ctrl-C end a program the way `exit` does](./202610241708-make-ctrl-c-end-a-program-the-way-exit-does.md) | Superseded by [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) |
 | 2026-10-24 | [Free every socket however a program ends](./202610241736-free-every-socket-however-a-program-ends.md) | Accepted |
 | 2026-10-24 | [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) | Accepted |
-| 2026-10-24 | [Serve HTTP from a slopersons module over sockets](./202610241758-serve-http-from-a-slopersons-module-over-sockets.md) | Proposed |
+| 2026-10-24 | [Serve HTTP from a slopersons module over sockets](./202610241758-serve-http-from-a-slopersons-module-over-sockets.md) | Accepted |

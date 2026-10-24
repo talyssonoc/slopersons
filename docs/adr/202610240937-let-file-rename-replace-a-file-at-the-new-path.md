@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-`file/write` empties a file before writing it, so a program that crashes, or is stopped, while saving its state leaves a truncated file behind, and with JSON state the next run cannot even parse it. The usual remedy is to write the new state to a temporary file and rename it over the old one, which the operating system does atomically. The project owner asked for `file/rename` for this.
+`file/write` empties a file before writing it, so a program that crashes, or is stopped, while saving its state leaves a truncated file behind, and with JSON state the next run cannot even parse it. The usual remedy is to write the new state to a temporary file and rename it over the old one, which the operating system does atomically. The `file` module had no way to rename a file.
 
 ## Decision
 

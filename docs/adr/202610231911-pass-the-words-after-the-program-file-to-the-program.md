@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The command line took the program file from its first word and dropped everything after it, so a program had no way to receive arguments. It also looked for `--version`, `--help`, `-h` and `--repl` anywhere on the line: `slopersons tool.slop --help` printed the interpreter's usage instead of running the program. File handling was being designed next, and without arguments every path a program works on would have to be written into its source or typed on standard input. The project owner agreed to add arguments first, as a change of its own.
+The command line took the program file from its first word and dropped everything after it, so a program had no way to receive arguments. It also looked for `--version`, `--help`, `-h` and `--repl` anywhere on the line: `slopersons tool.slop --help` printed the interpreter's usage instead of running the program. File handling was being designed next, and without arguments every path a program works on would have to be written into its source or typed on standard input. So arguments come first, as a change of their own.
 
 ## Decision
 

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The `file` module was built resolving relative paths against the working directory, but the choice was never recorded. The project owner ran the users example from the root of the repository and found `users.json` there instead of next to the program, and asked why. Modules loaded with `use` resolve against the importing file ([Split programs into modules with `use` and `export`](./202610231613-split-programs-into-modules-with-use-and-export.md)), so the two rules differ.
+The `file` module was built resolving relative paths against the working directory, but the choice was never recorded. Its effect shows when a program is started from another directory: the users example, run from the root of the repository, wrote `users.json` there instead of next to the program. Modules loaded with `use` resolve against the importing file ([Split programs into modules with `use` and `export`](./202610231613-split-programs-into-modules-with-use-and-export.md)), so the two rules differ.
 
 ## Decision
 

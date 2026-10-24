@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Opening, reading, writing, listing and removing files fail for reasons that come from the operating system: a missing file, a permission, a directory where a file was expected, a full disk. Node reports them as JavaScript errors with messages such as `ENOENT: no such file or directory, open 'x'`, which [Never show JavaScript to the person running a program](./202610231544-never-show-javascript-to-the-person-running-a-program.md) rules out. The owner asked for errors that behave as in a modern language.
+Opening, reading, writing, listing and removing files fail for reasons that come from the operating system: a missing file, a permission, a directory where a file was expected, a full disk. Node reports them as JavaScript errors with messages such as `ENOENT: no such file or directory, open 'x'`, which [Never show JavaScript to the person running a program](./202610231544-never-show-javascript-to-the-person-running-a-program.md) rules out. In modern languages these failures are ordinary errors a program can catch, with a message that names the file and the reason.
 
 ## Decision
 

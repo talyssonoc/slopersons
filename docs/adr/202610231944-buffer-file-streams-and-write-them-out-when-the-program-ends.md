@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Streams need a policy for when bytes move between the program and the operating system. Standard output is written synchronously, one system call per `io/print-line` ([Write program output synchronously to the file descriptors](./202610231607-write-program-output-synchronously-to-the-file-descriptors.md)), so prompts appear before the program waits for input. Standard input was read one byte per system call. Files are new. The owner left the choice to the implementer, asking for something realistic for a small language. `always` does not run on `exit` ([Run cleanup with `always` after `attempt`](./202610231615-run-cleanup-with-always-after-attempt.md)), so a program cannot be trusted to close every stream itself.
+Streams need a policy for when bytes move between the program and the operating system. Standard output is written synchronously, one system call per `io/print-line` ([Write program output synchronously to the file descriptors](./202610231607-write-program-output-synchronously-to-the-file-descriptors.md)), so prompts appear before the program waits for input. Standard input was read one byte per system call. Files are new, and their policy should be one a programmer from another language expects, without the machinery of a large standard library. `always` does not run on `exit` ([Run cleanup with `always` after `attempt`](./202610231615-run-cleanup-with-always-after-attempt.md)), so a program cannot be trusted to close every stream itself.
 
 ## Decision
 

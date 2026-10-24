@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The brief asked for an interpreter that is easy to run, like a file with a Node shebang. Node 26, the version installed on the development machine, strips erasable TypeScript syntax with no flag.
+The interpreter should be as easy to run as a script: one file with a Node shebang, with nothing to build first. Node 26, the version installed on the development machine, strips erasable TypeScript syntax with no flag.
 
 ## Decision
 

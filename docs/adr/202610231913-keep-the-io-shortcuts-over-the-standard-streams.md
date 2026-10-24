@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Once standard input and output are stream values ([Represent open files and the standard streams as stream values](./202610231912-represent-open-files-and-the-standard-streams-as-stream-values.md)), `io/read-line -> do` and `io/stdin -> stream/read-line` do the same thing, and [Organize the standard library into modules](./202610231614-organize-the-standard-library-into-modules.md) rejected two ways to say the same thing. Dropping `io/read-line` was proposed on that ground, since it is not even shorter. The project owner rejected it: asking the person at the keyboard for data or printing to them should not require knowing about `io` and `stream` both.
+Once standard input and output are stream values ([Represent open files and the standard streams as stream values](./202610231912-represent-open-files-and-the-standard-streams-as-stream-values.md)), `io/read-line -> do` and `io/stdin -> stream/read-line` do the same thing, and [Organize the standard library into modules](./202610231614-organize-the-standard-library-into-modules.md) rejected two ways to say the same thing. Dropping `io/read-line` was proposed on that ground, since it is not even shorter. Against it: asking the person at the keyboard for data, or printing to them, is the most common thing a program does, and it should not require knowing about both `io` and `stream`.
 
 ## Decision
 

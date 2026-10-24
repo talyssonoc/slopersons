@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Building a path to a file next to a program needed joining a directory and a name, and taking the directory of a file, and the standard library had neither. Both could have gone into `file`, but the project owner asked for a separate `path` module: these functions only build strings and never touch the file system, unlike everything in `file`.
+Building a path to a file next to a program needed joining a directory and a name, and taking the directory of a file, and the standard library had neither. Both could have gone into `file`, but these functions only build strings and never touch the file system, unlike everything in `file`.
 
 ## Decision
 
@@ -17,7 +17,7 @@ Building a path to a file next to a program needed joining a directory and a nam
 
 Rejected:
 
-- Putting `join` and `parent` in `file`: the owner wanted file system operations and string building kept apart.
+- Putting `join` and `parent` in `file`: the module would mix operations on the file system with functions that only build strings.
 - Joining as Node's `path.join` does, which keeps an absolute part inside the result (`/a` joined with `/b` is `/a/b`): `path/this-directory -> do -> path/join input` would then misread an absolute path someone typed.
 - Normalizing `.` and `..` while joining: the operating system already understands them, and normalizing `..` without looking at the disk gives the wrong answer when a directory is a symbolic link.
 

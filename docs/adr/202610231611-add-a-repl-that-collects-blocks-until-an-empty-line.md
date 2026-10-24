@@ -6,7 +6,7 @@ Superseded by [Read REPL input with readline on the main thread](./202610231612-
 
 ## Context
 
-The plan had the CLI read a program from standard input when no file was given; that was never built. The project owner asked instead for an interactive session, `slopersons --repl`. Two properties of the language shape the design: a statement can span lines through margin blocks, `:` lines, `recover` lines and continuation lines, and programs already read input with a blocking line reader inside the worker thread.
+The plan had the CLI read a program from standard input when no file was given; that was never built. An interactive session, `slopersons --repl`, replaces that plan: it lets someone try the language one entry at a time, seeing each result, instead of writing a whole program first. Two properties of the language shape the design: a statement can span lines through margin blocks, `:` lines, `recover` lines and continuation lines, and programs already read input with a blocking line reader inside the worker thread.
 
 ## Decision
 

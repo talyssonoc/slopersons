@@ -6,7 +6,7 @@ Superseded by [Run cleanup with always after attempt](./202610231615-run-cleanup
 
 ## Context
 
-Until now any runtime error ended the program, and the only way to survive bad input was to validate it beforehand: the calculator example carried a hand-written `looks-like-number` because `to-int` on bad text was fatal. Error handling was deferred from the first design round. Two choices were put to the project owner: the keywords, and how the two bodies scope.
+Until now any runtime error ended the program, and the only way to survive bad input was to validate it beforehand: the calculator example carried a hand-written `looks-like-number` because `to-int` on bad text was fatal. Error handling was deferred from the first design round. Two choices shape it: the keywords, and how the two bodies scope.
 
 ## Decision
 

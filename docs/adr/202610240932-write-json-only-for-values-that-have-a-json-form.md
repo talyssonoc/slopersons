@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-After `json/parse`, the project owner asked for `json/stringify`, as the other half of storing program state in files. Slopersons has values with no JSON counterpart (chars, dates, times, datetimes, sets, procedures, modules, streams, errors), hashmaps whose keys can be any value, ints of any size, floats whose printed form always has a decimal point, and mutable arrays and hashmaps that can contain themselves. JavaScript's `JSON.stringify` converts or drops what it cannot represent: a `Date` becomes its ISO string, a `Set` becomes `{}`, functions disappear, and a structure that contains itself raises an error.
+`json/parse` reads program state from files. Storing that state needs the other half, `json/stringify`. Slopersons has values with no JSON counterpart (chars, dates, times, datetimes, sets, procedures, modules, streams, errors), hashmaps whose keys can be any value, ints of any size, floats whose printed form always has a decimal point, and mutable arrays and hashmaps that can contain themselves. JavaScript's `JSON.stringify` converts or drops what it cannot represent: a `Date` becomes its ISO string, a `Set` becomes `{}`, functions disappear, and a structure that contains itself raises an error.
 
 ## Decision
 

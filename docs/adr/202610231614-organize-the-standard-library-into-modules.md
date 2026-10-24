@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-With user modules in place, the standard library was the odd one out: a flat namespace of bare names where `length`, `at` and `each` dispatched on the receiver's type. The project owner asked for the standard library to use the same module shape (`io/print`, `array/length`, `char/upper`), with the modules available without a `use`, and for a proposal of what, if anything, should stay bare.
+With user modules in place, the standard library was the odd one out: a flat namespace of bare names where `length`, `at` and `each` dispatched on the receiver's type. The standard library could take the same module shape (`io/print`, `array/length`, `char/upper`), with the modules available without a `use`, so that builtin and user modules are reached the same way and a call's module names what it expects. That leaves the question of what, if anything, should stay bare.
 
 ## Decision
 

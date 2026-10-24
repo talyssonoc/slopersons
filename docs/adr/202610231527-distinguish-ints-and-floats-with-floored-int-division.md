@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The brief asked for int and float as separate primitives. Division between ints is where dynamic languages differ most.
+Slopersons has two numeric primitives, int and float. Division between ints is where dynamic languages differ most.
 
 ## Decision
 

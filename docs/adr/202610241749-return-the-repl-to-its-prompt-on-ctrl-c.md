@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-[Make Ctrl-C end a program the way `exit` does](./202610241708-make-ctrl-c-end-a-program-the-way-exit-does.md) also made Ctrl-C end a REPL session with 130, because that is what `exit` does. In a REPL that means a runaway entry costs the whole session: every binding and procedure typed so far. Python's and Node's REPLs stop the entry and go back to the prompt instead. The project owner chose that behaviour.
+[Make Ctrl-C end a program the way `exit` does](./202610241708-make-ctrl-c-end-a-program-the-way-exit-does.md) also made Ctrl-C end a REPL session with 130, because that is what `exit` does. In a REPL that means a runaway entry costs the whole session: every binding and procedure typed so far. Python's and Node's REPLs stop the entry and go back to the prompt instead, keeping the session.
 
 This replaces only the REPL part of that record. For programs, Ctrl-C still works as it decided:
 - it behaves like `130 -> exit`;

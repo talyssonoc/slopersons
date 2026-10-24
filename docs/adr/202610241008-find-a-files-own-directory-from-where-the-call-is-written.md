@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Relative `file/*` paths resolve against the working directory ([Resolve relative file paths against the working directory](./202610241006-resolve-relative-file-paths-against-the-working-directory.md)), so a program could not find a file stored next to its own source. The project owner asked for something like Node's `__dirname`. Node gives every module its own `__dirname` variable. Slopersons has no per-file bindings, but every source position already records the file it comes from.
+Relative `file/*` paths resolve against the working directory ([Resolve relative file paths against the working directory](./202610241006-resolve-relative-file-paths-against-the-working-directory.md)), so a program could not find a file stored next to its own source. Node solves the same problem with `__dirname`, a variable every module gets. Slopersons has no per-file bindings, but every source position already records the file it comes from.
 
 ## Decision
 

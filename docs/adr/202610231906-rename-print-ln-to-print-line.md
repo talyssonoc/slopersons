@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The `io` module held `print-ln` beside `read-line`: two spellings of "line" in a module of three members. The project owner called out the mismatch while planning file streams, which will add `stream/read-line` and `stream/write-line` next to the `io` shortcuts, and asked for one spelling across the standard library.
+The `io` module held `print-ln` beside `read-line`: two spellings of "line" in a module of three members. File streams will add `stream/read-line` and `stream/write-line` next to the `io` shortcuts, which would spread the mismatch across modules. With one spelling across the standard library, a reader who knows one name can guess the others.
 
 ## Decision
 

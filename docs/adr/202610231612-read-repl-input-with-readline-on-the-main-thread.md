@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The first REPL read lines inside the worker with the same blocking reader programs use. That gave the terminal's basic editing only: the arrow keys printed escape sequences and there was no history, which the project owner reported immediately. Node's `readline` provides editing and history, but it must own standard input on the main thread, while the program runs on a worker that reads input synchronously, including when an entry calls `read-line`.
+The first REPL read lines inside the worker with the same blocking reader programs use. That gave the terminal's basic editing only: the arrow keys printed escape sequences and there was no history. Node's `readline` provides editing and history, but it must own standard input on the main thread, while the program runs on a worker that reads input synchronously, including when an entry calls `read-line`.
 
 ## Decision
 

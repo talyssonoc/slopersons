@@ -116,6 +116,7 @@ Architectural decisions are recorded in `docs/adr/`, indexed in `docs/adr/README
   - copy `docs/adr/template.md` to `docs/adr/$(date +%Y%m%d%H%M)-<decision-slug>.md`, naming the decision, not the topic;
   - status Proposed unless the user has agreed to it;
   - describe the real context and the alternatives considered, not generic pros and cons;
+  - write it for a later reader who has only the record: state the forces and the reasons as facts. Never give who asked or who chose as a reason ("the owner wants", "the user asked"). Never narrate the conversation that led to it. Never cite what is not in the repository, such as a brief or a chat. A requirement is stated as a requirement, with its reason; a choice between options says why the others lost. `docs/adr/README.md` has the full guidance, and `test/adr.test.ts` checks the wording;
   - add it to the index.
 - Don't write ADRs for tiny, temporary, or already-documented decisions.
 - Never edit an existing ADR except its status. To change a decision, write a new ADR and set the old one's status to `Superseded by [title](./file.md)`.

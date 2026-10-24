@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The error-handling record left out a cleanup clause because the language had nothing to release. The project owner asked for one anyway, and the construct is cheap to add on top of `attempt`/`recover`. The keyword was put to the owner: `always` was chosen over `finally` and `ensure`.
+The error-handling record left out a cleanup clause because the language had nothing to release. A cleanup clause is still worth having ahead of the resources that will need it, since the construct is cheap to add on top of `attempt`/`recover`.
 
 ## Decision
 

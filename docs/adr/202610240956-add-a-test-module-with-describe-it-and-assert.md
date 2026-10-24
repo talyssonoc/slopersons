@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Slopersons programs had no way to test themselves short of printing values and reading them. The project owner asked for a basic `test` module available without `use`, with only `describe`, `it` and `assert`. Procedures written by users have exact arity, so one function cannot serve both a one-argument and a two-argument assertion.
+Slopersons programs had no way to test themselves short of printing values and reading them. A basic test module needs little: `describe` and `it` to name and group tests, and `assert` to compare a value with the one expected, available without `use` like the rest of the standard library. Procedures written by users have exact arity, so one function cannot serve both a one-argument and a two-argument assertion.
 
 ## Decision
 

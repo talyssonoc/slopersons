@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The brief asked for a syntax whose shape resembles no mainstream language. Novelty at the token level is impossible, since every glyph and keyword exists somewhere, so the distinctiveness budget went into statement shape, call shape and block shape, while arithmetic and literals stayed ordinary on purpose.
+Slopersons is meant to have a syntax whose shape resembles no mainstream language. Novelty at the token level is impossible, since every glyph and keyword exists somewhere, so the distinctiveness budget went into statement shape, call shape and block shape, while arithmetic and literals stayed ordinary on purpose.
 
 ## Decision
 

@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The brief asked for a date object. Time of day, time zones and daylight saving multiply the surface and the error cases.
+The standard library needs a value for dates. Time of day, time zones and daylight saving multiply the surface and the error cases.
 
 ## Decision
 

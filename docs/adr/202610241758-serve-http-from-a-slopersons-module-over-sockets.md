@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
-The project owner wants small web apps written in slopersons, starting from sockets and building HTTP on top ([Expose TCP through a socket module whose connections are streams](./202610241616-expose-tcp-through-a-socket-module-whose-connections-are-streams.md)). A program handles one connection at a time ([Make socket calls block by handing them to the main thread](./202610241615-make-socket-calls-block-by-handing-them-to-the-main-thread.md)). The owner agreed to a handler that takes a request hashmap and returns a response hashmap, served from a listener. They chose arrays for query names given more than once.
+Slopersons programs should be able to serve small web apps, with HTTP written in slopersons over the `socket` module ([Expose TCP through a socket module whose connections are streams](./202610241616-expose-tcp-through-a-socket-module-whose-connections-are-streams.md)), as `json` is written in slopersons. A program handles one connection at a time ([Make socket calls block by handing them to the main thread](./202610241615-make-socket-calls-block-by-handing-them-to-the-main-thread.md)).
 
 ## Decision
 
@@ -42,10 +42,11 @@ The project owner wants small web apps written in slopersons, starting from sock
 
 Rejected:
 
-- **Node's `http` module at the boundary.** The owner wants HTTP written over sockets.
+- **Node's `http` module at the boundary.** HTTP would be Node's code rather than the language's.
 - **Keep-alive.** A connection held open between requests would block every other client.
 - **A request type, or responses given as bare strings.** Hashmaps print, compare and can be written as literals in tests. One response shape is simpler than two.
-- **Query values that are always arrays.** Every handler would have to unwrap single values. The owner chose arrays only for repeated names.
+- **Query values that are always arrays.** Every handler would have to unwrap single values.
+- **The last value winning for a repeated name.** The earlier values would be lost without a sign, while forms send repeated names on purpose, for checkboxes and multiple selections.
 - **A router.** Branching on `path` is enough for small apps. A router can be added once an app shows what it needs.
 - **The 30-second socket default for the first line of a request.** A browser's unused connection would freeze the server for half a minute.
 

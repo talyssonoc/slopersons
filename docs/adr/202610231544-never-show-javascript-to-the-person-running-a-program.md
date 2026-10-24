@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The project owner stated that whoever runs a slopersons program must never see a JavaScript stack trace or any trace of JavaScript underneath.
+The interpreter is written in JavaScript, but a person running a slopersons program is working in slopersons. A JavaScript stack trace, or a message that mentions `undefined` or `TypeError`, describes the interpreter instead of their program, and they can neither read it nor act on it. So whoever runs a slopersons program must never see a JavaScript stack trace or any trace of JavaScript underneath.
 
 ## Decision
 

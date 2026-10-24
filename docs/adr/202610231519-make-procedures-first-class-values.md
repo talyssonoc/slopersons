@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-During the design discussion the recommendation was block arguments only, in the style of Ruby or Smalltalk blocks: callbacks for the standard library without procedures as storable values. The project owner chose full first-class procedures instead.
+The smallest option was block arguments only, in the style of Ruby or Smalltalk blocks: callbacks for the standard library, with procedures never stored as values. That covers `map` and `keep`, but not a procedure kept in a variable, passed by name, stored in a hashmap or returned from another procedure.
 
 ## Decision
 

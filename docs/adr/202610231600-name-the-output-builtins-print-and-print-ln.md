@@ -6,7 +6,7 @@ Superseded by [Rename `print-ln` to `print-line`](./202610231906-rename-print-ln
 
 ## Context
 
-The first version had `print`, which added a newline, and `write`, which did not. Nothing in those names says which one ends the line, and the project owner asked for a pair whose names carry the difference.
+The first version had `print`, which added a newline, and `write`, which did not. Nothing in those names says which one ends the line, so a reader has to remember it; a pair of names can carry the difference instead.
 
 ## Decision
 

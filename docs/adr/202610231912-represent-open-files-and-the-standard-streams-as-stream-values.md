@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The language could read standard input a line at a time and write to standard output, and nothing else. The project owner asked for basic file handling. Two shapes were weighed: functions that read or write a whole file in one call, with no new type, and handles that a program opens, reads or writes piece by piece, and closes. The owner also wanted standard input and standard output to be the same kind of thing as an open file.
+The language could read standard input a line at a time and write to standard output, and nothing else: a program could not read or write a file. Two shapes were weighed: functions that read or write a whole file in one call, with no new type, and handles that a program opens, reads or writes piece by piece, and closes. Standard input and standard output should be the same kind of thing as an open file, so that a procedure written for one works with the other.
 
 ## Decision
 

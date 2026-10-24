@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Since the `socket` module ([Make socket calls block by handing them to the main thread](./202610241615-make-socket-calls-block-by-handing-them-to-the-main-thread.md)), the main thread holds listening sockets, connections and standard input for a program running on the worker thread. Anything the main thread keeps open after the program ends keeps the process alive and the port taken. A bug in the main thread's half of the bridge is worse still: the worker waits in `Atomics.wait` for a reply that never comes, and the process hangs with the port held. The project owner asked for certainty that no error, bug or missing cleanup can leave a program hanging or a port blocked.
+Since the `socket` module ([Make socket calls block by handing them to the main thread](./202610241615-make-socket-calls-block-by-handing-them-to-the-main-thread.md)), the main thread holds listening sockets, connections and standard input for a program running on the worker thread. Anything the main thread keeps open after the program ends keeps the process alive and the port taken. A bug in the main thread's half of the bridge is worse still: the worker waits in `Atomics.wait` for a reply that never comes, and the process hangs with the port held. No error, bug or missing cleanup may leave a program hanging or a port blocked: a port held by a program that has ended blocks the next run of it, and a hung process has to be found and killed by hand.
 
 ## Decision
 

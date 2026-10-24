@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The brief required that the interpreter "actually implement things" rather than proxy the Node runtime. The line had to be drawn somewhere, since the interpreter cannot avoid JavaScript numbers and I/O.
+The interpreter is meant to implement the language itself rather than proxy the Node runtime: the language's data structures and algorithms should be its own code, not JavaScript's under another name. The line had to be drawn somewhere, since the interpreter cannot avoid JavaScript numbers and I/O.
 
 ## Decision
 

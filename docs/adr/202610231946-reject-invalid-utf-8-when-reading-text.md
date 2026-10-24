@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-Streams read bytes, while slopersons strings are sequences of code points and the language has no byte type. The bytes have to be decoded as UTF-8, and a file or standard input may hold bytes that are not valid UTF-8. Standard input used to be decoded by Node, which replaces invalid bytes with U+FFFD. The owner asked for this to work the way a modern language does.
+Streams read bytes, while slopersons strings are sequences of code points and the language has no byte type. The bytes have to be decoded as UTF-8, and a file or standard input may hold bytes that are not valid UTF-8. Standard input used to be decoded by Node, which replaces invalid bytes with U+FFFD, so a program never learned that its input was damaged.
 
 ## Decision
 

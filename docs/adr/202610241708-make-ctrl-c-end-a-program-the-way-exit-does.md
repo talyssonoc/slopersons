@@ -6,7 +6,7 @@ Superseded by [Return the REPL to its prompt on Ctrl-C](./202610241749-return-th
 
 ## Context
 
-Ctrl-C used to kill the process at once. Nothing written to a file or a connection but still buffered was written out, and `test` did not print its summary. With the `socket` module ([Make socket calls block by handing them to the main thread](./202610241615-make-socket-calls-block-by-handing-them-to-the-main-thread.md)), a server runs until someone stops it, and Ctrl-C is how it gets stopped. The project owner decided that Ctrl-C should behave like `exit`.
+Ctrl-C used to kill the process at once. Nothing written to a file or a connection but still buffered was written out, and `test` did not print its summary. With the `socket` module ([Make socket calls block by handing them to the main thread](./202610241615-make-socket-calls-block-by-handing-them-to-the-main-thread.md)), a server runs until someone stops it, and Ctrl-C is how it gets stopped, so stopping a server lost whatever it had buffered. `exit` already does what stopping should: it runs end hooks and writes out open streams.
 
 The program runs on a worker thread. When Ctrl-C arrives it may be computing, waiting on the bridge for a socket, waiting for a REPL line, or blocked in `readSync` on standard input. Another thread cannot interrupt `readSync`, so a program waiting for `io/read-line` would only stop at a second Ctrl-C, and every interactive program waits there most of the time.
 
@@ -27,7 +27,7 @@ Rejected:
 - Keeping the immediate kill. Buffered output would be lost every time a server is stopped.
 - Keeping `readSync` for standard input and relying on the second Ctrl-C. Interactive programs, which spend most of their time waiting for input, would need two presses and would lose their buffered output.
 - Checking the flag only in loops. A loop written as recursion, or with `array/each` over a long array, would never see it.
-- Returning to the prompt in the REPL, as Python's and Node's REPLs do. It is not what `exit` does, and the owner asked for `exit`'s behaviour. It can be revisited separately.
+- Returning to the prompt in the REPL, as Python's and Node's REPLs do: it is not what `exit` does, and this record makes Ctrl-C mean `exit` everywhere. It can be revisited separately.
 - `worker.terminate()` for the second Ctrl-C. It does not end a thread blocked in a system call.
 
 ## Consequences

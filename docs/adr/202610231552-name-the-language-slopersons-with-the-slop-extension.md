@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The language needed a name for the command, the file extension and the documentation. The project owner chose the name.
+The language needed a name for the command, the file extension and the documentation, settled before they were written so that nothing would need renaming.
 
 ## Decision
 

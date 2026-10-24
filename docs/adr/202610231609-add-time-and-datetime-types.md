@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The first version modelled dates as calendar dates without time of day, leaving time for a later decision. The project owner asked for time of day. Three questions shaped it: whether to extend `date` or add types, which clock and zone to use, and what precision to keep. A constraint carried over from the no-proxy rule is that the only JavaScript time call allowed is `Date.now()`, which rules out zone conversions through `Date` or `Intl`.
+The first version modelled dates as calendar dates without time of day, leaving time for a later decision. Programs that record when something happened, or measure how long it took, need a time of day as well. Three questions shaped it: whether to extend `date` or add types, which clock and zone to use, and what precision to keep. A constraint carried over from the no-proxy rule is that the only JavaScript time call allowed is `Date.now()`, which rules out zone conversions through `Date` or `Intl`.
 
 ## Decision
 

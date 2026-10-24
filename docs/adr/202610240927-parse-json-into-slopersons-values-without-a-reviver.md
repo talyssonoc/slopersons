@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The project owner asked for `json/parse`, working like Douglas Crockford's `json2.js`. That file's `JSON.parse` checks the text with four regular expressions, builds the value with `eval`, and then optionally walks the result with a reviver function that can replace members, or delete them by returning `undefined`. Slopersons has no `eval`, the owner ruled out loading data through the module loader, and the owner then said the reviver is not needed and accepted the differences from JavaScript listed below.
+Programs that keep their state in files need to read JSON. Douglas Crockford's `json2.js` is the model: its `JSON.parse` checks the text with four regular expressions, builds the value with `eval`, and then optionally walks the result with a reviver function that can replace members, or delete them by returning `undefined`. Slopersons has no `eval`, and loading data through the module loader would run the data as a program.
 
 ## Decision
 
@@ -20,7 +20,7 @@ The project owner asked for `json/parse`, working like Douglas Crockford's `json
 Rejected:
 
 - Porting `json2.js`'s approach of checking the text with patterns and then evaluating it: there is nothing to evaluate it with.
-- A reviver: the owner did not need one. It also would not carry over cleanly, because `json2.js` deletes a member when the reviver returns `undefined`, and slopersons' only absent value, `nothing`, is also what JSON `null` becomes.
+- A reviver: nothing needs one yet, and it would not carry over cleanly, because `json2.js` deletes a member when the reviver returns `undefined`, and slopersons' only absent value, `nothing`, is also what JSON `null` becomes.
 - Turning every number into a float, as JavaScript does: integers beyond 2^53 would lose digits, and slopersons has exact ints.
 
 ## Consequences
