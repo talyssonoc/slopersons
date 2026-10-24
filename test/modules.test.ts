@@ -97,3 +97,27 @@ test('a source module that exports a name it never binds fails at startup', () =
   writeFileSync(path, 'export missing\n');
   assert.throws(() => registerSourceModule(createInterpreter(fakeIo()), 'empty', pathToFileURL(path)), /the builtin module `empty` exports `missing`, which it does not bind/);
 });
+
+test('a source module may define at-end, which runs when the program ends and sets the exit code of a program that succeeded', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-source-'));
+  const path = join(directory, 'counter.slop');
+  writeFileSync(path, '0 => calls\nproc bump | calls + 1 =>> calls\nproc at-end\n| "bumped {calls} times" -> io/print-line\n| calls\nexport bump\n');
+  const run = (source: string): { out: string; err: string; code: number } => {
+    const io = fakeIo();
+    const interpreter = createInterpreter(io);
+    registerSourceModule(interpreter, 'counter', pathToFileURL(path));
+    const code = runProgram(source, 'main.slop', io, interpreter);
+    return { out: io.out, err: io.error, code };
+  };
+  assert.deepEqual(run('counter/bump -> do\ncounter/bump -> do\n"done" -> io/print-line'), { out: 'done\nbumped 2 times\n', err: '', code: 2 });
+  assert.deepEqual(run('"nothing to do" -> io/print-line'), { out: 'nothing to do\nbumped 0 times\n', err: '', code: 0 });
+  assert.deepEqual(run('counter/bump -> do\n1 / 0'), { out: 'bumped 1 times\n', err: 'error: division by zero\n  at main.slop:2:3\n', code: 1 });
+  assert.equal(run('counter -> module/has "at-end" -> io/print-line').out, 'no\nbumped 0 times\n');
+});
+
+test('an at-end that takes inputs fails at startup', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-source-'));
+  const path = join(directory, 'broken.slop');
+  writeFileSync(path, 'proc at-end code | code\n');
+  assert.throws(() => registerSourceModule(createInterpreter(fakeIo()), 'broken', pathToFileURL(path)), /defines `at-end`, which must be a procedure with no inputs/);
+});

@@ -148,12 +148,14 @@ export class Interpreter {
   currentFile: string | null;
   readonly programArguments: readonly string[];
   readonly streams: StreamRegistry;
+  readonly endHooks: (() => number)[];
   private readonly exportStack: ExportRequest[][];
 
   constructor(io: Io, programArguments: readonly string[] = []) {
     this.io = io;
     this.programArguments = programArguments;
     this.streams = new StreamRegistry();
+    this.endHooks = [];
     this.builtins = new Map();
     this.methods = new Map();
     this.depth = 0;

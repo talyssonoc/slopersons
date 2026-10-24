@@ -121,3 +121,5 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Parse JSON into slopersons values without a reviver](./202610240927-parse-json-into-slopersons-values-without-a-reviver.md) | Accepted |
 | 2026-10-24 | [Write JSON only for values that have a JSON form](./202610240932-write-json-only-for-values-that-have-a-json-form.md) | Accepted |
 | 2026-10-24 | [Let `file/rename` replace a file at the new path](./202610240937-let-file-rename-replace-a-file-at-the-new-path.md) | Accepted |
+| 2026-10-24 | [Let source modules run code when the program ends](./202610240955-let-source-modules-run-code-when-the-program-ends.md) | Accepted |
+| 2026-10-24 | [Add a test module with `describe`, `it` and `assert`](./202610240956-add-a-test-module-with-describe-it-and-assert.md) | Accepted |

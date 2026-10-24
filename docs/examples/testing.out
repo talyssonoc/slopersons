@@ -1,0 +1,7 @@
+fizzbuzz
+  ✓ says Fizz for multiples of 3
+  ✓ says Buzz for multiples of 5
+  ✓ says FizzBuzz for multiples of both
+  ✓ gives other numbers back as text
+
+4 passed, 0 failed

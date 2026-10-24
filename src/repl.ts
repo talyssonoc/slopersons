@@ -1,5 +1,5 @@
 import type { Statement } from './ast.ts';
-import { BrokenPipe, EXIT_OK, INTERNAL_ERROR_LINE, closeOpenStreams, describeUnexpected, type ReplIo } from './boundary.ts';
+import { BrokenPipe, EXIT_OK, INTERNAL_ERROR_LINE, describeUnexpected, finishProgram, type ReplIo } from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
 import { ExitSignal, type Environment, type Interpreter } from './interpreter.ts';
 import { parse } from './parser.ts';
@@ -24,7 +24,7 @@ export class Repl {
   }
 
   run(): number {
-    return closeOpenStreams(this.interpreter, this.io, this.loop());
+    return finishProgram(this.interpreter, this.io, this.loop());
   }
 
   private loop(): number {

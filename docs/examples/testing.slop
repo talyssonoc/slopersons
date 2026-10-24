@@ -1,0 +1,19 @@
+~ Tests written with the test module. Each test runs as soon as its test/it is
+~ reached, and the summary at the end makes the program exit with 1 if any
+~ test failed.
+
+proc fizzbuzz n
+| n mod 15 = 0 ? "FizzBuzz" -> out
+| n mod 3 = 0 ? "Fizz" -> out
+| n mod 5 = 0 ? "Buzz" -> out
+| n -> int/to-string
+
+"fizzbuzz" -> test/describe
+| "says Fizz for multiples of 3" -> test/it
+| | 9 -> fizzbuzz -> test/assert "Fizz"
+| "says Buzz for multiples of 5" -> test/it
+| | 10 -> fizzbuzz -> test/assert "Buzz"
+| "says FizzBuzz for multiples of both" -> test/it
+| | 30 -> fizzbuzz -> test/assert "FizzBuzz"
+| "gives other numbers back as text" -> test/it
+| | 1 -> int/up-to 4 -> array/map fizzbuzz -> test/assert ["1" "2" "Fizz" "4"]

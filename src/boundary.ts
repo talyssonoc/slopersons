@@ -1,4 +1,5 @@
-import type { Interpreter, Io } from './interpreter.ts';
+import { SlopersonsError } from './errors.ts';
+import { ExitSignal, type Interpreter, type Io } from './interpreter.ts';
 import { encodeUtf8 } from './runtime/utf8.ts';
 
 export const EXIT_OK = 0;
@@ -31,16 +32,41 @@ export function lineInput(readLine: () => string | null): (buffer: Uint8Array) =
   };
 }
 
+function writeErrorUnlessClosed(io: Io, text: string): void {
+  try {
+    io.writeError(text);
+  } catch (error) {
+    if (!(error instanceof BrokenPipe)) throw error;
+  }
+}
+
 export function closeOpenStreams(interpreter: Interpreter, io: Io, code: number): number {
   const failures = interpreter.streams.closeAll();
-  for (const message of failures) {
-    try {
-      io.writeError(`error: ${message}\n`);
-    } catch (error) {
-      if (!(error instanceof BrokenPipe)) throw error;
-    }
-  }
+  for (const message of failures) writeErrorUnlessClosed(io, `error: ${message}\n`);
   return failures.length > 0 && code === EXIT_OK ? EXIT_PROGRAM_ERROR : code;
+}
+
+function runEndHook(hook: () => number, io: Io, code: number): number {
+  try {
+    const requested = hook();
+    return code === EXIT_OK ? requested : code;
+  } catch (error) {
+    if (error instanceof ExitSignal) return error.code;
+    if (error instanceof BrokenPipe) return code;
+    if (error instanceof SlopersonsError) {
+      writeErrorUnlessClosed(io, `${error.format()}\n`);
+      return code === EXIT_OK ? EXIT_PROGRAM_ERROR : code;
+    }
+    throw error;
+  }
+}
+
+export function finishProgram(interpreter: Interpreter, io: Io, code: number): number {
+  let result = code;
+  if (code !== EXIT_INTERNAL) {
+    for (const hook of interpreter.endHooks) result = runEndHook(hook, io, result);
+  }
+  return closeOpenStreams(interpreter, io, result);
 }
 
 export const LINE_WAITING = 0;

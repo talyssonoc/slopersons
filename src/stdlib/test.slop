@@ -1,0 +1,67 @@
+~ The test module of the standard library. A test runs as soon as its `test/it`
+~ is reached and its result is printed straight away; a failed assertion or any
+~ other runtime error fails that test only. When the program ends, `at-end`
+~ prints a summary and asks for exit code 1 if any test failed.
+
+0 => passed
+0 => failed
+0 => depth
+
+proc describe-type value
+| value -> type-of => name
+| (name = "int" or name = "array" or name = "error") ? "an {name}" -> out
+| "a {name}"
+
+proc expect-name name member
+| (name -> type-of) /= "string" ? "the name of `test/{member}` must be a string, got {name -> describe-type}" -> fail
+
+proc expect-body body member
+| (body -> type-of) /= "proc" ? "the body of `test/{member}` must be a procedure, got {body -> describe-type}" -> fail
+
+proc indent
+| "" -> string/pad-right (depth * 2) ` `
+
+proc location problem
+| problem -> error/line => line
+| line = nothing ? nothing -> out
+| problem -> error/file => file
+| file = nothing ? "line {line}, column {problem -> error/column}" -> out
+| "{file}:{line}:{problem -> error/column}"
+
+proc describe name body
+| name -> expect-name "describe"
+| body -> expect-body "describe"
+| "{indent -> do}{name}" -> io/print-line
+| depth + 1 =>> depth
+| attempt
+| | body -> do
+| always
+| | depth - 1 =>> depth
+| nothing
+
+proc it name body
+| name -> expect-name "it"
+| body -> expect-body "it"
+| attempt
+| | body -> do
+| | passed + 1 =>> passed
+| | "{indent -> do}✓ {name}" -> io/print-line
+| recover problem
+| | failed + 1 =>> failed
+| | "{indent -> do}✗ {name}" -> io/print-line
+| | "{indent -> do}  {problem -> error/message}" -> io/print-line
+| | problem -> location => where
+| | where /= nothing ? "{indent -> do}  at {where}" -> io/print-line
+| nothing
+
+proc assert actual expected
+| actual /= expected ? "expected {expected -> show}, got {actual -> show}" -> fail
+| actual
+
+proc at-end
+| passed + failed = 0 ? 0 -> out
+| "" -> io/print-line
+| "{passed} passed, {failed} failed" -> io/print-line
+| failed > 0 ? 1 : 0
+
+export describe it assert

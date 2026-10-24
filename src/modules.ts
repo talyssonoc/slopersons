@@ -33,6 +33,15 @@ export function registerSourceModule(interpreter: Interpreter, name: string, loc
     parsedSourceModules.set(location.href, program);
   }
   const run = interpreter.runModule(program, file);
+  const atEnd = run.environment.lookup('at-end');
+  if (atEnd !== undefined) {
+    if (atEnd.type !== 'proc' || atEnd.parameters.length !== 0) throw new Error(`the builtin module \`${name}\` defines \`at-end\`, which must be a procedure with no inputs`);
+    interpreter.endHooks.push(() => {
+      const code = interpreter.callValue(atEnd, [], { line: 1, col: 1, file }, run.environment);
+      if (code.type !== 'int' || code.value < 0n || code.value > 255n) throw new Error(`\`at-end\` in the builtin module \`${name}\` must return an exit code from 0 to 255`);
+      return Number(code.value);
+    });
+  }
   for (const request of run.exports) {
     const value = run.environment.lookup(request.name);
     if (value === undefined) throw new Error(`the builtin module \`${name}\` exports \`${request.name}\`, which it does not bind`);

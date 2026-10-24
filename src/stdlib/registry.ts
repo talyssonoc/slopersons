@@ -33,4 +33,5 @@ export function registerStdlib(interpreter: Interpreter): void {
   registerTime(interpreter);
   registerDatetime(interpreter);
   registerSourceModule(interpreter, 'json', new URL('./json.slop', import.meta.url));
+  registerSourceModule(interpreter, 'test', new URL('./test.slop', import.meta.url));
 }

@@ -11,7 +11,7 @@ import {
   LINE_ENDED,
   LINE_READY,
   REPL_LINE_BUFFER_BYTES,
-  closeOpenStreams,
+  finishProgram,
   describeUnexpected,
   isReadLineRequest,
 } from './boundary.ts';
@@ -40,7 +40,7 @@ export function createInterpreter(io: Io, programArguments: readonly string[] = 
 }
 
 export function runProgram(source: string, file: string, io: Io, interpreter: Interpreter = createInterpreter(io)): number {
-  return closeOpenStreams(interpreter, io, execute(source, file, io, interpreter));
+  return finishProgram(interpreter, io, execute(source, file, io, interpreter));
 }
 
 function execute(source: string, file: string, io: Io, interpreter: Interpreter): number {
