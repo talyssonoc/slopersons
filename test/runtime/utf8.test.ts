@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { InvalidUtf8, decodeUtf8, encodeUtf8 } from '../../src/runtime/utf8.ts';
+import { randomNumbers } from '../helpers/random.ts';
 
 const platformEncoder = new TextEncoder();
 const strictPlatformDecoder = new TextDecoder('utf-8', { fatal: true });
@@ -59,13 +60,9 @@ test('decodeUtf8 rejects malformed input at the offset where the bad sequence st
 });
 
 test('decodeUtf8 agrees with the strict platform decoder on random bytes', () => {
-  let seed = 12345;
-  const next = (): number => {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    return seed;
-  };
+  const next = randomNumbers(12345);
   for (let round = 0; round < 3000; round++) {
-    const bytes = Array.from({ length: next() % 12 }, () => (next() % 4 === 0 ? 0x80 + (next() % 0x80) : next() % 0x100));
+    const bytes = Array.from({ length: next(12) }, () => (next(4) === 0 ? 0x80 + next(0x80) : next(0x100)));
     let expected: string | null;
     try {
       expected = strictPlatformDecoder.decode(Uint8Array.from(bytes));
