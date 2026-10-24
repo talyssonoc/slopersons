@@ -1,0 +1,61 @@
+~ A user registry kept in users.json, in the directory the program is run from.
+~   slopersons users.slop add "Ada Lovelace" 1815-12-10
+~   slopersons users.slop list
+~ Each save writes a temporary file and renames it over users.json, so a crash
+~ in the middle of a save never leaves a half-written registry behind.
+
+"users.json" => registry-path
+"users.json.tmp" => temporary-path
+
+proc refuse message
+| io/stderr -> stream/write-line "users: {message}"
+| 1 -> exit
+
+proc usage
+| io/stderr -> stream/write-line "usage: slopersons users.slop add <name> <yyyy-mm-dd>"
+| io/stderr -> stream/write-line "       slopersons users.slop list"
+| 2 -> exit
+
+proc load
+| not (registry-path -> file/exists) ? {"next-id": 1  "users": []} -> out
+| attempt
+| | registry-path -> file/read -> json/parse -> out
+| recover e
+| | "{registry-path} cannot be read, so it was left untouched: {e -> error/message}" -> refuse
+
+proc save registry
+| temporary-path -> file/write (registry -> json/stringify) -> file/rename registry-path
+
+proc register registry name birthday-text
+| name -> string/trim => trimmed
+| trimmed -> string/is-empty ? "the name cannot be empty" -> refuse
+| attempt
+| | birthday-text -> date/parse => birthday
+| recover
+| | "the birthday must be a date written as yyyy-mm-dd, got \"{birthday-text}\"" -> refuse
+| birthday > (date/today -> do) ? "a birthday cannot be in the future" -> refuse
+| registry -> hashmap/at "next-id" => id
+| registry -> hashmap/at "users" -> array/push {"id": id  "name": trimmed  "birthday": (birthday -> date/to-string)}
+| registry -> hashmap/put "next-id" (id + 1)
+| registry -> save
+| "registered #{id}: {trimmed}, born {birthday -> date/to-string}" -> io/print-line
+
+proc list registry
+| registry -> hashmap/at "users" => users
+| users -> array/is-empty ? "no users registered yet" -> io/print-line -> out
+| 0 => width
+| users -> array/each user
+| | user -> hashmap/at "name" -> string/length => length
+| | length > width ? length =>> width
+| users -> array/each user
+| | "#{user -> hashmap/at "id"}" -> string/pad-right 6 ` ` => id
+| | user -> hashmap/at "name" -> string/pad-right (width + 2) ` ` => name
+| | "{id}{name}{user -> hashmap/at "birthday"}" -> io/print-line
+
+io/arguments -> do => arguments
+arguments -> array/length => count
+count = 0 ? usage -> do
+arguments -> array/at 0 => command
+command = "add" and count = 3 ? load -> do -> register (arguments -> array/at 1) (arguments -> array/at 2)
+: command = "list" and count = 1 ? load -> do -> list
+: usage -> do
