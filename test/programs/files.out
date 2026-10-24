@@ -2,6 +2,7 @@
 > first line
 > second line
 > third line
-["notes.txt"]
+3
+["archive.txt"]
 []
 cannot open "notes.txt": no such file or directory

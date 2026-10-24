@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createInterpreter, runProgram } from '../../src/cli.ts';
+import { systemFailure } from '../../src/file-system.ts';
 import { failure, fakeIo, output } from '../helpers/run.ts';
 
 function scratchDirectory(): string {
@@ -192,4 +193,59 @@ ${literal(kept)} -> file/open "write" -> stream/write "never closed"
   assert.equal(code, 3);
   assert.equal(interpreter.streams.size, 0);
   assert.equal(readFileSync(kept, 'utf8'), 'never closed');
+});
+
+test('file/rename moves a file and returns the new path', () => {
+  const directory = scratchDirectory();
+  const from = join(directory, 'draft.txt');
+  const to = join(directory, 'final.txt');
+  writeFileSync(from, 'contents');
+  assert.equal(output(`${literal(from)} -> file/rename ${literal(to)} -> file/read -> io/print-line`), 'contents\n');
+  assert.equal(existsSync(from), false);
+});
+
+test('file/rename replaces a file that is already at the new path', () => {
+  const directory = scratchDirectory();
+  const state = join(directory, 'state.json');
+  const temporary = join(directory, 'state.json.tmp');
+  writeFileSync(state, '{"version":1}');
+  output(`${literal(temporary)} -> file/write "\\{\\"version\\":2\\}" -> file/rename ${literal(state)}`);
+  assert.equal(readFileSync(state, 'utf8'), '{"version":2}');
+  assert.equal(existsSync(temporary), false);
+});
+
+test('file/rename renames directories with what is inside them', () => {
+  const directory = scratchDirectory();
+  mkdirSync(join(directory, 'old'));
+  writeFileSync(join(directory, 'old', 'inside.txt'), 'kept');
+  output(`${literal(join(directory, 'old'))} -> file/rename ${literal(join(directory, 'new'))}`);
+  assert.equal(readFileSync(join(directory, 'new', 'inside.txt'), 'utf8'), 'kept');
+});
+
+test('file/rename failures name both paths and the reason, and leave the file where it was', () => {
+  const directory = scratchDirectory();
+  const file = join(directory, 'file.txt');
+  const folder = join(directory, 'folder');
+  const full = join(directory, 'full');
+  const missing = join(directory, 'missing.txt');
+  const nested = join(directory, 'no-such-directory', 'file.txt');
+  writeFileSync(file, 'stays');
+  mkdirSync(folder);
+  mkdirSync(full);
+  writeFileSync(join(full, 'inside.txt'), '');
+  assert.equal(failure(`${literal(missing)} -> file/rename ${literal(file)}`).message, `cannot rename "${missing}": no such file or directory`);
+  assert.equal(failure(`${literal(file)} -> file/rename ${literal(nested)}`).message, `cannot rename "${file}" to "${nested}": no such file or directory`);
+  assert.equal(failure(`${literal(file)} -> file/rename ${literal(folder)}`).message, `cannot rename "${file}" to "${folder}": "${folder}" is a directory`);
+  assert.equal(failure(`${literal(folder)} -> file/rename ${literal(file)}`).message, `cannot rename "${folder}" to "${file}": "${file}" is not a directory`);
+  assert.match(failure(`${literal(folder)} -> file/rename ${literal(full)}`).message, /^cannot rename ".*folder" to ".*full": (the directory is not empty|it already exists)$/);
+  assert.equal(failure(`${literal(file)} -> file/rename 1`).message, 'the new path of `file/rename` must be a string, got an int');
+  assert.equal(readFileSync(file, 'utf8'), 'stays');
+});
+
+test('operating-system error codes become plain words, with the code itself as the fallback', () => {
+  const failed = (code: string): string => systemFailure('rename', '"a" to "b"', Object.assign(new Error('from the operating system'), { code })).message;
+  assert.equal(failed('EXDEV'), 'cannot rename "a" to "b": the new path is on a different file system');
+  assert.equal(failed('ENOTEMPTY'), 'cannot rename "a" to "b": the directory is not empty');
+  assert.equal(failed('EWEIRD'), 'cannot rename "a" to "b": the operating system reported EWEIRD');
+  assert.throws(() => systemFailure('rename', '"a"', new TypeError('an interpreter bug')), TypeError);
 });

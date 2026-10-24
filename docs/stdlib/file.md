@@ -95,6 +95,22 @@ Deletes the file at `path` and returns `nothing`. It does not remove directories
 
 Errors: nothing exists at the path; the path is a directory (`cannot remove "photos": it is a directory`); permission is denied.
 
+## rename
+
+`path -> file/rename new-path`
+
+Moves the file or directory at `path` to `new-path` and returns `new-path`. A file already at `new-path` is replaced. A directory can replace only an empty directory.
+
+When both paths are on the same file system, the replacement is atomic: whatever opens `new-path`, including this program after a crash, finds either the old file or the new one, never a missing or half-written file. That makes writing to a temporary file and renaming it over the real one a safe way to save:
+
+```
+"state.json.tmp" -> file/write (state -> json/stringify) -> file/rename "state.json"
+```
+
+The guarantee has two conditions. The two paths must be on the same file system; otherwise the rename fails instead of copying. And it covers the program crashing or being stopped, not a power loss or an operating-system crash, because slopersons does not force written data onto the disk.
+
+Errors: nothing exists at `path` (`cannot rename "draft.txt": no such file or directory`); a file would replace a directory (`cannot rename "a.txt" to "photos": "photos" is a directory`) or a directory a file; a directory would replace a directory that is not empty; the paths are on different file systems (`cannot rename "a.txt" to "/backup/a.txt": the new path is on a different file system`); the directory that would hold `new-path` does not exist; permission is denied.
+
 ## list
 
 `path -> file/list`

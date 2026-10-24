@@ -10,7 +10,8 @@ while line /= nothing
 | "> {line}" -> io/print-line
 | notes -> stream/read-line =>> line
 notes -> stream/close
+"notes.txt" -> file/rename "archive.txt" -> file/read -> string/lines -> array/length -> io/print-line
 "." -> file/list -> io/print-line
-"notes.txt" -> file/remove
+"archive.txt" -> file/remove
 "." -> file/list -> io/print-line
 attempt | "notes.txt" -> file/read recover e | e -> error/message -> io/print-line

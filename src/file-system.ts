@@ -1,4 +1,4 @@
-import { closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, statSync, unlinkSync, writeSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { IoFailure, type ByteChannel, type StreamMode } from './runtime/stream.ts';
 
 const OPEN_FLAGS: Record<StreamMode, string> = { read: 'r', write: 'w', append: 'a', 'read-write': 'r+' };
@@ -19,11 +19,13 @@ const REASONS: Record<string, string> = {
   ENOENT: 'no such file or directory',
   ENOSPC: 'no space left on the device',
   ENOTDIR: 'a part of the path is not a directory',
+  ENOTEMPTY: 'the directory is not empty',
   ENXIO: 'no such device',
   EPERM: 'the operation is not permitted',
   EPIPE: 'the other end of the pipe was closed',
   EROFS: 'the file system is read-only',
   ETXTBSY: 'the file is busy',
+  EXDEV: 'the new path is on a different file system',
 };
 
 const ERRNO_CODE = /^E[A-Z0-9]+$/;
@@ -109,6 +111,23 @@ export function removeFile(path: string, description: string): void {
     unlinkSync(path);
   } catch (error) {
     throw systemFailure('remove', description, error);
+  }
+}
+
+export function renamePath(from: string, to: string, fromDescription: string, toDescription: string): void {
+  let fromIsDirectory: boolean;
+  try {
+    fromIsDirectory = lstatSync(from).isDirectory();
+  } catch (error) {
+    throw systemFailure('rename', fromDescription, error);
+  }
+  const target = pathKind(to);
+  if (target === 'directory' && !fromIsDirectory) throw new IoFailure(`cannot rename ${fromDescription} to ${toDescription}: ${toDescription} is a directory`);
+  if (target !== null && target !== 'directory' && fromIsDirectory) throw new IoFailure(`cannot rename ${fromDescription} to ${toDescription}: ${toDescription} is not a directory`);
+  try {
+    renameSync(from, to);
+  } catch (error) {
+    throw systemFailure('rename', `${fromDescription} to ${toDescription}`, error);
   }
 }
 
