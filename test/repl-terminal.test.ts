@@ -128,15 +128,27 @@ test('in a real terminal the REPL supports line editing, history, block entries 
   assert.doesNotMatch(session.transcript(), /error:/);
 });
 
-// The session only closes once its input ends, and an end of input alone would make the REPL exit with 0, so 130 shows Ctrl-C got there first.
-for (const entry of ['', 'while yes | 1 => x\r']) {
-  test(`in a real terminal Ctrl-C ends the REPL with 130 ${entry === '' ? 'at the prompt' : 'while an entry runs'}`, { skip: supported ? false : 'needs the script command on macOS or Linux', timeout: 60_000 }, async () => {
-    const session = openTerminalSession();
-    await session.waitFor('> ');
-    if (entry !== '') await session.send(entry);
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    await session.send(CTRL_C);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    assert.equal(await session.end(), 130, `transcript: ${JSON.stringify(session.transcript())}`);
-  });
-}
+test('in a real terminal Ctrl-C stops a running entry and returns to the prompt', { skip: supported ? false : 'needs the script command on macOS or Linux', timeout: 60_000 }, async () => {
+  const session = openTerminalSession();
+  await session.waitFor('> ');
+  await session.send('while yes | 1 => x\r');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await session.send(CTRL_C);
+  await session.waitFor('interrupted');
+  await session.send('1 + 1\r');
+  await session.waitFor('-> 2');
+  await session.send(CTRL_D);
+  assert.equal(await session.end(), 0);
+});
+
+test('in a real terminal Ctrl-C at the prompt throws away what was typed', { skip: supported ? false : 'needs the script command on macOS or Linux', timeout: 60_000 }, async () => {
+  const session = openTerminalSession();
+  await session.waitFor('> ');
+  await session.send('oops');
+  await session.send(CTRL_C);
+  await session.send('2 + 2\r');
+  await session.waitFor('-> 4');
+  await session.send(CTRL_D);
+  assert.equal(await session.end(), 0);
+  assert.doesNotMatch(session.transcript(), /error:/);
+});

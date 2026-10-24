@@ -151,7 +151,7 @@ type WorkerTask = { mode: 'program'; source: string; file: string; programArgume
 export type WorkerData = WorkerTask & { bridge: Bridge };
 
 interface WorkerHooks {
-  onReadLine?: (prompt: string) => void;
+  onReadLine?: (prompt: string, interrupted: boolean) => void;
   onInterrupt?: () => void;
   onExit?: () => void;
 }
@@ -165,7 +165,6 @@ function runReplInWorker(): Promise<number> {
   const queued: string[] = [];
   let ended = false;
   let waiting = false;
-  let interrupted = false;
   const reader = createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY === true, historySize: 200 });
   const deliver = (state: number, length: number): void => {
     waiting = false;
@@ -185,8 +184,14 @@ function runReplInWorker(): Promise<number> {
     ended = true;
     if (waiting) deliverLine(null);
   });
-  reader.on('SIGINT', () => process.emit('SIGINT'));
-  const onRequest = (prompt: string): void => {
+  reader.on('SIGINT', () => {
+    if (waiting && process.stdin.isTTY === true) {
+      reader.write(null, { ctrl: true, name: 'e' });
+      reader.write(null, { ctrl: true, name: 'u' });
+    }
+    process.emit('SIGINT');
+  });
+  const onRequest = (prompt: string, interrupted: boolean): void => {
     if (interrupted) return deliver(LINE_INTERRUPTED, 0);
     if (ended) {
       writeAll(1, prompt);
@@ -200,7 +205,6 @@ function runReplInWorker(): Promise<number> {
     else waiting = true;
   };
   const onInterrupt = (): void => {
-    interrupted = true;
     if (waiting) deliver(LINE_INTERRUPTED, 0);
   };
   return runInWorker({ mode: 'repl', control, data }, { onReadLine: onRequest, onInterrupt, onExit: () => reader.close() });
@@ -255,7 +259,7 @@ function runInWorker(task: WorkerTask, hooks: WorkerHooks = {}): Promise<number>
     process.on('uncaughtException', onUncaught);
     worker.on('message', (message: unknown) => {
       if (typeof message === 'number' && !pipeBroken && !failed) code = message;
-      if (isReadLineRequest(message) && hooks.onReadLine !== undefined) hooks.onReadLine(message.prompt);
+      if (isReadLineRequest(message) && hooks.onReadLine !== undefined) hooks.onReadLine(message.prompt, Atomics.load(interruptCell, 0) === INTERRUPT_REQUESTED);
     });
     worker.on('error', (error: unknown) => {
       if (error instanceof Error && 'code' in error && error.code === 'ERR_WORKER_OUT_OF_MEMORY') {

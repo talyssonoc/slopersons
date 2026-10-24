@@ -1,14 +1,14 @@
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterpreter, runProgram } from '../src/cli.ts';
 import { EXIT_INTERRUPTED, type Interruption } from '../src/interpreter.ts';
-import { BANNER, PROMPT } from '../src/repl.ts';
-import { listeningPort, openClient, startProgram } from './helpers/network.ts';
+import { BANNER, CONTINUATION_PROMPT, PROMPT } from '../src/repl.ts';
+import { listeningPort, openClient, startProgram, within } from './helpers/network.ts';
 import { fakeIo } from './helpers/run.ts';
 
 const bin = fileURLToPath(new URL('../bin/slopersons.mjs', import.meta.url));
@@ -20,7 +20,7 @@ function pause(milliseconds: number): Promise<void> {
 
 function interruptAfter(checks: number): Interruption {
   let count = 0;
-  return { take: () => ++count === checks };
+  return { take: () => ++count === checks, clear: () => {} };
 }
 
 function runInterrupted(source: string): { code: number; out: string; error: string } {
@@ -126,40 +126,112 @@ test('a second Ctrl-C ends the process even when the program is stuck where the 
   }
 });
 
-function interruptRepl(entries: string, readyWhen: string): Promise<{ code: number | null; stdout: string }> {
-  return new Promise((resolve) => {
-    const child = spawn(bin, ['--repl']);
-    let stdout = '';
-    let sent = false;
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => {
-      stdout += chunk;
-      if (!sent && stdout.includes(readyWhen)) {
-        sent = true;
-        setTimeout(() => child.kill('SIGINT'), 200);
-      }
-    });
-    const timer = setTimeout(() => child.kill('SIGKILL'), 15_000);
-    child.on('close', (code) => {
-      clearTimeout(timer);
-      resolve({ code, stdout });
-    });
-    child.stdin.write(entries);
-  });
+interface ReplSession {
+  send: (entries: string) => void;
+  pressCtrlC: () => void;
+  waitFor: (stream: 'stdout' | 'stderr', needle: string, count?: number) => Promise<void>;
+  end: () => Promise<{ code: number | null; stdout: string; stderr: string }>;
 }
 
-test('Ctrl-C in the REPL ends the session with 130 while an entry runs', TIMEOUT, async () => {
-  const result = await interruptRepl('"ready" -> io/print-line\nwhile yes | 1 => x\n', 'ready\n');
-  assert.deepEqual(result, { code: EXIT_INTERRUPTED, stdout: `${BANNER}${PROMPT}ready\n-> "ready"\n${PROMPT}` });
+const replSessions: ChildProcess[] = [];
+
+after(() => {
+  for (const child of replSessions) child.kill('SIGKILL');
 });
 
-test('Ctrl-C in the REPL at the prompt still prints the test summary', TIMEOUT, async () => {
-  const result = await interruptRepl('"passes" -> test/it | 1 -> test/assert 1\n"ready" -> io/print-line\n', `-> "ready"\n${PROMPT}`);
-  assert.equal(result.code, EXIT_INTERRUPTED);
+function startRepl(): ReplSession {
+  const child = spawn(bin, ['--repl']);
+  replSessions.push(child);
+  const output = { stdout: '', stderr: '' };
+  child.stdout.setEncoding('utf8');
+  child.stderr.setEncoding('utf8');
+  child.stdout.on('data', (chunk: string) => {
+    output.stdout += chunk;
+  });
+  child.stderr.on('data', (chunk: string) => {
+    output.stderr += chunk;
+  });
+  const closed = new Promise<number | null>((resolve) => child.on('close', resolve));
+  const occurrences = (haystack: string, needle: string): number => haystack.split(needle).length - 1;
+  return {
+    send: (entries) => {
+      child.stdin.write(entries);
+    },
+    pressCtrlC: () => {
+      child.kill('SIGINT');
+    },
+    waitFor: (stream, needle, count = 1) =>
+      within(
+        new Promise<void>((resolve) => {
+          const check = (): void => {
+            if (occurrences(output[stream], needle) >= count) resolve();
+            else setTimeout(check, 20);
+          };
+          check();
+        }),
+        10_000,
+        `${JSON.stringify(needle)} on ${stream}`,
+      ),
+    end: async () => {
+      child.stdin.end();
+      const code = await within(closed, 10_000, 'the REPL to leave');
+      return { code, ...output };
+    },
+  };
+}
+
+test('Ctrl-C in the REPL stops the running entry and returns to the prompt', TIMEOUT, async () => {
+  const session = startRepl();
+  session.send('"ready" -> io/print-line\nwhile yes | 1 => x\n');
+  await session.waitFor('stdout', 'ready\n');
+  await pause(200);
+  session.pressCtrlC();
+  await session.waitFor('stderr', 'interrupted\n');
+  session.send('1 + 1\n');
+  await session.waitFor('stdout', '-> 2\n');
+  const result = await session.end();
+  assert.equal(result.code, 0);
+  assert.equal(result.stderr, 'interrupted\n');
+});
+
+test('Ctrl-C at the REPL prompt drops the entry being collected and shows a new prompt', TIMEOUT, async () => {
+  const session = startRepl();
+  session.send('proc double n\n');
+  await session.waitFor('stdout', CONTINUATION_PROMPT);
+  session.pressCtrlC();
+  await session.waitFor('stdout', `${CONTINUATION_PROMPT}\n${PROMPT}`);
+  session.send('21 * 2\n');
+  await session.waitFor('stdout', '-> 42\n');
+  const result = await session.end();
+  assert.deepEqual({ code: result.code, stderr: result.stderr }, { code: 0, stderr: '' });
+  assert.equal(result.stdout, `${BANNER}${PROMPT}${CONTINUATION_PROMPT}\n${PROMPT}-> 42\n${PROMPT}\n`);
+});
+
+test('every Ctrl-C in a REPL session counts as a first one, so the session survives several', TIMEOUT, async () => {
+  const session = startRepl();
+  for (let round = 1; round <= 3; round++) {
+    session.send(`"round ${round}" -> io/print-line\nwhile yes | 1 => x\n`);
+    await session.waitFor('stdout', `round ${round}\n`);
+    await pause(200);
+    session.pressCtrlC();
+    await session.waitFor('stderr', 'interrupted\n', round);
+  }
+  for (let press = 1; press <= 2; press++) {
+    session.pressCtrlC();
+    await pause(200);
+  }
+  session.send('"still here" -> io/print-line\n');
+  await session.waitFor('stdout', 'still here\n');
+  assert.equal((await session.end()).code, 0);
+});
+
+test('after a Ctrl-C in the REPL, the test summary still appears when the session ends', TIMEOUT, async () => {
+  const session = startRepl();
+  session.send('"passes" -> test/it | 1 -> test/assert 1\n');
+  await session.waitFor('stdout', '✓ passes\n');
+  session.pressCtrlC();
+  await pause(200);
+  const result = await session.end();
+  assert.equal(result.code, 0);
   assert.match(result.stdout, /\n1 passed, 0 failed\n$/);
-});
-
-test('Ctrl-C in the REPL ends the session with 130 at the prompt', TIMEOUT, async () => {
-  const result = await interruptRepl('"ready" -> io/print-line\n', `-> "ready"\n${PROMPT}`);
-  assert.deepEqual(result, { code: EXIT_INTERRUPTED, stdout: `${BANNER}${PROMPT}ready\n-> "ready"\n${PROMPT}\n` });
 });

@@ -1,7 +1,7 @@
 import type { Statement } from './ast.ts';
 import { BrokenPipe, EXIT_OK, INTERNAL_ERROR_LINE, describeUnexpected, finishProgram, type ReplIo } from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
-import { ExitSignal, type Environment, type Interpreter } from './interpreter.ts';
+import { ExitSignal, InterruptSignal, type Environment, type Interpreter } from './interpreter.ts';
 import { parse } from './parser.ts';
 import { formatValue } from './values.ts';
 
@@ -24,22 +24,29 @@ export class Repl {
   }
 
   run(): number {
-    let code: number;
+    return finishProgram(this.interpreter, this.io, this.loop());
+  }
+
+  private readLine(prompt: string): string | null | InterruptSignal {
     try {
-      code = this.loop();
+      return this.io.readLine(prompt);
     } catch (error) {
-      if (!(error instanceof ExitSignal)) throw error;
-      this.io.write('\n');
-      code = error.code;
+      if (!(error instanceof InterruptSignal)) throw error;
+      this.interpreter.clearInterruption();
+      return error;
     }
-    return finishProgram(this.interpreter, this.io, code);
   }
 
   private loop(): number {
     this.io.write(BANNER);
     const pending: string[] = [];
     while (true) {
-      const line = this.io.readLine(pending.length === 0 ? PROMPT : CONTINUATION_PROMPT);
+      const line = this.readLine(pending.length === 0 ? PROMPT : CONTINUATION_PROMPT);
+      if (line instanceof InterruptSignal) {
+        this.io.write('\n');
+        pending.length = 0;
+        continue;
+      }
       if (line === null) {
         this.io.write('\n');
         if (pending.length === 0) return EXIT_OK;
@@ -94,6 +101,11 @@ export class Repl {
       if (value.type !== 'nothing') this.io.write(`-> ${formatValue(value, 'show')}\n`);
       return null;
     } catch (error) {
+      if (error instanceof InterruptSignal) {
+        this.interpreter.clearInterruption();
+        this.io.writeError('interrupted\n');
+        return null;
+      }
       if (error instanceof ExitSignal) return error.code;
       if (error instanceof BrokenPipe) return EXIT_OK;
       if (error instanceof SlopersonsError) {

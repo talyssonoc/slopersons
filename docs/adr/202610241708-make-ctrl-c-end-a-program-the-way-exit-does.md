@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md)
 
 ## Context
 

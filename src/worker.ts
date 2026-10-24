@@ -2,7 +2,7 @@ import { parentPort, workerData } from 'node:worker_threads';
 import { EXIT_INTERNAL, INTERNAL_ERROR_LINE, LINE_ENDED, LINE_INTERRUPTED, LINE_WAITING, lineInput, type ReplIo } from './boundary.ts';
 import { INTERRUPT_HANDLED, bridgedHost } from './bridge.ts';
 import { createInterpreter, nodeOutput, runProgram, type WorkerData } from './cli.ts';
-import { EXIT_INTERRUPTED, ExitSignal, type Io } from './interpreter.ts';
+import { InterruptSignal, type Io } from './interpreter.ts';
 import { Repl } from './repl.ts';
 
 process.removeAllListeners('warning');
@@ -20,7 +20,7 @@ function replIo(control: SharedArrayBuffer, data: SharedArrayBuffer, interrupt: 
     const state = Atomics.load(controlView, 0);
     if (state === LINE_INTERRUPTED) {
       Atomics.store(interruptView, 0, INTERRUPT_HANDLED);
-      throw new ExitSignal(EXIT_INTERRUPTED);
+      throw new InterruptSignal();
     }
     if (state === LINE_ENDED) return null;
     const length = Atomics.load(controlView, 1);

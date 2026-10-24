@@ -34,7 +34,8 @@ Everything after the program file is passed to the program, which reads it with 
 - A line that ends a call with names that are not bound, such as `xs -> array/each n`, also starts a block entry, because those names are almost certainly lambda parameters. Press Enter on an empty line to run it without a block.
 - The value of an entry is echoed as `-> value` in the same form `show` uses, so a string appears quoted. `nothing` is not echoed.
 - Errors are printed as `error: message` with the position inside the entry, and the session continues.
-- Ctrl-D leaves with exit code 0; `code -> exit` leaves with that code; Ctrl-C leaves with 130, whether an entry is running or the prompt is waiting (see [Ctrl-C](#ctrl-c)).
+- Ctrl-C stops the entry that is running, prints `interrupted` on standard error and returns to the prompt; at the prompt it drops what is being typed, including the lines of a block entry. The session goes on either way.
+- Ctrl-D leaves with exit code 0; `code -> exit` leaves with that code.
 
 Line editing comes from Node's readline: the arrow keys move within the line and recall earlier entries, and the usual shortcuts work. Up to 200 entries are kept in the session's history. This path is exercised by a test that drives the REPL inside a pseudo-terminal (`test/repl-terminal.test.ts`), not only through pipes.
 
@@ -75,6 +76,8 @@ Standard input is read as UTF-8; bytes that are not valid UTF-8 stop the program
 ## Ctrl-C
 
 Ctrl-C ends a program the way `130 -> exit` does: the program stops where it is, `test` prints its summary, every file and connection it left open is written out and closed, and the process exits with 130. As with `exit`, `attempt` does not catch it and `always` blocks do not run. It works whether the program is computing, waiting for a line of standard input, or waiting on a socket.
+
+In the REPL, Ctrl-C stops only the running entry (see [REPL](#repl)); `attempt` does not catch it and `always` blocks do not run there either.
 
 A second Ctrl-C ends the process at once, without writing anything out. It is for a program that does not stop after the first, which happens when it is stuck in a call the interpreter cannot interrupt, such as opening a named pipe that nothing writes to. The shell then reports the process as ended by the signal, with status 130.
 

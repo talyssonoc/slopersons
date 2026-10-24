@@ -50,11 +50,18 @@ export class ExitSignal {
 
 export const EXIT_INTERRUPTED = 130;
 
-export interface Interruption {
-  take(): boolean;
+export class InterruptSignal extends ExitSignal {
+  constructor() {
+    super(EXIT_INTERRUPTED);
+  }
 }
 
-export const NO_INTERRUPTION: Interruption = { take: () => false };
+export interface Interruption {
+  take(): boolean;
+  clear(): void;
+}
+
+export const NO_INTERRUPTION: Interruption = { take: () => false, clear: () => {} };
 
 export interface InterpreterOptions {
   programArguments?: readonly string[];
@@ -474,7 +481,11 @@ export class Interpreter {
   }
 
   private checkInterruption(): void {
-    if (this.interruption.take()) throw new ExitSignal(EXIT_INTERRUPTED);
+    if (this.interruption.take()) throw new InterruptSignal();
+  }
+
+  clearInterruption(): void {
+    this.interruption.clear();
   }
 
   callValue(callee: Value, inputs: Value[], location: Position, environment: Environment): Value {

@@ -1,7 +1,7 @@
 import { connect, createServer, type Server, type Socket } from 'node:net';
 import type { Readable } from 'node:stream';
 import { receiveMessageOnPort, type MessagePort } from 'node:worker_threads';
-import { EXIT_INTERRUPTED, ExitSignal, type Interruption } from './interpreter.ts';
+import { InterruptSignal, type Interruption } from './interpreter.ts';
 import { NetworkFailure, type Connected, type Listening, type Network } from './runtime/network.ts';
 import { IoFailure, STREAM_BUFFER_BYTES } from './runtime/stream.ts';
 
@@ -372,7 +372,7 @@ export function bridgedHost(bridge: Bridge): BridgedHost {
     const reply = received.message as Reply;
     if ('interrupted' in reply) {
       Atomics.store(interrupt, 0, INTERRUPT_HANDLED);
-      throw new ExitSignal(EXIT_INTERRUPTED);
+      throw new InterruptSignal();
     }
     if ('internal' in reply) throw new Error(`the main thread failed a request: ${reply.internal}`);
     if ('failure' in reply) throw new NetworkFailure(reply.failure);
@@ -409,6 +409,9 @@ export function bridgedHost(bridge: Bridge): BridgedHost {
   };
   const interruption: Interruption = {
     take: () => Atomics.compareExchange(interrupt, 0, INTERRUPT_REQUESTED, INTERRUPT_HANDLED) === INTERRUPT_REQUESTED,
+    clear: () => {
+      Atomics.store(interrupt, 0, INTERRUPT_NONE);
+    },
   };
   return { network, readInput, interruption };
 }

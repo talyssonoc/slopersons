@@ -131,5 +131,6 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Expose TCP through a socket module whose connections are streams](./202610241616-expose-tcp-through-a-socket-module-whose-connections-are-streams.md) | Accepted |
 | 2026-10-24 | [Time out connection reads and writes after 30 seconds](./202610241617-time-out-connection-reads-and-writes-after-30-seconds.md) | Accepted |
 | 2026-10-24 | [Count `stream/read` in bytes](./202610241618-count-stream-read-in-bytes.md) | Accepted |
-| 2026-10-24 | [Make Ctrl-C end a program the way `exit` does](./202610241708-make-ctrl-c-end-a-program-the-way-exit-does.md) | Accepted |
+| 2026-10-24 | [Make Ctrl-C end a program the way `exit` does](./202610241708-make-ctrl-c-end-a-program-the-way-exit-does.md) | Superseded by [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) |
 | 2026-10-24 | [Free every socket however a program ends](./202610241736-free-every-socket-however-a-program-ends.md) | Accepted |
+| 2026-10-24 | [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) | Accepted |
