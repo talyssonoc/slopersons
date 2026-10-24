@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { createInterpreter, runProgram } from '../src/cli.ts';
-import { registerSourceModule } from '../src/modules.ts';
+import { registerSourceModule, standardSourceModule } from '../src/modules.ts';
 import { fakeIo } from './helpers/run.ts';
 
 function project(files: Record<string, string>, main: string): { out: string; err: string; code: number; dir: string } {
@@ -83,7 +82,7 @@ test('a source module becomes a builtin module: exports become members, and erro
   writeFileSync(path, 'proc helper | "hidden"\nproc broken | 1 / 0\nproc apply x f | x -> f\n42 => answer\nexport broken apply answer\n');
   const io = fakeIo();
   const interpreter = createInterpreter(io);
-  registerSourceModule(interpreter, 'tool', pathToFileURL(path));
+  registerSourceModule(interpreter, 'tool', readFileSync(path, 'utf8'));
   const source = 'tool -> module/names -> io/print-line\ntool/answer -> io/print-line\ntool/apply -> io/print-line\n"x" -> tool/apply (s | s + "!") -> io/print-line\nattempt | tool/broken -> do recover e | "{e -> error/line}:{e -> error/column}" -> io/print-line\n"y" -> tool/apply (n | n / 0)\n';
   const code = runProgram(source, 'main.slop', io, interpreter);
   assert.equal(io.out, '["broken" "apply" "answer"]\n42\n<proc tool/apply>\nx!\n5:23\n');
@@ -95,7 +94,7 @@ test('a source module that exports a name it never binds fails at startup', () =
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-source-'));
   const path = join(directory, 'empty.slop');
   writeFileSync(path, 'export missing\n');
-  assert.throws(() => registerSourceModule(createInterpreter(fakeIo()), 'empty', pathToFileURL(path)), /the builtin module `empty` exports `missing`, which it does not bind/);
+  assert.throws(() => registerSourceModule(createInterpreter(fakeIo()), 'empty', readFileSync(path, 'utf8')), /the builtin module `empty` exports `missing`, which it does not bind/);
 });
 
 test('a source module may define at-end, which runs when the program ends and sets the exit code of a program that succeeded', () => {
@@ -105,7 +104,7 @@ test('a source module may define at-end, which runs when the program ends and se
   const run = (source: string): { out: string; err: string; code: number } => {
     const io = fakeIo();
     const interpreter = createInterpreter(io);
-    registerSourceModule(interpreter, 'counter', pathToFileURL(path));
+    registerSourceModule(interpreter, 'counter', readFileSync(path, 'utf8'));
     const code = runProgram(source, 'main.slop', io, interpreter);
     return { out: io.out, err: io.error, code };
   };
@@ -119,5 +118,10 @@ test('an at-end that takes inputs fails at startup', () => {
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-source-'));
   const path = join(directory, 'broken.slop');
   writeFileSync(path, 'proc at-end code | code\n');
-  assert.throws(() => registerSourceModule(createInterpreter(fakeIo()), 'broken', pathToFileURL(path)), /defines `at-end`, which must be a procedure with no inputs/);
+  assert.throws(() => registerSourceModule(createInterpreter(fakeIo()), 'broken', readFileSync(path, 'utf8')), /defines `at-end`, which must be a procedure with no inputs/);
+});
+
+test('in a checkout, the standard library source modules are read from src/stdlib', () => {
+  assert.equal(standardSourceModule('json'), readFileSync(new URL('../src/stdlib/json.slop', import.meta.url), 'utf8'));
+  assert.equal(standardSourceModule('test'), readFileSync(new URL('../src/stdlib/test.slop', import.meta.url), 'utf8'));
 });

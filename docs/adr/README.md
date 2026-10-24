@@ -126,3 +126,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Resolve relative file paths against the working directory](./202610241006-resolve-relative-file-paths-against-the-working-directory.md) | Accepted |
 | 2026-10-24 | [Put path manipulation in a `path` module](./202610241007-put-path-manipulation-in-a-path-module.md) | Accepted |
 | 2026-10-24 | [Find a file's own directory from where the call is written](./202610241008-find-a-files-own-directory-from-where-the-call-is-written.md) | Accepted |
+| 2026-10-24 | [Package a standalone executable with esbuild and Node's `--build-sea`](./202610241039-package-a-standalone-executable-with-esbuild-and-node-sea.md) | Accepted |

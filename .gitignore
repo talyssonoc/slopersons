@@ -1,4 +1,5 @@
 node_modules/
+dist/
 
 # installed agent skills
 .agents/skills/

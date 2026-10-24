@@ -16,6 +16,17 @@ function displayPath(absolute: string): string {
 
 const parsedSourceModules = new Map<string, Statement[]>();
 
+declare const SLOPERSONS_SOURCE_MODULES: Record<string, string> | undefined;
+
+export function standardSourceModule(name: string): string {
+  if (typeof SLOPERSONS_SOURCE_MODULES === 'object') {
+    const source = SLOPERSONS_SOURCE_MODULES[name];
+    if (source === undefined) throw new Error(`the executable has no embedded source for the builtin module \`${name}\``);
+    return source;
+  }
+  return readFileSync(new URL(`./stdlib/${name}.slop`, import.meta.url), 'utf8');
+}
+
 function callFromOutside(procedure: ProcedureValue, file: string, inputs: Value[], context: CallContext): Value {
   try {
     return context.interpreter.callValue(procedure, inputs, context.position, context.environment);
@@ -25,12 +36,12 @@ function callFromOutside(procedure: ProcedureValue, file: string, inputs: Value[
   }
 }
 
-export function registerSourceModule(interpreter: Interpreter, name: string, location: URL): void {
+export function registerSourceModule(interpreter: Interpreter, name: string, source: string): void {
   const file = `<builtin ${name}>`;
-  let program = parsedSourceModules.get(location.href);
+  let program = parsedSourceModules.get(source);
   if (program === undefined) {
-    program = parse(readFileSync(location, 'utf8'), file);
-    parsedSourceModules.set(location.href, program);
+    program = parse(source, file);
+    parsedSourceModules.set(source, program);
   }
   const run = interpreter.runModule(program, file);
   const atEnd = run.environment.lookup('at-end');

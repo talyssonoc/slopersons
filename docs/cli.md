@@ -85,3 +85,13 @@ Resource exhaustion is reported as a program error, never as a crash:
 | the program's memory exceeds the heap limit (1024 MB by default) | `the program ran out of memory (the limit is 1024 MB)` |
 
 The heap limit can be changed with the environment variable `SLOPERSONS_MAX_HEAP_MB`. Output produced before an out-of-memory failure may be incomplete.
+
+## Standalone executable
+
+`pnpm build` packages the interpreter as a single executable, `dist/slopersons`, using Node's single executable applications. It runs without Node and without the checkout: copy it anywhere and run `slopersons program.slop` as usual, with the same arguments, REPL, exit codes and environment variables (`SLOPERSONS_MAX_HEAP_MB`, `SLOPERSONS_DEBUG`).
+
+- The executable contains Node itself, so it is about 150 MB.
+- It is built for the operating system, processor and Node version that run `pnpm build`; there is no cross-compiling. Node tests the feature on macOS on Apple silicon, Linux (except Alpine) and Windows, and still marks it experimental; the build script handles macOS and Linux.
+- On macOS the build signs it ad hoc (`codesign --sign -`), which is enough to run it on the machine that built it.
+
+Development does not use this: `./bin/slopersons.mjs` keeps running the TypeScript sources directly.

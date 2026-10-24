@@ -12,11 +12,14 @@
   "scripts": {
     "slopersons": "node bin/slopersons.mjs",
     "test": "node --test 'test/**/*.test.ts'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build-binary.ts",
+    "test:binary": "SLOPERSONS_TEST_BINARY=1 node --test test/binary.test.ts"
   },
   "packageManager": "pnpm@10.23.0",
   "devDependencies": {
     "@types/node": "^26.6.5",
+    "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   }
 }

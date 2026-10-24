@@ -1,5 +1,5 @@
 import type { Interpreter } from '../interpreter.ts';
-import { registerSourceModule } from '../modules.ts';
+import { registerSourceModule, standardSourceModule } from '../modules.ts';
 import { registerArray } from './array.ts';
 import { registerBoolean } from './boolean.ts';
 import { registerChar } from './char.ts';
@@ -34,6 +34,6 @@ export function registerStdlib(interpreter: Interpreter): void {
   registerDate(interpreter);
   registerTime(interpreter);
   registerDatetime(interpreter);
-  registerSourceModule(interpreter, 'json', new URL('./json.slop', import.meta.url));
-  registerSourceModule(interpreter, 'test', new URL('./test.slop', import.meta.url));
+  registerSourceModule(interpreter, 'json', standardSourceModule('json'));
+  registerSourceModule(interpreter, 'test', standardSourceModule('test'));
 }

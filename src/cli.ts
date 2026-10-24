@@ -207,12 +207,17 @@ function runReplInWorker(): Promise<number> {
   return runInWorker({ mode: 'repl', control, data }, onRequest, () => reader.close());
 }
 
+declare const SLOPERSONS_WORKER_SOURCE: string | undefined;
+
+function startWorker(data: WorkerData): Worker {
+  const options = { workerData: data, resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() } };
+  if (typeof SLOPERSONS_WORKER_SOURCE === 'string') return new Worker(SLOPERSONS_WORKER_SOURCE, { ...options, eval: true });
+  return new Worker(new URL('./worker.ts', import.meta.url), options);
+}
+
 function runInWorker(data: WorkerData, onReadLine?: (prompt: string) => void, onExit?: () => void): Promise<number> {
   return new Promise((resolve) => {
-    const worker = new Worker(new URL('./worker.ts', import.meta.url), {
-      workerData: data,
-      resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() },
-    });
+    const worker = startWorker(data);
     let code = EXIT_INTERNAL;
     let pipeBroken = false;
     const onBrokenPipe = (error: unknown): void => {
