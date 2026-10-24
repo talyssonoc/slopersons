@@ -1,0 +1,59 @@
+~ A small web app: notes added from a page in the browser, kept in memory while the program runs.
+~
+~   ./bin/slopersons.mjs docs/examples/notes/notes.slop          then open http://127.0.0.1:8080
+~   ./bin/slopersons.mjs docs/examples/notes/notes.slop 3000     to use another port
+~
+~ Ctrl-C stops it. Pages: / (the notes and a form to add one), /api/notes (the notes as JSON) and
+~ /hello?name=Ada&name=Grace (a name given twice arrives as an array).
+
+8080 => port
+io/arguments -> do => words
+(words -> array/length) > 0 ? words -> array/at 0 -> string/to-int => port
+
+[] => notes
+
+proc home
+| [] => items
+| notes -> array/each note
+| | items -> array/push "<li>{note -> hashmap/at "text" -> http/escape-html} <small>{note -> hashmap/at "at"}</small></li>"
+| (notes -> array/is-empty) ? items -> array/push "<li><em>No notes yet.</em></li>"
+| [] => page
+| page -> array/push "<!doctype html>"
+| page -> array/push "<meta charset=\"utf-8\"><title>Notes</title>"
+| page -> array/push "<style>body \{ font-family: sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem \} small \{ color: gray \}</style>"
+| page -> array/push "<h1>Notes</h1>"
+| page -> array/push "<form method=\"post\" action=\"/notes\"><input name=\"text\" placeholder=\"Write a note\" autofocus> <button>Add</button></form>"
+| page -> array/push "<ul>{items -> array/join ""}</ul>"
+| page -> array/push "<p><a href=\"/api/notes\">/api/notes</a> · <a href=\"/hello?name=Ada&amp;name=Grace\">/hello?name=Ada&amp;name=Grace</a></p>"
+| page -> array/join "\n" -> http/html
+
+proc add-note request
+| request -> hashmap/at "body" -> http/parse-form -> hashmap/at-or "text" "" => text
+| (text -> type-of) = "array" ? text -> array/at 0 => text
+| text -> string/trim => text
+| text = "" ? "<!doctype html><p>A note needs some text. <a href=\"/\">Back</a></p>" -> http/html -> hashmap/put "status" 400 -> out
+| notes -> array/push {"id": (notes -> array/length) + 1  "text": text  "at": "{datetime/now -> do}"}
+| "/" -> http/redirect
+
+proc hello request
+| request -> hashmap/at "query" -> hashmap/at-or "name" "stranger" => names
+| (names -> type-of) = "array" ? names -> array/join " and " => names
+| "Hello, {names}!" -> http/text
+
+proc route request
+| request -> hashmap/at "method" => method
+| request -> hashmap/at "path" => path
+| method = "GET" and path = "/" ? home -> do -> out
+| method = "POST" and path = "/notes" ? request -> add-note -> out
+| method = "GET" and path = "/api/notes" ? notes -> http/json -> out
+| method = "GET" and path = "/hello" ? request -> hello -> out
+| "<!doctype html><p>Nothing at {path -> http/escape-html}. <a href=\"/\">Home</a></p>" -> http/html -> hashmap/put "status" 404
+
+proc handle request
+| request -> route => response
+| "{request -> hashmap/at "method"} {request -> hashmap/at "target"} -> {response -> hashmap/at "status"}" -> io/print-line
+| response
+
+"127.0.0.1" -> socket/listen port => listener
+"Notes running at http://127.0.0.1:{listener -> socket/port} (Ctrl-C to stop)" -> io/print-line
+listener -> http/serve handle

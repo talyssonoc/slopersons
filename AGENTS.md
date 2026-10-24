@@ -36,7 +36,7 @@ src/interpreter.ts      Environment, Interpreter (tree walker), control signals 
 src/values.ts           tagged runtime values, equality, hashing, ordering, formatting
 src/errors.ts           SlopersonsError with kind, position and file
 src/runtime/            hand-built algorithms: hashtable, hashing, sorting, text (code points), calendar, time (time of day, datetime parsing and formatting), path (joining paths and taking their parent), utf8 (encoding and strict decoding), stream (buffered streams over byte channels, the registry of open streams), network (the synchronous `Network` interface the interpreter calls, connections as byte channels, listeners)
-src/stdlib/             the builtin modules, one file per type; core.ts holds the bare builtins, `error/*`, the loop builtins and `runIo`, io.ts holds `io/*` and the standard streams, `math/*` lives in int.ts; json.slop and test.slop are the `json` and `test` modules, written in slopersons; registry.ts registers each file with explicit calls
+src/stdlib/             the builtin modules, one file per type; core.ts holds the bare builtins, `error/*`, the loop builtins and `runIo`, io.ts holds `io/*` and the standard streams, `math/*` lives in int.ts; json.slop, test.slop and http.slop are the `json`, `test` and `http` modules, written in slopersons; registry.ts registers each file with explicit calls
 test/                   mirrors src/; test/helpers/ast-print.ts prints ASTs as S-expressions; test/helpers/run.ts runs source in-process
 test/no-proxy.test.ts   greps src/ for forbidden JS APIs (invariant 5); extend its rules when adding an allowed exception
 test/programs/          golden programs (see "Golden programs" below), run through the real binary
@@ -64,7 +64,7 @@ These hold for every change. They come from the project owner and are not negoti
 
 - A bare name is a value lookup, never a call. Calls happen only via `->`; the piped value is the first argument; a trailing `| params | body` or margin block becomes the last argument.
 - `=>` binds in the current scope and errors if the name exists only in an enclosing scope of the same procedure call (lambdas over their procedure's locals); a `proc` body may shadow anything outside the call. `=>>` updates the nearest existing binding searching from the current scope outward. Scopes: top level, `proc` bodies, lambda bodies. Conditionals and loops do not create scopes.
-- The fallback namespace below the program scope holds the seven bare builtins (`do`, `out`, `fail`, `exit`, `use`, `type-of`, `show`) and the builtin module names (`io`, `file`, `path`, `stream`, `socket`, `int`, `float`, `math`, `char`, `boolean`, `string`, `array`, `hashmap`, `set`, `date`, `time`, `datetime`, `error`, `module`, `json`, `test`); a user binding may shadow any of them without error. After `[1] => array`, `array/length` reports that `array` is an array, not a module.
+- The fallback namespace below the program scope holds the seven bare builtins (`do`, `out`, `fail`, `exit`, `use`, `type-of`, `show`) and the builtin module names (`io`, `file`, `path`, `stream`, `socket`, `int`, `float`, `math`, `char`, `boolean`, `string`, `array`, `hashmap`, `set`, `date`, `time`, `datetime`, `error`, `module`, `json`, `test`, `http`); a user binding may shadow any of them without error. After `[1] => array`, `array/length` reports that `array` is an array, not a module.
 - Conditions must be `yes`/`no`. No truthiness, no coercion. `=` is deep structural equality across types; ordering across unrelated types is an error.
 - Ints are BigInt; `/` floors, `mod` is floored, a float operand promotes. Division by zero is an error.
 - `out` exits the nearest enclosing `proc` through lambdas; `stop` (a keyword statement) exits the innermost `while` or loop builtin (`array/each`, `string/each`, `hashmap/each`, `set/each`, `int/times`); other builtins let it pass through.
@@ -92,7 +92,7 @@ Next to `name.slop`:
 - `name.in`: standard input, optional.
 - `name.args`: command-line arguments, one per line, optional.
 
-At least one of `.out` and `.err` must exist. Each program runs in a fresh temporary working directory, so relative paths in `file/*` calls create files there and never in the repository.
+At least one of `.out` and `.err` must exist. Only the files directly in `docs/examples/` are golden programs; an example that runs until it is stopped, such as the web app in `docs/examples/notes/`, lives in a folder of its own and is tested by `test/examples.test.ts`. Each program runs in a fresh temporary working directory, so relative paths in `file/*` calls create files there and never in the repository.
 
 Write a golden program for behavior a person running a program sees: printed forms, error messages and their positions, exit codes, standard input, arguments, files. A program that needs something on the other end of a socket cannot be a golden program, because its output depends on a client and on ports the operating system chooses; `test/network.test.ts` runs those through the same binary and checks what both sides saw. Cover the cases and edge conditions of a builtin with unit tests. Review the expected files by hand before committing them: a golden file states what correct output is, not whatever the interpreter happened to print.
 

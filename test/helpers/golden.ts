@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BANNER, PROMPT } from '../../src/repl.ts';
-import { startProgram, talkToEchoServer } from './network.ts';
+import { listeningPort, startProgram, talkToEchoServer } from './network.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const GOLDEN_DIRECTORIES = [join(root, 'test/programs'), join(root, 'docs/examples')];
@@ -81,6 +81,16 @@ export function defineEntryPointTests(prefix: string, command: () => readonly st
       await program.printed('ready\n');
       program.child.kill('SIGINT');
       assert.deepEqual(await program.finished, { stdout: 'ready\n', stderr: '', code: 130 });
+    } finally {
+      program.child.kill();
+    }
+  });
+
+  test(`${prefix}an HTTP server written with the http module answers requests`, { timeout: 20_000 }, async () => {
+    const program = startProgram(command(), '"127.0.0.1" -> socket/listen 0 => listener\nlistener -> socket/port -> io/print-line\nlistener -> http/serve request | "hello from {request -> hashmap/at "path"}" -> http/text\n');
+    try {
+      const response = await fetch(`http://127.0.0.1:${await listeningPort(program)}/there`);
+      assert.equal(await response.text(), 'hello from /there');
     } finally {
       program.child.kill();
     }

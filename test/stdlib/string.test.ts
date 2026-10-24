@@ -7,6 +7,13 @@ test('string/length counts code points', () => {
   assert.equal(output('"a👍b" -> string/length -> io/print-line'), '3\n');
 });
 
+test('string/byte-length counts the bytes of the UTF-8 encoding, one to four per code point', () => {
+  assert.equal(output('"" -> string/byte-length -> io/print-line\n"abc" -> string/byte-length -> io/print-line'), '0\n3\n');
+  assert.equal(output('"é" -> string/byte-length -> io/print-line\n"日" -> string/byte-length -> io/print-line\n"👍" -> string/byte-length -> io/print-line'), '2\n3\n4\n');
+  assert.equal(output('"héllo 👍" -> string/byte-length -> io/print-line'), '11\n');
+  assert.equal(failure('5 -> string/byte-length').message, 'the input of `string/byte-length` must be a string, got an int');
+});
+
 test('string/chars splits into char values by code point', () => {
   assert.equal(output('"abc" -> string/chars -> io/print-line\n"" -> string/chars -> io/print-line'), '[`a` `b` `c`]\n[]\n');
   assert.equal(output('"a👍b" -> string/chars -> io/print-line'), '[`a` `👍` `b`]\n');

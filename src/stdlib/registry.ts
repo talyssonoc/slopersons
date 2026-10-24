@@ -38,4 +38,5 @@ export function registerStdlib(interpreter: Interpreter): void {
   registerDatetime(interpreter);
   registerSourceModule(interpreter, 'json', standardSourceModule('json'));
   registerSourceModule(interpreter, 'test', standardSourceModule('test'));
+  registerSourceModule(interpreter, 'http', standardSourceModule('http'));
 }

@@ -134,3 +134,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Make Ctrl-C end a program the way `exit` does](./202610241708-make-ctrl-c-end-a-program-the-way-exit-does.md) | Superseded by [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) |
 | 2026-10-24 | [Free every socket however a program ends](./202610241736-free-every-socket-however-a-program-ends.md) | Accepted |
 | 2026-10-24 | [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) | Accepted |
+| 2026-10-24 | [Serve HTTP from a slopersons module over sockets](./202610241758-serve-http-from-a-slopersons-module-over-sockets.md) | Proposed |

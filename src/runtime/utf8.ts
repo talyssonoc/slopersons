@@ -25,10 +25,14 @@ function widthOf(codePoint: number): number {
   return 4;
 }
 
-export function encodeUtf8(text: string): Uint8Array {
+export function utf8Length(text: string): number {
   let size = 0;
   for (let index = 0; index < text.length; index += unitsOf(text, index)) size += widthOf(scalarAt(text, index));
-  const bytes = new Uint8Array(size);
+  return size;
+}
+
+export function encodeUtf8(text: string): Uint8Array {
+  const bytes = new Uint8Array(utf8Length(text));
   let at = 0;
   for (let index = 0; index < text.length; index += unitsOf(text, index)) {
     const codePoint = scalarAt(text, index);

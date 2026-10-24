@@ -1,0 +1,335 @@
+~ The http module of the standard library: an HTTP/1.1 server written over the socket module. The
+~ interpreter loads this file at startup and registers what it exports as members of the builtin module
+~ `http`; errors raised here are reported at the caller's arrow.
+
+json/stringify => stringify-json
+
+1000 => first-line-milliseconds
+10000 => request-milliseconds
+16384 => largest-head
+100 => most-headers
+1048576 => largest-body
+
+{200: "OK"  201: "Created"  202: "Accepted"  204: "No Content"  301: "Moved Permanently"  302: "Found"  303: "See Other"  304: "Not Modified"  307: "Temporary Redirect"  308: "Permanent Redirect"  400: "Bad Request"  401: "Unauthorized"  403: "Forbidden"  404: "Not Found"  405: "Method Not Allowed"  409: "Conflict"  410: "Gone"  411: "Length Required"  413: "Content Too Large"  415: "Unsupported Media Type"  422: "Unprocessable Content"  429: "Too Many Requests"  431: "Request Header Fields Too Large"  500: "Internal Server Error"  501: "Not Implemented"  503: "Service Unavailable"  505: "HTTP Version Not Supported"} => reasons
+
+~ The status to answer with when reading a request fails; 0 while the failure is not the request's fault.
+0 => refusal
+
+proc describe-type value
+| value -> type-of => name
+| (name = "int" or name = "array" or name = "error") ? "an {name}" -> out
+| "a {name}"
+
+proc expect-string value what
+| (value -> type-of) /= "string" ? "{what} must be a string, got {value -> describe-type}" -> fail
+
+proc refuse status reason
+| status =>> refusal
+| reason -> fail
+
+proc is-token-char c
+| c -> char/to-int => code
+| (code >= 48 and code <= 57) or (code >= 65 and code <= 90) or (code >= 97 and code <= 122) ? yes -> out
+| "!#$%&'*+-.^_`|~" -> string/contains (c -> char/to-string)
+
+proc is-token text
+| text = "" ? no -> out
+| yes => valid
+| text -> string/each c
+| | not (c -> is-token-char) ? no =>> valid
+| valid
+
+proc is-digits text
+| text = "" ? no -> out
+| yes => valid
+| text -> string/each c
+| | (c -> char/to-int) < 48 or (c -> char/to-int) > 57 ? no =>> valid
+| valid
+
+proc hex-value c
+| c -> char/to-int => code
+| code >= 48 and code <= 57 ? code - 48 -> out
+| code >= 97 and code <= 102 ? code - 87 -> out
+| code >= 65 and code <= 70 ? code - 55 -> out
+| nothing
+
+proc sequence-width lead
+| lead >= 194 and lead <= 223 ? 2 -> out
+| lead >= 224 and lead <= 239 ? 3 -> out
+| lead >= 240 and lead <= 244 ? 4 -> out
+| 0
+
+proc decode-utf8 bytes characters
+| bytes -> array/length => size
+| 0 => index
+| while index < size
+| | bytes -> array/at index => lead
+| | lead < 128 ?
+| | | characters -> array/push (lead -> int/to-char)
+| | | index + 1 => index
+| | :
+| | | lead -> sequence-width => width
+| | | (width = 0 or index + width > size) ? "the percent-encoded bytes are not valid UTF-8" -> fail
+| | | lead - 240 => code
+| | | width = 2 ? lead - 192 => code
+| | | width = 3 ? lead - 224 => code
+| | | 1 -> int/up-to (width - 1) -> array/each offset
+| | | | bytes -> array/at (index + offset) => continuation
+| | | | (continuation < 128 or continuation > 191) ? "the percent-encoded bytes are not valid UTF-8" -> fail
+| | | | code * 64 + continuation - 128 =>> code
+| | | width = 3 and (code < 2048 or (code >= 55296 and code <= 57343)) ? "the percent-encoded bytes are not valid UTF-8" -> fail
+| | | width = 4 and (code < 65536 or code > 1114111) ? "the percent-encoded bytes are not valid UTF-8" -> fail
+| | | characters -> array/push (code -> int/to-char)
+| | | index + width => index
+
+proc percent-decode text plus-means-space
+| text -> string/chars => characters
+| characters -> array/length => size
+| [] => decoded
+| [] => bytes
+| 0 => index
+| while index < size
+| | characters -> array/at index => c
+| | c = `%` ?
+| | | index + 2 >= size ? "a % must be followed by two hexadecimal digits" -> fail
+| | | characters -> array/at (index + 1) -> hex-value => high
+| | | characters -> array/at (index + 2) -> hex-value => low
+| | | (high = nothing or low = nothing) ? "a % must be followed by two hexadecimal digits" -> fail
+| | | bytes -> array/push (high * 16 + low)
+| | | index + 3 => index
+| | :
+| | | bytes -> decode-utf8 decoded
+| | | [] => bytes
+| | | c = `+` and plus-means-space ? ` ` => c
+| | | decoded -> array/push c
+| | | index + 1 => index
+| bytes -> decode-utf8 decoded
+| decoded -> string/from-chars
+
+proc add-field fields piece
+| piece -> string/index-of "=" => split-at
+| split-at = nothing ?
+| | piece -> percent-decode yes => name
+| | "" => value
+| :
+| | piece -> string/slice 0 split-at -> percent-decode yes => name
+| | piece -> string/slice (split-at + 1) (piece -> string/length) -> percent-decode yes => value
+| not (fields -> hashmap/has name) ? fields -> hashmap/put name value -> out
+| fields -> hashmap/at name => existing
+| (existing -> type-of) = "array" ? existing -> array/push value -> out
+| fields -> hashmap/put name [existing value]
+
+proc fields-of text
+| {} => fields
+| text -> string/split "&" -> array/each piece
+| | piece /= "" ? fields -> add-field piece
+| fields
+
+proc parse-form text
+| text -> expect-string "the input of `http/parse-form`"
+| attempt
+| | text -> fields-of => fields
+| recover problem
+| | "the form data is not valid: {problem -> error/message}" -> fail
+| fields
+
+proc escape-html text
+| text -> expect-string "the input of `http/escape-html`"
+| text -> string/replace "&" "&amp;" -> string/replace "<" "&lt;" -> string/replace ">" "&gt;" -> string/replace "\"" "&quot;" -> string/replace "'" "&#39;"
+
+proc text body
+| body -> expect-string "the body of `http/text`"
+| {"status": 200  "headers": {"content-type": "text/plain; charset=utf-8"}  "body": body}
+
+proc html body
+| body -> expect-string "the body of `http/html`"
+| {"status": 200  "headers": {"content-type": "text/html; charset=utf-8"}  "body": body}
+
+proc json value
+| {"status": 200  "headers": {"content-type": "application/json"}  "body": (value -> stringify-json)}
+
+proc redirect location
+| location -> expect-string "the location of `http/redirect`"
+| {"status": 303  "headers": {"location": location}  "body": ""}
+
+proc read-head connection timeouts
+| timeouts ? connection -> socket/set-timeout first-line-milliseconds
+| connection -> stream/read-line => line
+| 0 => size
+| while line = ""
+| | size + 2 => size
+| | size > largest-head ? 431 -> refuse "the request head is longer than {largest-head} bytes"
+| | connection -> stream/read-line => line
+| line = nothing ? nothing -> out
+| timeouts ? connection -> socket/set-timeout request-milliseconds
+| [] => lines
+| while line /= ""
+| | line = nothing ? 400 -> refuse "the connection ended inside the request head"
+| | size + (line -> string/byte-length) + 2 => size
+| | size > largest-head ? 431 -> refuse "the request head is longer than {largest-head} bytes"
+| | (lines -> array/length) > most-headers ? 431 -> refuse "the request has more than {most-headers} header lines"
+| | lines -> array/push line
+| | connection -> stream/read-line => line
+| lines
+
+proc parse-request-line line
+| line -> string/split " " => parts
+| "the request line must be a method, a target and a version separated by single spaces" => malformed
+| (parts -> array/length) /= 3 ? 400 -> refuse malformed
+| parts -> array/at 0 => method
+| parts -> array/at 1 => target
+| parts -> array/at 2 => version
+| not (method -> is-token) ? 400 -> refuse malformed
+| not (version -> string/starts-with "HTTP/") ? 400 -> refuse malformed
+| version /= "HTTP/1.1" and version /= "HTTP/1.0" ? 505 -> refuse "only HTTP/1.0 and HTTP/1.1 are supported, got {version}"
+| not (target -> string/starts-with "/") ? 400 -> refuse "the target must be a path that starts with /, got {target -> show}"
+| [method target]
+
+proc add-header headers line
+| (line -> string/starts-with " ") or (line -> string/starts-with "\t") ? 400 -> refuse "header lines continued on the next line are not supported"
+| line -> string/index-of ":" => colon
+| colon = nothing ? 400 -> refuse "the header line {line -> show} has no colon"
+| line -> string/slice 0 colon => name
+| not (name -> is-token) ? 400 -> refuse "the header name {name -> show} is not valid"
+| name -> string/lower => key
+| line -> string/slice (colon + 1) (line -> string/length) -> string/trim => value
+| headers -> hashmap/has key ? headers -> hashmap/put key "{headers -> hashmap/at key}, {value}" -> out
+| headers -> hashmap/put key value
+
+proc read-body connection headers
+| headers -> hashmap/has "transfer-encoding" ? 411 -> refuse "bodies sent with Transfer-Encoding are not supported; send a Content-Length instead"
+| not (headers -> hashmap/has "content-length") ? "" -> out
+| headers -> hashmap/at "content-length" => declared
+| not (declared -> is-digits) ? 400 -> refuse "the Content-Length {declared -> show} is not a number of bytes"
+| declared -> string/to-int => size
+| size > largest-body ? 413 -> refuse "the body is longer than {largest-body} bytes"
+| size = 0 ? "" -> out
+| attempt
+| | connection -> stream/read size => body
+| recover problem
+| | 400 -> refuse "the body could not be read: {problem -> error/message}"
+| body = nothing ? 400 -> refuse "the connection ended before the {size} bytes the Content-Length announced"
+| (body -> string/byte-length) < size ? 400 -> refuse "the connection ended before the {size} bytes the Content-Length announced"
+| body
+
+proc receive connection timeouts
+| 0 =>> refusal
+| attempt
+| | connection -> read-head timeouts => lines
+| | lines = nothing ? nothing -> out
+| | lines -> array/at 0 -> parse-request-line => start
+| | start -> array/at 0 => method
+| | start -> array/at 1 => target
+| | target -> string/index-of "?" => mark
+| | [target ""] => pieces
+| | mark /= nothing ? [(target -> string/slice 0 mark) (target -> string/slice (mark + 1) (target -> string/length))] => pieces
+| | attempt
+| | | pieces -> array/at 0 -> percent-decode no => path
+| | | pieces -> array/at 1 -> fields-of => query
+| | recover problem
+| | | 400 -> refuse "the target {target -> show} is not valid: {problem -> error/message}"
+| | {} => headers
+| | lines -> array/slice 1 (lines -> array/length) -> array/each line
+| | | headers -> add-header line
+| | connection -> read-body headers => body
+| | {"method": method  "target": target  "path": path  "query": query  "headers": headers  "body": body}
+| recover problem
+| | refusal = 0 ? problem -> fail
+| | {"refusal": refusal  "reason": (problem -> error/message)}
+
+proc read-request connection
+| (connection -> type-of) /= "stream" ? "the input of `http/read-request` must be a stream, got {connection -> describe-type}" -> fail
+| connection -> receive no => received
+| received = nothing ? nothing -> out
+| received -> hashmap/has "refusal" ? "cannot accept the request ({received -> hashmap/at "refusal"} {reasons -> hashmap/at-or (received -> hashmap/at "refusal") ""}): {received -> hashmap/at "reason"}" -> fail
+| received
+
+proc header-line lines name value
+| (value -> type-of) /= "string" ? "the value of the header {name} must be a string or an array of strings, got {value -> describe-type}" -> fail
+| (value -> string/contains "\r") or (value -> string/contains "\n") ? "the value of the header {name} must not contain a line break" -> fail
+| lines -> array/push "{name}: {value}"
+
+proc header-lines lines name value
+| (name -> type-of) /= "string" ? "header names must be strings, got {name -> describe-type}" -> fail
+| not (name -> is-token) ? "the header name {name -> show} is not valid" -> fail
+| name -> string/lower => lowered
+| (lowered = "content-length" or lowered = "connection" or lowered = "transfer-encoding") ? nothing -> out
+| (value -> type-of) /= "array" ? lines -> header-line name value -> out
+| value -> array/each item
+| | lines -> header-line name item
+
+proc check-response response
+| (response -> type-of) /= "hashmap" ? "the response must be a hashmap, got {response -> describe-type}" -> fail
+| response -> hashmap/at-or "status" 200 => status
+| (status -> type-of) /= "int" ? "the status of the response must be an int, got {status -> describe-type}" -> fail
+| (status < 200 or status > 599) ? "the status of the response must be between 200 and 599, got {status}" -> fail
+| response -> hashmap/at-or "headers" {} => headers
+| (headers -> type-of) /= "hashmap" ? "the headers of the response must be a hashmap, got {headers -> describe-type}" -> fail
+| response -> hashmap/at-or "body" "" => body
+| body -> expect-string "the body of the response"
+| [] => lines
+| headers -> hashmap/each name value
+| | lines -> header-lines name value
+| (headers -> hashmap/keys -> array/any name | (name -> string/lower) = "content-type") => typed
+| {"status": status  "lines": lines  "typed": typed  "body": body}
+
+proc send connection response include-body
+| response -> check-response => checked
+| checked -> hashmap/at "status" => status
+| checked -> hashmap/at "body" => body
+| ["HTTP/1.1 {status} {reasons -> hashmap/at-or status ""}"] => head
+| checked -> hashmap/at "lines" -> array/each line
+| | head -> array/push line
+| body /= "" and not (checked -> hashmap/at "typed") ? head -> array/push "content-type: text/plain; charset=utf-8"
+| (status = 204 or status = 304) => empty-status
+| not empty-status ? head -> array/push "content-length: {body -> string/byte-length}"
+| head -> array/push "connection: close"
+| connection -> stream/write "{head -> array/join "\r\n"}\r\n\r\n"
+| include-body and not empty-status ? connection -> stream/write body
+| connection -> stream/flush
+| nothing
+
+proc write-response connection response
+| (connection -> type-of) /= "stream" ? "the input of `http/write-response` must be a stream, got {connection -> describe-type}" -> fail
+| connection -> send response yes
+
+proc location problem
+| problem -> error/line => line
+| line = nothing ? nothing -> out
+| problem -> error/file => file
+| file = nothing ? "line {line}, column {problem -> error/column}" -> out
+| "{file}:{line}:{problem -> error/column}"
+
+proc report problem request
+| io/stderr -> stream/write-line "error in the handler for {request -> hashmap/at "method"} {request -> hashmap/at "target"}: {problem -> error/message}"
+| problem -> location => where
+| where /= nothing ? io/stderr -> stream/write-line "  at {where}"
+
+proc answer connection handler
+| connection -> receive yes => received
+| received = nothing ? nothing -> out
+| received -> hashmap/has "refusal" ?
+| | received -> hashmap/at "refusal" => status
+| | connection -> send {"status": status  "body": "{reasons -> hashmap/at-or status ""}: {received -> hashmap/at "reason"}\n"} yes
+| | nothing -> out
+| attempt
+| | received -> handler => response
+| | response -> check-response
+| recover problem
+| | problem -> report received
+| | {"status": 500  "body": "Internal Server Error\n"} => response
+| connection -> send response ((received -> hashmap/at "method") /= "HEAD")
+
+proc serve listener handler
+| (listener -> type-of) /= "listener" ? "the input of `http/serve` must be a listener, got {listener -> describe-type}" -> fail
+| (handler -> type-of) /= "proc" ? "the handler of `http/serve` must be a procedure, got {handler -> describe-type}" -> fail
+| while yes
+| | listener -> socket/accept => connection
+| | attempt
+| | | connection -> answer handler
+| | recover
+| | | nothing
+| | always
+| | | attempt | connection -> stream/close recover | nothing
+
+export serve read-request write-response text html json redirect escape-html parse-form

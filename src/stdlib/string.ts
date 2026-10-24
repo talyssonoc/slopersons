@@ -24,6 +24,7 @@ import {
   upper,
   words,
 } from '../runtime/text.ts';
+import { utf8Length } from '../runtime/utf8.ts';
 import { NOTHING, array, boolean, char, float, formatValue, int, string, type Value } from '../values.ts';
 import { input, callLambda, checkSize, expectArray, expectChar, expectInt, expectProc, expectString, runLoopBody } from './core.ts';
 
@@ -61,6 +62,8 @@ function countOccurrences(text: string, needle: string): number {
 
 export function registerString(interpreter: Interpreter): void {
   interpreter.defineIn('string', 'length', 1, (inputs, context) => int(BigInt(length(receiver(inputs, 'length', context)))));
+
+  interpreter.defineIn('string', 'byte-length', 1, (inputs, context) => int(BigInt(utf8Length(receiver(inputs, 'byte-length', context)))));
 
   interpreter.defineIn('string', 'chars', 1, (inputs, context) => {
     const items: Value[] = [];

@@ -46,11 +46,15 @@ export interface RunningProgram {
 }
 
 export function startProgram(command: readonly string[], source: string, programArguments: readonly string[] = []): RunningProgram {
-  const [executable, ...leading] = command;
-  if (executable === undefined) throw new Error('a command needs an executable');
   const cwd = mkdtempSync(join(tmpdir(), 'slopersons-network-'));
   const path = join(cwd, 'program.slop');
   writeFileSync(path, source);
+  return startProgramFile(command, path, programArguments, cwd);
+}
+
+export function startProgramFile(command: readonly string[], path: string, programArguments: readonly string[] = [], cwd: string = mkdtempSync(join(tmpdir(), 'slopersons-network-'))): RunningProgram {
+  const [executable, ...leading] = command;
+  if (executable === undefined) throw new Error('a command needs an executable');
   const child = spawn(executable, [...leading, path, ...programArguments], { cwd });
   programs.add(child);
   child.on('close', () => programs.delete(child));

@@ -5,9 +5,11 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { startProgramFile, within } from './helpers/network.ts';
 
 const bin = fileURLToPath(new URL('../bin/slopersons.mjs', import.meta.url));
 const usersExample = fileURLToPath(new URL('../docs/examples/users.slop', import.meta.url));
+const notesExample = fileURLToPath(new URL('../docs/examples/notes/notes.slop', import.meta.url));
 
 const WELCOME = 'Welcome to the user registry.\n';
 const CHOICE = 'Register, list or quit? (r/l/q): ';
@@ -55,4 +57,46 @@ test('the users example leaves a registry it cannot read exactly as it found it'
     code: 1,
   });
   assert.equal(readFileSync(join(directory, 'users.json'), 'utf8'), damaged);
+});
+
+test('the notes example serves its pages, keeps notes added from the form, and stops with Ctrl-C', { timeout: 30_000 }, async () => {
+  const program = startProgramFile([bin], notesExample, ['0']);
+  try {
+    const banner = await program.firstLine;
+    const base = /http:\/\/127\.0\.0\.1:\d+/.exec(banner)?.[0];
+    assert.ok(base !== undefined, `no address in ${JSON.stringify(banner)}`);
+    assert.equal(banner, `Notes running at ${base} (Ctrl-C to stop)`);
+
+    const empty = await fetch(`${base}/`);
+    assert.equal(empty.headers.get('content-type'), 'text/html; charset=utf-8');
+    assert.match(await empty.text(), /<li><em>No notes yet\.<\/em><\/li>/);
+
+    const added = await fetch(`${base}/notes`, { method: 'POST', body: new URLSearchParams({ text: '  Buy <milk> & eggs  ' }), redirect: 'manual' });
+    assert.equal(added.status, 303);
+    assert.equal(added.headers.get('location'), '/');
+    const blank = await fetch(`${base}/notes`, { method: 'POST', body: new URLSearchParams({ text: '   ' }) });
+    assert.equal(blank.status, 400);
+    await blank.text();
+
+    assert.match(await (await fetch(`${base}/`)).text(), /<li>Buy &lt;milk&gt; &amp; eggs <small>\d{4}-\d{2}-\d{2}T[\d:.]+<\/small><\/li>/);
+    const notes = (await (await fetch(`${base}/api/notes`)).json()) as { id: number; text: string }[];
+    assert.deepEqual(
+      notes.map(({ id, text }) => ({ id, text })),
+      [{ id: 1, text: 'Buy <milk> & eggs' }],
+    );
+    assert.equal(await (await fetch(`${base}/hello?name=Ada&name=Grace`)).text(), 'Hello, Ada and Grace!');
+    assert.equal(await (await fetch(`${base}/hello`)).text(), 'Hello, stranger!');
+    assert.equal((await fetch(`${base}/missing`)).status, 404);
+
+    program.child.kill('SIGINT');
+    const finished = await within(program.finished, 10_000, 'the notes example to stop');
+    assert.equal(finished.code, 130);
+    assert.equal(finished.stderr, '');
+    assert.equal(
+      finished.stdout,
+      `${banner}\nGET / -> 200\nPOST /notes -> 303\nPOST /notes -> 400\nGET / -> 200\nGET /api/notes -> 200\nGET /hello?name=Ada&name=Grace -> 200\nGET /hello -> 200\nGET /missing -> 404\n`,
+    );
+  } finally {
+    program.child.kill();
+  }
 });

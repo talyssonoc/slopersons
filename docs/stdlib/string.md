@@ -12,6 +12,17 @@ Returns the number of code points in `text` as an int.
 "a👍b" -> string/length -> io/print-line   ~ 3
 ```
 
+## byte-length
+
+`text -> string/byte-length`
+
+Returns the number of bytes `text` takes in UTF-8 as an int: 1 for ASCII characters, up to 4 for others. Protocols such as HTTP give lengths in bytes, and `stream/read` counts bytes.
+
+```
+"héllo" -> string/byte-length -> io/print-line   ~ 6
+"👍" -> string/byte-length -> io/print-line       ~ 4
+```
+
 ## chars
 
 `text -> string/chars`

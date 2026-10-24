@@ -1,5 +1,7 @@
 # Socket builtins
 
+For HTTP, the [http](http.md) module is built on this one.
+
 The `socket` module opens TCP connections. A server listens on a host and port, then accepts clients one at a time; a client connects to a host and port. Either way a connection is a [stream](stream.md), so `stream/read-line`, `stream/read`, `stream/read-all`, `stream/write`, `stream/write-line`, `stream/flush` and `stream/close` work on it as they do on a file.
 
 ```
