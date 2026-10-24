@@ -4,6 +4,7 @@ import { parse } from '../../src/parser.ts';
 import { registerStdlib } from '../../src/stdlib/registry.ts';
 import { lineInput, type ReplIo } from '../../src/boundary.ts';
 import { createInterpreter, runProgram } from '../../src/cli.ts';
+import { NO_NETWORK, type Network } from '../../src/runtime/network.ts';
 
 export interface RunResult {
   out: string;
@@ -35,9 +36,9 @@ export function fakeIo(inputLines: string[] = []): FakeIo {
   return io;
 }
 
-export function run(source: string, inputLines: string[] = []): RunResult {
+export function run(source: string, inputLines: string[] = [], network: Network = NO_NETWORK): RunResult {
   const io = fakeIo(inputLines);
-  const interpreter = new Interpreter(io);
+  const interpreter = new Interpreter(io, [], network);
   registerStdlib(interpreter);
   try {
     interpreter.run(parse(source));

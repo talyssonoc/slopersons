@@ -47,6 +47,24 @@ in -> stream/close`;
   assert.equal(output(source), 'first\nsecond\nlast\nnothing\n');
 });
 
+test('stream/read takes a count of bytes, gives fewer at the end and nothing after it', () => {
+  const path = join(scratchDirectory(), 'bytes.txt');
+  writeFileSync(path, 'héllo world');
+  const source = `${literal(path)} -> file/open "read" => in
+in -> stream/read 6 -> show -> io/print-line
+in -> stream/read 0 -> show -> io/print-line
+in -> stream/read 100 -> show -> io/print-line
+in -> stream/read 1 -> io/print-line`;
+  assert.equal(output(source), '"héllo"\n""\n" world"\nnothing\n');
+});
+
+test('stream/read checks its count', () => {
+  assert.equal(failure('io/stdin -> stream/read -1').message, 'the count of `stream/read` cannot be negative, got -1');
+  assert.equal(failure('io/stdin -> stream/read "3"').message, 'the count of `stream/read` must be an int, got a string');
+  assert.equal(failure('"x" -> stream/read 3').message, 'the input of `stream/read` must be a stream, got a string');
+  assert.equal(failure('io/stdin -> stream/read 50000001').message, '`stream/read` would build a value of 50000001 bytes, which is more than the limit of 50000000');
+});
+
 test('a stream opened for writing truncates the file, chains writes, and has written everything once closed', () => {
   const path = join(scratchDirectory(), 'out.txt');
   writeFileSync(path, 'previous content');

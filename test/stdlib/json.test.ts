@@ -141,10 +141,10 @@ test('the binary parses nesting thousands of levels deep, and deeper text stops 
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-'));
   const program = join(directory, 'depth.slop');
   writeFileSync(program, 'io/stdin -> stream/read-all -> json/parse -> array/length -> io/print-line\n');
-  const deep = spawnSync(bin, [program], { encoding: 'utf8', input: `${'['.repeat(4000)}${']'.repeat(4000)}` });
+  const deep = spawnSync(bin, [program], { encoding: 'utf8', timeout: 30_000, input: `${'['.repeat(4000)}${']'.repeat(4000)}` });
   assert.equal(deep.stderr, '');
   assert.equal(deep.stdout, '1\n');
-  const tooDeep = spawnSync(bin, [program], { encoding: 'utf8', input: `${'['.repeat(6000)}${']'.repeat(6000)}` });
+  const tooDeep = spawnSync(bin, [program], { encoding: 'utf8', timeout: 30_000, input: `${'['.repeat(6000)}${']'.repeat(6000)}` });
   assert.equal(tooDeep.stderr, `error: too many nested procedure calls (the limit is 10000)\n  at ${program}:1:29\n`);
   assert.equal(tooDeep.status, 1);
 });
@@ -207,7 +207,7 @@ test('the binary writes deep nesting, and stops a value that contains itself', (
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-'));
   const program = join(directory, 'nesting.slop');
   writeFileSync(program, '[] => deep\n999 -> int/times\n| [deep] =>> deep\ndeep -> json/stringify -> string/length -> io/print-line\n[1] => looped\nlooped -> array/push looped\nlooped -> json/stringify\n');
-  const result = spawnSync(bin, [program], { encoding: 'utf8' });
+  const result = spawnSync(bin, [program], { encoding: 'utf8', timeout: 30_000 });
   assert.equal(result.stdout, '2000\n');
   assert.equal(result.stderr, `error: \`json/stringify\` stopped after 1000 levels of nesting; the value is nested too deeply or contains itself\n  at ${program}:7:8\n`);
   assert.equal(result.status, 1);

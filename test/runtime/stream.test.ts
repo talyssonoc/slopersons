@@ -92,6 +92,30 @@ test('readAll returns the rest of the input exactly, after any lines already rea
   assert.equal(reader.readLine(), null);
 });
 
+test('read takes exactly the bytes asked for across several reads, fewer at the end, and null once nothing is left', () => {
+  for (const chunk of [1, 3, 64]) {
+    const reader = stream(new MemoryChannel('héllo world', { chunk }), 'read');
+    assert.equal(reader.read(6), 'héllo', `chunk ${chunk}`);
+    assert.equal(reader.read(0), '');
+    assert.equal(reader.read(100), ' world');
+    assert.equal(reader.read(1), null);
+    assert.equal(reader.read(0), '');
+  }
+});
+
+test('read counts bytes, so stopping inside a character is invalid UTF-8', () => {
+  const reader = stream(new MemoryChannel('é!'), 'read');
+  assert.equal(failureMessage(() => reader.read(1)), 'cannot read "notes.txt": it is not valid UTF-8 text (invalid byte at offset 0)');
+});
+
+test('read continues where readLine stopped and readLine continues after it', () => {
+  const reader = stream(new MemoryChannel('Content-Length: 4\r\n\r\nbodynext\n', { chunk: 5 }), 'read');
+  assert.equal(reader.readLine(), 'Content-Length: 4');
+  assert.equal(reader.readLine(), '');
+  assert.equal(reader.read(4), 'body');
+  assert.equal(reader.readLine(), 'next');
+});
+
 test('invalid UTF-8 fails with the offset of the bad byte, and reading continues after that line', () => {
   const bytes = [...new TextEncoder().encode('ok\n'), 0x61, 0xff, 0x0a, ...new TextEncoder().encode('next\n')];
   const reader = stream(new MemoryChannel(bytes), 'read');
@@ -209,6 +233,48 @@ test('the registry tracks open streams and closeAll flushes them, reporting fail
   assert.equal(good.closed, true);
 });
 
+class DuplexChannel implements ByteChannel {
+  readonly positioned = false;
+  readonly input: number[];
+  readonly output: number[];
+  private cursor: number;
+
+  constructor(input: string | number[]) {
+    this.input = typeof input === 'string' ? [...new TextEncoder().encode(input)] : input;
+    this.output = [];
+    this.cursor = 0;
+  }
+
+  read(buffer: Uint8Array, start: number, length: number): number {
+    const count = Math.min(length, this.input.length - this.cursor);
+    for (let i = 0; i < count; i++) buffer[start + i] = this.input[this.cursor + i] ?? 0;
+    this.cursor += count;
+    return count;
+  }
+
+  write(source: Uint8Array, start: number, length: number): void {
+    for (let i = 0; i < length; i++) this.output.push(source[start + i] ?? 0);
+  }
+
+  close(): void {}
+}
+
+test('on a stream without positions, like a connection, writing keeps the input already read ahead', () => {
+  const channel = new DuplexChannel('first\nsecond\n');
+  const connection = stream(channel, 'read-write');
+  assert.equal(connection.readLine(), 'first');
+  connection.write('got first\n');
+  assert.equal(connection.readLine(), 'second');
+  assert.equal(new TextDecoder().decode(Uint8Array.from(channel.output)), 'got first\n');
+});
+
+test('on a stream without positions, the offset of invalid UTF-8 counts only the bytes read', () => {
+  const connection = stream(new DuplexChannel([...new TextEncoder().encode('ok\n'), 0xff, 0x0a]), 'read-write');
+  assert.equal(connection.readLine(), 'ok');
+  connection.write('a reply that is much longer than what was read');
+  assert.equal(failureMessage(() => connection.readLine()), 'cannot read "notes.txt": it is not valid UTF-8 text (invalid byte at offset 3)');
+});
+
 test('a text output stream writes straight through and cannot be read or closed', () => {
   const written: string[] = [];
   const output = new TextOutputStream('stdout', 'standard output', (text) => written.push(text));
@@ -217,4 +283,5 @@ test('a text output stream writes straight through and cannot be read or closed'
   output.write('b');
   assert.deepEqual(written, ['a', 'b']);
   assert.equal(failureMessage(() => output.readLine()), 'cannot read standard output: it can only be written');
+  assert.equal(failureMessage(() => output.read()), 'cannot read standard output: it can only be written');
 });

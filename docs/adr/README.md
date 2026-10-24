@@ -127,3 +127,7 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Put path manipulation in a `path` module](./202610241007-put-path-manipulation-in-a-path-module.md) | Accepted |
 | 2026-10-24 | [Find a file's own directory from where the call is written](./202610241008-find-a-files-own-directory-from-where-the-call-is-written.md) | Accepted |
 | 2026-10-24 | [Package a standalone executable with esbuild and Node's `--build-sea`](./202610241039-package-a-standalone-executable-with-esbuild-and-node-sea.md) | Accepted |
+| 2026-10-24 | [Make socket calls block by handing them to the main thread](./202610241615-make-socket-calls-block-by-handing-them-to-the-main-thread.md) | Accepted |
+| 2026-10-24 | [Expose TCP through a socket module whose connections are streams](./202610241616-expose-tcp-through-a-socket-module-whose-connections-are-streams.md) | Proposed |
+| 2026-10-24 | [Time out connection reads and writes after 30 seconds](./202610241617-time-out-connection-reads-and-writes-after-30-seconds.md) | Proposed |
+| 2026-10-24 | [Count `stream/read` in bytes](./202610241618-count-stream-read-in-bytes.md) | Proposed |

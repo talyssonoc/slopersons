@@ -1,6 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { EXIT_INTERNAL, INTERNAL_ERROR_LINE, LINE_ENDED, LINE_WAITING, lineInput, type ReplIo } from './boundary.ts';
 import { createInterpreter, nodeIo, runProgram, type WorkerData } from './cli.ts';
+import { bridgedNetwork } from './network.ts';
 import { Repl } from './repl.ts';
 
 process.removeAllListeners('warning');
@@ -27,13 +28,14 @@ function replIo(control: SharedArrayBuffer, data: SharedArrayBuffer): ReplIo {
 }
 
 const given = workerData as WorkerData;
+const network = bridgedNetwork(given.network);
 let code = EXIT_INTERNAL;
 try {
   if (given.mode === 'repl') {
     const io = replIo(given.control, given.data);
-    code = new Repl(io, createInterpreter(io)).run();
+    code = new Repl(io, createInterpreter(io, [], network)).run();
   } else {
-    code = runProgram(given.source, given.file, nodeIo, createInterpreter(nodeIo, given.programArguments));
+    code = runProgram(given.source, given.file, nodeIo, createInterpreter(nodeIo, given.programArguments, network));
   }
 } catch {
   nodeIo.writeError(INTERNAL_ERROR_LINE);

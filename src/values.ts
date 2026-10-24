@@ -5,6 +5,7 @@ import type { CallContext, Environment } from './interpreter.ts';
 import { civilFromDays, formatDate } from './runtime/calendar.ts';
 import { hashBigInt, hashBoolean, hashCombine, hashNumber, hashString } from './runtime/hashing.ts';
 import { HashTable, type KeyOperations } from './runtime/hashtable.ts';
+import type { Listener } from './runtime/network.ts';
 import type { Stream } from './runtime/stream.ts';
 import { codePoints, formatFloat } from './runtime/text.ts';
 import { isoDateTime, isoTime } from './runtime/time.ts';
@@ -82,6 +83,12 @@ export interface StreamValue {
   stream: Stream;
 }
 
+export interface ListenerValue {
+  type: 'listener';
+  id: number;
+  listener: Listener;
+}
+
 export interface ErrorValue {
   type: 'error';
   message: string;
@@ -129,10 +136,11 @@ export type Value =
   | ErrorValue
   | ModuleValue
   | StreamValue
+  | ListenerValue
   | ProcedureValue
   | BuiltinValue;
 
-export type TypeName = 'int' | 'float' | 'char' | 'boolean' | 'string' | 'nothing' | 'array' | 'hashmap' | 'set' | 'date' | 'time' | 'datetime' | 'error' | 'module' | 'stream' | 'proc';
+export type TypeName = 'int' | 'float' | 'char' | 'boolean' | 'string' | 'nothing' | 'array' | 'hashmap' | 'set' | 'date' | 'time' | 'datetime' | 'error' | 'module' | 'stream' | 'listener' | 'proc';
 
 export const NOTHING: NothingValue = { type: 'nothing' };
 export const YES: BooleanValue = { type: 'boolean', value: true };
@@ -182,6 +190,10 @@ export function datetime(milliseconds: number): DateTimeValue {
 
 export function streamValue(stream: Stream): StreamValue {
   return { type: 'stream', id: freshId(), stream };
+}
+
+export function listenerValue(listener: Listener): ListenerValue {
+  return { type: 'listener', id: freshId(), listener };
 }
 
 export function errorValue(error: SlopersonsError): ErrorValue {
@@ -255,6 +267,7 @@ export function valuesEqual(first: Value, second: Value): boolean {
     case 'builtin':
     case 'module':
     case 'stream':
+    case 'listener':
       return first === second;
   }
 }
@@ -277,6 +290,7 @@ const TAG_HASH: Record<Value['type'], number> = {
   error: 15,
   module: 16,
   stream: 17,
+  listener: 18,
 };
 
 export function hashValue(value: Value): number {
@@ -319,6 +333,7 @@ export function hashValue(value: Value): number {
     case 'builtin':
     case 'module':
     case 'stream':
+    case 'listener':
       return hashCombine(tag, value.id);
   }
 }
@@ -463,6 +478,8 @@ export function formatValue(value: Value, mode: FormatMode): string {
       return `<module ${value.name}>`;
     case 'stream':
       return `<stream ${value.stream.label}>`;
+    case 'listener':
+      return `<listener ${value.listener.address}>`;
     case 'array':
       return `[${value.items.map((item) => formatValue(item, 'show')).join(' ')}]`;
     case 'map':

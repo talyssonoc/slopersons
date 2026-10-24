@@ -13,6 +13,7 @@ import { registerInt } from './int.ts';
 import { registerIo } from './io.ts';
 import { registerPath } from './path.ts';
 import { registerSet } from './set.ts';
+import { registerSocket } from './socket.ts';
 import { registerStream } from './stream.ts';
 import { registerString } from './string.ts';
 import { registerTime } from './time.ts';
@@ -23,6 +24,7 @@ export function registerStdlib(interpreter: Interpreter): void {
   registerStream(interpreter);
   registerFile(interpreter);
   registerPath(interpreter);
+  registerSocket(interpreter);
   registerInt(interpreter);
   registerFloat(interpreter);
   registerChar(interpreter);

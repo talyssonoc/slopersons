@@ -13,7 +13,7 @@ const WELCOME = 'Welcome to the user registry.\n';
 const CHOICE = 'Register, list or quit? (r/l/q): ';
 
 function session(directory: string, input: string): { out: string; error: string; code: number | null } {
-  const result = spawnSync(bin, [usersExample], { encoding: 'utf8', cwd: directory, input });
+  const result = spawnSync(bin, [usersExample], { encoding: 'utf8', timeout: 30_000, cwd: directory, input });
   return { out: result.stdout, error: result.stderr, code: result.status };
 }
 

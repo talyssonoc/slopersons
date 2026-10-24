@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BANNER, PROMPT } from '../../src/repl.ts';
+import { talkToEchoServer } from './network.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const GOLDEN_DIRECTORIES = [join(root, 'test/programs'), join(root, 'docs/examples')];
@@ -42,7 +43,7 @@ function checkGoldenProgram(command: readonly string[], program: GoldenProgram):
   const [executable, ...leading] = command;
   assert.ok(executable !== undefined, 'a command needs an executable');
   const cwd = mkdtempSync(join(tmpdir(), 'slopersons-program-'));
-  const result = spawnSync(executable, [...leading, program.path, ...programArguments], { encoding: 'utf8', input, cwd });
+  const result = spawnSync(executable, [...leading, program.path, ...programArguments], { encoding: 'utf8', timeout: 30_000, input, cwd });
   assert.equal(result.stdout, expectedOut ?? '');
   assert.equal(result.stderr, (expectedErr ?? '').replaceAll('<file>', program.path));
   assert.equal(result.status, expectedErr === null ? 0 : 1);
@@ -60,7 +61,7 @@ export function defineEntryPointTests(prefix: string, command: () => readonly st
     assert.ok(executable !== undefined);
     const program = join(mkdtempSync(join(tmpdir(), 'slopersons-')), 'deep.slop');
     writeFileSync(program, 'proc count n | n = 0 ? 0 : ((n - 1) -> count) + 1\n5000 -> count -> io/print-line\n');
-    const result = spawnSync(executable, [...leading, program], { encoding: 'utf8' });
+    const result = spawnSync(executable, [...leading, program], { encoding: 'utf8', timeout: 30_000 });
     assert.equal(result.stderr, '');
     assert.equal(result.stdout, '5000\n');
   });
@@ -68,9 +69,16 @@ export function defineEntryPointTests(prefix: string, command: () => readonly st
   test(`${prefix}the REPL reads entries from standard input`, () => {
     const [executable, ...leading] = command();
     assert.ok(executable !== undefined);
-    const result = spawnSync(executable, [...leading, '--repl'], { encoding: 'utf8', input: '5 + 3\n"\\{\\"a\\": 1\\}" -> json/parse\n' });
+    const result = spawnSync(executable, [...leading, '--repl'], { encoding: 'utf8', timeout: 30_000, input: '5 + 3\n"\\{\\"a\\": 1\\}" -> json/parse\n' });
     assert.equal(result.stderr, '');
     assert.equal(result.stdout, `${BANNER}${PROMPT}-> 8\n${PROMPT}-> {"a": 1}\n${PROMPT}\n`);
     assert.equal(result.status, 0);
+  });
+
+  test(`${prefix}a server answers clients over real sockets`, { timeout: 20_000 }, async () => {
+    const { replies, finished } = await talkToEchoServer(command());
+    assert.deepEqual(replies, ['#0 you said: first\n', '#1 you said: second\n', '#2 you said: third\n']);
+    assert.equal(finished.stderr, '');
+    assert.equal(finished.code, 0);
   });
 }

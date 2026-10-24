@@ -1,0 +1,9 @@
+"127.0.0.1" -> socket/listen 0 => listener
+listener -> type-of -> io/print-line
+(listener -> socket/port) > 0 -> io/print-line
+listener = listener -> io/print-line
+listener -> show -> string/starts-with "<listener 127.0.0.1:" -> io/print-line
+listener -> socket/close
+attempt | listener -> socket/accept recover problem | problem -> error/message -> string/starts-with "cannot accept a connection on 127.0.0.1:" -> io/print-line
+attempt | "127.0.0.1" -> socket/listen 70000 recover problem | problem -> io/print-line
+io/stdout -> socket/set-timeout 5000

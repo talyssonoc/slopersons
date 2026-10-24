@@ -26,7 +26,7 @@ interface Rule {
 const FRONT_END = ['src/lexer.ts', 'src/line-tree.ts', 'src/parser.ts', 'src/ast.ts', 'src/errors.ts'];
 
 const rules: Rule[] = [
-  { pattern: /\bnew (Map|Set|WeakMap|WeakSet)\b/, reason: 'slopersons containers use src/runtime/hashtable.ts; JS Map is only for interpreter bookkeeping', allowedIn: [...FRONT_END, 'src/interpreter.ts', 'src/modules.ts'] },
+  { pattern: /\bnew (Map|Set|WeakMap|WeakSet)\b/, reason: 'slopersons containers use src/runtime/hashtable.ts; JS Map is only for interpreter bookkeeping', allowedIn: [...FRONT_END, 'src/interpreter.ts', 'src/modules.ts', 'src/network.ts'] },
   { pattern: /\.(sort|toSorted)\(/, reason: 'sorting goes through src/runtime/sorting.ts', allowedIn: [] },
   { pattern: /\bnew Date\b|\bDate\.(UTC|parse)\b|\.getUTC|\.getFullYear|\.getMonth|\.getDate|\.getDay\b/, reason: 'calendar math lives in src/runtime/calendar.ts', allowedIn: [] },
   { pattern: /\bTemporal\b|\bIntl\b/, reason: 'no Temporal or Intl anywhere', allowedIn: [] },
@@ -34,7 +34,7 @@ const rules: Rule[] = [
   { pattern: /\.(toUpperCase|toLowerCase)\(/, reason: 'case mapping is only wrapped by src/runtime/text.ts', allowedIn: ['src/runtime/text.ts'] },
   { pattern: /\/\\p\{|\/\^\\s\$\/|\/\\s\//, reason: 'Unicode classification regexes are only in src/runtime/text.ts', allowedIn: ['src/runtime/text.ts'] },
   { pattern: /process\.exit\(/, reason: 'exit through ExitSignal so output is flushed', allowedIn: [] },
-  { pattern: /from 'node:/, reason: 'only the boundary talks to Node: the CLI, the worker, module loading and src/file-system.ts', allowedIn: ['src/cli.ts', 'src/worker.ts', 'src/modules.ts', 'src/file-system.ts'] },
+  { pattern: /from 'node:/, reason: 'only the boundary talks to Node: the CLI, the worker, module loading, src/file-system.ts and src/network.ts', allowedIn: ['src/cli.ts', 'src/worker.ts', 'src/modules.ts', 'src/file-system.ts', 'src/network.ts'] },
 ];
 
 const sources = listSources(srcDir);

@@ -25,6 +25,7 @@ import {
   type TypeName,
   type Value,
 } from './values.ts';
+import { NO_NETWORK, type Network } from './runtime/network.ts';
 import { StreamRegistry } from './runtime/stream.ts';
 
 export interface Io {
@@ -147,13 +148,15 @@ export class Interpreter {
   private topActivation: number;
   currentFile: string | null;
   readonly programArguments: readonly string[];
+  readonly network: Network;
   readonly streams: StreamRegistry;
   readonly endHooks: (() => number)[];
   private readonly exportStack: ExportRequest[][];
 
-  constructor(io: Io, programArguments: readonly string[] = []) {
+  constructor(io: Io, programArguments: readonly string[] = [], network: Network = NO_NETWORK) {
     this.io = io;
     this.programArguments = programArguments;
+    this.network = network;
     this.streams = new StreamRegistry();
     this.endHooks = [];
     this.builtins = new Map();

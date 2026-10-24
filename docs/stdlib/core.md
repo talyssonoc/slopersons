@@ -7,7 +7,8 @@ The standard library is a set of modules that are always available, without a `u
 | `io` | the standard streams, the shortcuts `io/print-line`, `io/print` and `io/read-line` over them, and the program's command-line arguments | [io.md](io.md) |
 | `path` | building paths as strings: joining them, taking the parent, and the directory of the file the code is written in | [path.md](path.md) |
 | `file` | paths in the file system: opening files as streams, reading and writing whole files, listing, renaming and removing | [file.md](file.md) |
-| `stream` | open files and the standard streams: reading lines, writing, flushing, closing | [stream.md](stream.md) |
+| `stream` | open files, the standard streams and network connections: reading lines or counted bytes, writing, flushing, closing | [stream.md](stream.md) |
+| `socket` | TCP: listening for and accepting connections, connecting to servers, connection timeouts | [socket.md](socket.md) |
 | `int` | int-only functions, the range builder `int/up-to`, the counted loop `int/times` | [int.md](int.md) |
 | `float` | float-only functions | [float.md](float.md) |
 | `math` | numeric functions that take an int or a float: `abs`, `pow`, `sqrt`, `min`, `max`, `clamp`, `sign` | [math.md](math.md) |

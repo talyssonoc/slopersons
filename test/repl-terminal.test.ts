@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bin = join(root, 'bin/slopersons.mjs');
-const hasScript = spawnSync('sh', ['-c', 'command -v script'], { encoding: 'utf8' }).status === 0;
+const hasScript = spawnSync('sh', ['-c', 'command -v script'], { encoding: 'utf8', timeout: 30_000 }).status === 0;
 const supported = (process.platform === 'darwin' || process.platform === 'linux') && hasScript;
 
 interface TerminalSession {

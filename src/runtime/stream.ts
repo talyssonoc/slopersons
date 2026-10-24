@@ -28,6 +28,7 @@ export interface ByteChannel {
 export interface Stream {
   readonly label: string;
   readLine(): string | null;
+  read(count: number): string | null;
   readAll(): string;
   write(text: string): void;
   flush(): void;
@@ -85,8 +86,8 @@ export interface ChannelStreamOptions {
 export class ChannelStream implements Stream {
   readonly label: string;
   private readonly description: string;
+  readonly channel: ByteChannel;
   private readonly mode: StreamMode;
-  private readonly channel: ByteChannel;
   private readonly standard: boolean;
   private readonly registry: StreamRegistry | null;
   private closed: boolean;
@@ -132,6 +133,16 @@ export class ChannelStream implements Stream {
     }
   }
 
+  read(count: number): string | null {
+    this.checkReadable();
+    this.flushOutput();
+    if (count === 0) return '';
+    while (this.inputEnd - this.inputStart < count && this.fill()) continue;
+    if (this.inputEnd === this.inputStart) return null;
+    const end = Math.min(this.inputStart + count, this.inputEnd);
+    return this.consume(end, end);
+  }
+
   readAll(): string {
     this.checkReadable();
     this.flushOutput();
@@ -142,19 +153,21 @@ export class ChannelStream implements Stream {
   write(text: string): void {
     this.checkWritable();
     const bytes = encodeUtf8(text);
-    this.inputStart = 0;
-    this.inputEnd = 0;
+    if (this.channel.positioned) {
+      this.inputStart = 0;
+      this.inputEnd = 0;
+    }
     if (this.outputLength + bytes.length > STREAM_BUFFER_BYTES) this.flushOutput();
     if (bytes.length >= STREAM_BUFFER_BYTES) {
       this.channel.write(bytes, 0, bytes.length, this.at(this.position));
-      this.position += bytes.length;
+      this.advanceWritten(bytes.length);
       return;
     }
     if (this.output.length === 0) this.output = new Uint8Array(STREAM_BUFFER_BYTES);
     if (this.outputLength === 0) this.outputPosition = this.position;
     this.output.set(bytes, this.outputLength);
     this.outputLength += bytes.length;
-    this.position += bytes.length;
+    this.advanceWritten(bytes.length);
   }
 
   flush(): void {
@@ -191,6 +204,10 @@ export class ChannelStream implements Stream {
 
   private at(position: number): number | null {
     return this.channel.positioned ? position : null;
+  }
+
+  private advanceWritten(count: number): void {
+    if (this.channel.positioned) this.position += count;
   }
 
   private flushOutput(): void {
@@ -253,6 +270,10 @@ export class TextOutputStream implements Stream {
   }
 
   readLine(): string | null {
+    throw this.notReadable();
+  }
+
+  read(): string | null {
     throw this.notReadable();
   }
 

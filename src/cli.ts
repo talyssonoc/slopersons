@@ -1,6 +1,6 @@
 import { readFileSync, readSync, writeSync } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { Worker, isMainThread } from 'node:worker_threads';
+import { MessageChannel, Worker, isMainThread } from 'node:worker_threads';
 import {
   BrokenPipe,
   EXIT_INTERNAL,
@@ -17,6 +17,8 @@ import {
 } from './boundary.ts';
 import { SlopersonsError } from './errors.ts';
 import { ExitSignal, Interpreter, type Io } from './interpreter.ts';
+import { hostNetwork, type NetworkBridge } from './network.ts';
+import type { Network } from './runtime/network.ts';
 import { parse } from './parser.ts';
 import { registerModules } from './modules.ts';
 import { registerStdlib } from './stdlib/registry.ts';
@@ -32,8 +34,8 @@ function workerHeapMb(): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_WORKER_HEAP_MB;
 }
 
-export function createInterpreter(io: Io, programArguments: readonly string[] = []): Interpreter {
-  const interpreter = new Interpreter(io, programArguments);
+export function createInterpreter(io: Io, programArguments: readonly string[] = [], network?: Network): Interpreter {
+  const interpreter = new Interpreter(io, programArguments, network);
   registerStdlib(interpreter);
   registerModules(interpreter);
   return interpreter;
@@ -160,7 +162,9 @@ export async function main(argv: string[]): Promise<number> {
   return runInWorker({ mode: 'program', source, file: path, programArguments });
 }
 
-export type WorkerData = { mode: 'program'; source: string; file: string; programArguments: string[] } | { mode: 'repl'; control: SharedArrayBuffer; data: SharedArrayBuffer };
+type WorkerTask = { mode: 'program'; source: string; file: string; programArguments: string[] } | { mode: 'repl'; control: SharedArrayBuffer; data: SharedArrayBuffer };
+
+export type WorkerData = WorkerTask & { network: NetworkBridge };
 
 function runReplInWorker(): Promise<number> {
   const control = new SharedArrayBuffer(8);
@@ -210,14 +214,17 @@ function runReplInWorker(): Promise<number> {
 declare const SLOPERSONS_WORKER_SOURCE: string | undefined;
 
 function startWorker(data: WorkerData): Worker {
-  const options = { workerData: data, resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() } };
+  const options = { workerData: data, transferList: [data.network.messages], resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() } };
   if (typeof SLOPERSONS_WORKER_SOURCE === 'string') return new Worker(SLOPERSONS_WORKER_SOURCE, { ...options, eval: true });
   return new Worker(new URL('./worker.ts', import.meta.url), options);
 }
 
-function runInWorker(data: WorkerData, onReadLine?: (prompt: string) => void, onExit?: () => void): Promise<number> {
+function runInWorker(task: WorkerTask, onReadLine?: (prompt: string) => void, onExit?: () => void): Promise<number> {
   return new Promise((resolve) => {
-    const worker = startWorker(data);
+    const channel = new MessageChannel();
+    const signal = new SharedArrayBuffer(4);
+    const closeNetwork = hostNetwork({ messages: channel.port1, signal });
+    const worker = startWorker({ ...task, network: { messages: channel.port2, signal } });
     let code = EXIT_INTERNAL;
     let pipeBroken = false;
     const onBrokenPipe = (error: unknown): void => {
@@ -243,6 +250,7 @@ function runInWorker(data: WorkerData, onReadLine?: (prompt: string) => void, on
       code = EXIT_INTERNAL;
     });
     worker.on('exit', () => {
+      closeNetwork();
       onExit?.();
       resolve(code);
     });

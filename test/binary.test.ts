@@ -20,7 +20,7 @@ if (process.env['SLOPERSONS_TEST_BINARY'] !== '1') {
   after(() => rmSync(directory, { recursive: true, force: true }));
 
   test('binary: --version reports the interpreter version', () => {
-    const result = spawnSync(executable, ['--version'], { encoding: 'utf8' });
+    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 30_000 });
     assert.match(result.stdout, /^slopersons \d+\.\d+\.\d+\n$/);
     assert.equal(result.status, 0);
   });
