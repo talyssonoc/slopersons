@@ -209,18 +209,18 @@ proc parse text
 | | [] =>> characters
 | | 0 =>> size
 
-[] => path
+[] => trail
 0 => depth
 1000 => deepest
 
 proc pointer
 | [] => segments
-| path -> array/each segment
+| trail -> array/each segment
 | | segments -> array/push "/{segment -> string/replace "~" "~0" -> string/replace "/" "~1"}"
 | segments -> array/join ""
 
 proc location
-| (path -> array/length) = 0 ? "" -> out
+| (trail -> array/length) = 0 ? "" -> out
 | " (at {pointer -> do})"
 
 proc enter
@@ -256,9 +256,9 @@ proc write-array items
 | [] => parts
 | 0 => index
 | items -> array/each item
-| | path -> array/push (index -> int/to-string)
+| | trail -> array/push (index -> int/to-string)
 | | parts -> array/push (item -> write-value)
-| | path -> array/pop
+| | trail -> array/pop
 | | index + 1 =>> index
 | leave -> do
 | "[{parts -> array/join ","}]"
@@ -269,9 +269,9 @@ proc write-object members
 | members -> hashmap/entries -> array/each entry
 | | entry -> array/at 0 => key
 | | (key -> type-of) /= "string" ? "`json/stringify` needs string keys to write an object, but found {key -> describe-type} key{location -> do}" -> fail
-| | path -> array/push key
+| | trail -> array/push key
 | | parts -> array/push "{key -> write-string}:{entry -> array/at 1 -> write-value}"
-| | path -> array/pop
+| | trail -> array/pop
 | leave -> do
 | "\{{parts -> array/join ","}\}"
 
@@ -287,7 +287,7 @@ proc write-value value
 | "`json/stringify` cannot write {value -> describe-type} as JSON{location -> do}" -> fail
 
 proc stringify value
-| [] =>> path
+| [] =>> trail
 | 0 =>> depth
 | value -> write-value
 

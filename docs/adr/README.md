@@ -123,3 +123,6 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Let `file/rename` replace a file at the new path](./202610240937-let-file-rename-replace-a-file-at-the-new-path.md) | Accepted |
 | 2026-10-24 | [Let source modules run code when the program ends](./202610240955-let-source-modules-run-code-when-the-program-ends.md) | Accepted |
 | 2026-10-24 | [Add a test module with `describe`, `it` and `assert`](./202610240956-add-a-test-module-with-describe-it-and-assert.md) | Accepted |
+| 2026-10-24 | [Resolve relative file paths against the working directory](./202610241006-resolve-relative-file-paths-against-the-working-directory.md) | Accepted |
+| 2026-10-24 | [Put path manipulation in a `path` module](./202610241007-put-path-manipulation-in-a-path-module.md) | Accepted |
+| 2026-10-24 | [Find a file's own directory from where the call is written](./202610241008-find-a-files-own-directory-from-where-the-call-is-written.md) | Accepted |

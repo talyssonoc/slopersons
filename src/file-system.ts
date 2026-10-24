@@ -1,4 +1,5 @@
 import { closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { IoFailure, type ByteChannel, type StreamMode } from './runtime/stream.ts';
 
 const OPEN_FLAGS: Record<StreamMode, string> = { read: 'r', write: 'w', append: 'a', 'read-write': 'r+' };
@@ -91,6 +92,10 @@ export function openFile(path: string, mode: StreamMode, description: string): B
     throw new IoFailure(`cannot open ${description}: it is a directory`);
   }
   return descriptorChannel(descriptor, mode === 'read-write', description);
+}
+
+export function absolutePath(path: string): string {
+  return resolve(path);
 }
 
 export type PathKind = 'file' | 'directory' | 'other';

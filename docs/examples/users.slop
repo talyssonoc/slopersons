@@ -1,6 +1,9 @@
 ~ An interactive user registry: register users with a name and a birthday,
-~ and list them. Users are kept in users.json, in the directory the program
-~ is run from, so they are still there the next time it runs. Each save writes
+~ and list them. Users are kept in users.json in the working directory, the
+~ directory slopersons is started from (not the folder this file is in), so
+~ they are still there the next time it runs from the same place. To keep the
+~ registry next to this file instead, build its path with
+~ path/this-directory -> do -> path/join "users.json". Each save writes
 ~ a temporary file and renames it over users.json, so a crash in the middle of
 ~ a save never leaves a half-written registry behind. Ids count up and are
 ~ never reused.

@@ -11,6 +11,7 @@ import { registerFloat } from './float.ts';
 import { registerHashmap } from './hashmap.ts';
 import { registerInt } from './int.ts';
 import { registerIo } from './io.ts';
+import { registerPath } from './path.ts';
 import { registerSet } from './set.ts';
 import { registerStream } from './stream.ts';
 import { registerString } from './string.ts';
@@ -21,6 +22,7 @@ export function registerStdlib(interpreter: Interpreter): void {
   registerIo(interpreter);
   registerStream(interpreter);
   registerFile(interpreter);
+  registerPath(interpreter);
   registerInt(interpreter);
   registerFloat(interpreter);
   registerChar(interpreter);

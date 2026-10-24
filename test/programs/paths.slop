@@ -1,0 +1,7 @@
+~ the runner starts every program in a fresh working directory, so a file that
+~ sits next to this program is reached through path/this-directory
+path/this-directory -> do => here
+here -> path/join "paths.txt" -> file/read -> io/print
+"paths.txt" -> file/exists -> io/print-line
+"a/b/c.txt" -> path/parent -> io/print-line
+"a" -> path/join "b" "c.txt" -> io/print-line

@@ -1,6 +1,6 @@
 # File builtins
 
-The `file` module works on paths in the file system. Every function takes the path as its piped value: `"notes.txt" -> file/read`, `"out.txt" -> file/write text`. A relative path is resolved against the working directory the program was started in, not against the program's file. Text is read and written as UTF-8.
+The `file` module works on paths in the file system. Every function takes the path as its piped value: `"notes.txt" -> file/read`, `"out.txt" -> file/write text`. A relative path is resolved against the working directory the program was started in, not against the program's file; to reach a file next to the program, build its path with [`path/this-directory`](path.md#this-directory). Text is read and written as UTF-8.
 
 `file/open` returns a [stream](stream.md) for reading or writing a file a piece at a time; `file/read`, `file/write` and `file/append` handle a whole file in one call.
 
