@@ -176,6 +176,7 @@ export function registerString(interpreter: Interpreter): void {
     const given = input(inputs, 0);
     const parsed = parseFloatText(receiver(inputs, 'to-float', context));
     if (parsed === null) throw runtimeError(`cannot convert ${formatValue(given, 'show')} to a float`, context.position);
+    if (!Number.isFinite(parsed)) throw runtimeError(`${formatValue(given, 'show')} is too large for a float`, context.position);
     return float(parsed);
   });
 

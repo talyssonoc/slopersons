@@ -273,7 +273,7 @@ Parses `text` as a float: an optional sign, digits, an optional `.` followed by 
 "-1e2" -> string/to-float -> io/print-line  ~ -100.0
 ```
 
-Errors: `text` is not in that form, reported as `cannot convert "x" to a float`.
+Errors: `text` is not in that form, reported as `cannot convert "x" to a float`; the number is too large for a float, reported as `"1e400" is too large for a float`. A number too small to represent becomes `0.0`.
 
 ## to-string
 

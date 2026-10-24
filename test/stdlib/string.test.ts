@@ -151,6 +151,12 @@ test('string/to-float parses decimal notation with an optional exponent', () => 
   assert.equal(failure('".5" -> string/to-float').message, 'cannot convert ".5" to a float');
 });
 
+test('string/to-float refuses numbers too large for a float instead of giving infinity', () => {
+  assert.equal(failure('"1e400" -> string/to-float').message, '"1e400" is too large for a float');
+  assert.equal(failure('"-1e400" -> string/to-float').message, '"-1e400" is too large for a float');
+  assert.equal(output('"1e-400" -> string/to-float -> io/print-line'), '0.0\n');
+});
+
 test('string/to-string on a string is the identity', () => {
   assert.equal(output('"abc" -> string/to-string -> io/print-line\n"abc" -> string/to-string -> type-of -> io/print-line'), 'abc\nstring\n');
   assert.equal(output('"a👍" -> string/to-string -> io/print-line'), 'a👍\n');
