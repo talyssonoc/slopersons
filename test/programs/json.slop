@@ -6,3 +6,5 @@ order -> hashmap/at "items" -> array/each item
 order -> hashmap/at "paid" -> io/print-line
 order -> hashmap/at "note" -> io/print-line
 attempt | "[1, 2" -> json/parse recover e | e -> error/message -> io/print-line
+order -> hashmap/put "paid" no -> json/stringify -> io/print-line
+attempt | {"when": ("2026-10-24" -> date/parse)} -> json/stringify recover e | e -> error/message -> io/print-line

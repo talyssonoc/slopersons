@@ -1,6 +1,6 @@
 # Json builtins
 
-The `json` module turns JSON text into slopersons values. Like every builtin module it needs no `use`. It is written in slopersons itself (`src/stdlib/json.slop`) rather than TypeScript, so it reads on the order of a few hundred kilobytes a second: fast enough for configuration and data files, slow for large datasets.
+The `json` module reads JSON text into slopersons values and writes values back as JSON text. Like every builtin module it needs no `use`. It is written in slopersons itself (`src/stdlib/json.slop`) rather than TypeScript, so it reads on the order of a few hundred kilobytes a second: fast enough for configuration and data files, slow for large datasets.
 
 ## parse
 
@@ -37,3 +37,32 @@ Errors, all runtime errors that `attempt` can handle:
 - arrays and objects are nested more than about 4,900 levels deep, which reaches the limit on nested procedure calls.
 
 Compared with JavaScript's `JSON.parse`: integers stay exact instead of becoming 64-bit floats, `-0` becomes `0`, member order is kept exactly as written, `1e400` is an error instead of `Infinity`, a lone surrogate escape is an error, and there is no reviver argument.
+
+## stringify
+
+`value -> json/stringify`
+
+Returns `value` written as compact JSON text, with no spaces or line breaks. It is the reverse of `json/parse`:
+
+| slopersons | JSON |
+| --- | --- |
+| hashmap with string keys | object, with the members in the hashmap's order |
+| array | array |
+| string | string: `"` and `\` are escaped, control characters become `\b`, `\t`, `\n`, `\f`, `\r` or `\u00XX`, and every other character is written as it is |
+| int | number, with every digit |
+| float | number, always with a decimal point (`2.0`, `1.0e+21`), so `json/parse` reads it back as a float |
+| `yes`, `no` | `true`, `false` |
+| `nothing` | `null` |
+
+```
+{"name": "Ada"  "langs": ["slop"]  "score": 2.0  "ok": yes} -> json/stringify -> io/print-line   ~ {"name":"Ada","langs":["slop"],"score":2.0,"ok":true}
+"settings.json" -> file/write (settings -> json/stringify)
+```
+
+Errors, all runtime errors that `attempt` can handle:
+
+- a value JSON has no form for: a char, date, time, datetime, set, procedure, module, stream or error. Convert it first, for example with `char/to-string` or `date/format`. The message locates the value as a JSON Pointer: `` `json/stringify` cannot write a date as JSON (at /items/1/when) ``;
+- a hashmap key that is not a string: `` `json/stringify` needs string keys to write an object, but found an int key (at /scores) ``;
+- nesting deeper than 1000 levels, which is also how a value that contains itself shows up: `` `json/stringify` stopped after 1000 levels of nesting; the value is nested too deeply or contains itself ``.
+
+Compared with JavaScript's `JSON.stringify`: floats keep their decimal point (`2.0` where JavaScript writes `2`); values with no JSON form are errors, where JavaScript turns dates into strings, sets into `{}` and drops functions; and there is no replacer or indentation argument.

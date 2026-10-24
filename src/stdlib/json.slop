@@ -209,4 +209,86 @@ proc parse text
 | | [] =>> characters
 | | 0 =>> size
 
-export parse
+[] => path
+0 => depth
+1000 => deepest
+
+proc pointer
+| [] => segments
+| path -> array/each segment
+| | segments -> array/push "/{segment -> string/replace "~" "~0" -> string/replace "/" "~1"}"
+| segments -> array/join ""
+
+proc location
+| (path -> array/length) = 0 ? "" -> out
+| " (at {pointer -> do})"
+
+proc enter
+| depth = deepest ? "`json/stringify` stopped after {deepest} levels of nesting; the value is nested too deeply or contains itself" -> fail
+| depth + 1 =>> depth
+
+proc leave
+| depth - 1 =>> depth
+
+proc hex-digit n
+| "0123456789abcdef" -> string/at n
+
+proc escape c
+| c = `"` ? "\\\"" -> out
+| c = `\\` ? "\\\\" -> out
+| c -> char/to-int => code
+| code >= 32 ? c -> char/to-string -> out
+| code = 8 ? "\\b" -> out
+| code = 9 ? "\\t" -> out
+| code = 10 ? "\\n" -> out
+| code = 12 ? "\\f" -> out
+| code = 13 ? "\\r" -> out
+| "\\u00{code / 16 -> hex-digit}{code mod 16 -> hex-digit}"
+
+proc write-string text
+| [] => pieces
+| text -> string/each c
+| | pieces -> array/push (c -> escape)
+| "\"{pieces -> array/join ""}\""
+
+proc write-array items
+| enter -> do
+| [] => parts
+| 0 => index
+| items -> array/each item
+| | path -> array/push (index -> int/to-string)
+| | parts -> array/push (item -> write-value)
+| | path -> array/pop
+| | index + 1 =>> index
+| leave -> do
+| "[{parts -> array/join ","}]"
+
+proc write-object members
+| enter -> do
+| [] => parts
+| members -> hashmap/entries -> array/each entry
+| | entry -> array/at 0 => key
+| | (key -> type-of) /= "string" ? "`json/stringify` needs string keys to write an object, but found {key -> describe-type} key{location -> do}" -> fail
+| | path -> array/push key
+| | parts -> array/push "{key -> write-string}:{entry -> array/at 1 -> write-value}"
+| | path -> array/pop
+| leave -> do
+| "\{{parts -> array/join ","}\}"
+
+proc write-value value
+| value -> type-of => kind
+| kind = "string" ? value -> write-string -> out
+| kind = "int" ? value -> int/to-string -> out
+| kind = "float" ? value -> show -> out
+| kind = "boolean" ? (value ? "true" : "false") -> out
+| kind = "nothing" ? "null" -> out
+| kind = "array" ? value -> write-array -> out
+| kind = "hashmap" ? value -> write-object -> out
+| "`json/stringify` cannot write {value -> describe-type} as JSON{location -> do}" -> fail
+
+proc stringify value
+| [] =>> path
+| 0 =>> depth
+| value -> write-value
+
+export parse stringify

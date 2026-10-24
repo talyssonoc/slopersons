@@ -4,3 +4,5 @@ Ada Lovelace
 yes
 nothing
 invalid JSON at offset 5: expected a comma or a closing bracket, found the end of the text
+{"customer":"Ada Lovelace","items":[{"name":"notebook","quantity":2,"price":12.5},{"name":"pen ✒","quantity":10,"price":1.25}],"paid":false,"note":null}
+`json/stringify` cannot write a date as JSON (at /when)

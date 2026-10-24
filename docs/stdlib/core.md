@@ -21,7 +21,7 @@ The standard library is a set of modules that are always available, without a `u
 | `datetime` | a date with a time, built with `date/at-time`, `datetime/parse`, `datetime/from-epoch` or `datetime/now` | [datetime.md](datetime.md) |
 | `error` | the values `recover` binds | [error.md](error.md) |
 | `module` | module values, loaded with `use` or builtin | [module.md](module.md) |
-| `json` | parsing JSON text into values; written in slopersons | [json.md](json.md) |
+| `json` | reading and writing JSON text; written in slopersons | [json.md](json.md) |
 
 A function lives in the module of its input's type, so `array/length`, `string/length`, `hashmap/length` and `set/length` are four separate functions, and a loop over an array is `array/each` while a loop over a string is `string/each`. Constructors live in the module of the type they build: `string/from-chars` takes an array of chars and `array/to-set` takes an array. Only `math/*` and `date/is-leap-year` (a date or an int year) accept more than one input type.
 

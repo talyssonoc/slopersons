@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NOTHING, array, boolean, float, formatValue, int, newMap, string, type Value } from '../../src/values.ts';
+import { randomNumbers } from '../helpers/random.ts';
 import { failure, output, run, runCli } from '../helpers/run.ts';
 
 const bin = fileURLToPath(new URL('../../bin/slopersons.mjs', import.meta.url));
@@ -26,6 +27,23 @@ function parseFailure(text: string): string {
   const result = run(`${literal(text)} -> json/parse`);
   if (result.error === null) throw new Error(`json/parse accepted ${JSON.stringify(text)}`);
   return result.error.message;
+}
+
+function randomJsonValues(seed: number, count: number, withFloats: boolean): unknown[] {
+  const next = randomNumbers(seed);
+  const alphabet = ['a', 'Z', ' ', '"', '\\', '/', '\n', '\t', '\u0001', '\u001f', '\u007f', 'é', '日', '🎉', '{', '}', ':', ',', '~'];
+  const randomText = (): string => Array.from({ length: next(6) }, () => alphabet[next(alphabet.length)]).join('');
+  const randomNumber = (): number => (withFloats && next(2) === 0 ? (next(100000) - 50000) / 7 : next(2000000000) - 1000000000);
+  const randomValue = (depth: number): unknown => {
+    const kind = next(depth > 3 ? 5 : 7);
+    if (kind === 0) return null;
+    if (kind === 1) return next(2) === 0;
+    if (kind === 2) return randomNumber();
+    if (kind === 3 || kind === 4) return randomText();
+    if (kind === 5) return Array.from({ length: next(4) }, () => randomValue(depth + 1));
+    return Object.fromEntries(Array.from({ length: next(4) }, () => [randomText(), randomValue(depth + 1)]));
+  };
+  return Array.from({ length: count }, () => Object.fromEntries(Array.from({ length: 2 + next(4) }, () => [randomText(), randomValue(1)])));
 }
 
 function expected(value: unknown): Value {
@@ -58,25 +76,8 @@ test('whitespace around tokens is allowed and a repeated member name keeps the l
 });
 
 test('json/parse agrees with the JavaScript parser on random documents', () => {
-  let seed = 2026;
-  const next = (limit: number): number => {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    return seed % limit;
-  };
-  const alphabet = ['a', 'Z', ' ', '"', '\\', '/', '\n', '\t', '\u0001', '\u001f', 'é', '日', '🎉', '{', '}', ':', ','];
-  const randomText = (): string => Array.from({ length: next(6) }, () => alphabet[next(alphabet.length)]).join('');
-  const randomValue = (depth: number): unknown => {
-    const kind = next(depth > 3 ? 5 : 7);
-    if (kind === 0) return null;
-    if (kind === 1) return next(2) === 0;
-    if (kind === 2) return next(2) === 0 ? next(2000000000) - 1000000000 : (next(100000) - 50000) / 7;
-    if (kind === 3 || kind === 4) return randomText();
-    if (kind === 5) return Array.from({ length: next(4) }, () => randomValue(depth + 1));
-    return Object.fromEntries(Array.from({ length: next(4) }, () => [randomText(), randomValue(depth + 1)]));
-  };
   const escapeEveryNonAscii = (text: string): string => text.replace(/[\u007f-￿]/g, (unit) => `\\u${unit.charCodeAt(0).toString(16).padStart(4, '0')}`);
-  for (let round = 0; round < 150; round++) {
-    const value = randomValue(0);
+  for (const value of randomJsonValues(2026, 150, true)) {
     const shown = `${formatValue(expected(value), 'show')}\n`;
     assert.equal(parseShown(JSON.stringify(value)), shown);
     assert.equal(parseShown(escapeEveryNonAscii(JSON.stringify(value, null, 2))), shown);
@@ -128,7 +129,7 @@ test('json/parse checks its input like any builtin', () => {
 });
 
 test('the json module looks like every other builtin module', () => {
-  assert.equal(runCli('json -> module/names -> io/print-line\njson/parse -> io/print-line\njson/parse => parse\n"[1]" -> parse -> io/print-line').io.out, '["parse"]\n<proc json/parse>\n[1]\n');
+  assert.equal(runCli('json -> module/names -> io/print-line\njson/parse -> io/print-line\njson/parse => parse\n"[1]" -> parse -> io/print-line').io.out, '["parse" "stringify"]\n<proc json/parse>\n[1]\n');
   assert.equal(output('{"a": 1} => json\njson -> hashmap/at "a" -> io/print-line'), '1\n');
 });
 
@@ -146,4 +147,68 @@ test('the binary parses nesting thousands of levels deep, and deeper text stops 
   const tooDeep = spawnSync(bin, [program], { encoding: 'utf8', input: `${'['.repeat(6000)}${']'.repeat(6000)}` });
   assert.equal(tooDeep.stderr, `error: too many nested procedure calls (the limit is 10000)\n  at ${program}:1:29\n`);
   assert.equal(tooDeep.status, 1);
+});
+
+test('json/stringify writes compact JSON, keeping member order and exact ints', () => {
+  assert.equal(
+    output('{"name": "Ada"  "tags": ["a" "b"]  "big": 12345678901234567890  "ok": yes  "no": no  "none": nothing  "nested": {"x": []  "y": {}}} -> json/stringify -> io/print-line'),
+    '{"name":"Ada","tags":["a","b"],"big":12345678901234567890,"ok":true,"no":false,"none":null,"nested":{"x":[],"y":{}}}\n',
+  );
+  assert.equal(output('nothing -> json/stringify -> io/print-line\n"" -> json/stringify -> io/print-line\n-7 -> json/stringify -> io/print-line'), 'null\n""\n-7\n');
+});
+
+test('json/stringify escapes strings exactly as JavaScript does', () => {
+  let text = '"\\/ é 日 🎉 \u007f  ';
+  for (let code = 0; code < 32; code++) text += String.fromCodePoint(code);
+  assert.equal(output(`${literal(JSON.stringify(text))} -> json/parse -> json/stringify -> io/print`), JSON.stringify(text));
+});
+
+test('json/stringify writes floats with a decimal point, so they read back as floats', () => {
+  assert.equal(output('[2.0 -0.0 0.1 -2.5] -> json/stringify -> io/print-line'), '[2.0,-0.0,0.1,-2.5]\n');
+  const written = output(`${literal('[1e21, 1e-7, 1.5e300, 0.14285714285714285]')} -> json/parse -> json/stringify -> io/print`);
+  assert.equal(written, '[1.0e+21,1.0e-7,1.5e+300,0.14285714285714285]');
+  assert.deepEqual(JSON.parse(written), [1e21, 1e-7, 1.5e300, 0.14285714285714285]);
+  assert.equal(output(`${literal(written)} -> json/parse -> show -> io/print-line`), '[1.0e+21 1.0e-7 1.5e+300 0.14285714285714285]\n');
+});
+
+test('json/parse then json/stringify reproduces what JavaScript writes for the same document', () => {
+  for (const value of randomJsonValues(1815, 150, false)) {
+    const text = JSON.stringify(value);
+    assert.equal(output(`${literal(text)} -> json/parse -> json/stringify -> io/print`), text);
+  }
+});
+
+test('json/stringify refuses values JSON cannot represent, saying where they are', () => {
+  const cases: [string, string][] = [
+    ['`x`', '`json/stringify` cannot write a char as JSON'],
+    ['"2026-10-24" -> date/parse', '`json/stringify` cannot write a date as JSON'],
+    ['"10:30" -> time/parse', '`json/stringify` cannot write a time as JSON'],
+    ['"2026-10-24T10:30:00" -> datetime/parse', '`json/stringify` cannot write a datetime as JSON'],
+    ['[1] -> array/to-set', '`json/stringify` cannot write a set as JSON'],
+    ['(n | n)', '`json/stringify` cannot write a proc as JSON'],
+    ['io', '`json/stringify` cannot write a module as JSON'],
+    ['io/stdout', '`json/stringify` cannot write a stream as JSON'],
+    ['{"items": [1 {"when": ("2026-10-24" -> date/parse)}]}', '`json/stringify` cannot write a date as JSON (at /items/1/when)'],
+    ['{"a/b~c": [`x`]}', '`json/stringify` cannot write a char as JSON (at /a~1b~0c/0)'],
+    ['{1: "one"}', '`json/stringify` needs string keys to write an object, but found an int key'],
+    ['{"scores": {"ada": 1  2: 2}}', '`json/stringify` needs string keys to write an object, but found an int key (at /scores)'],
+  ];
+  for (const [source, message] of cases) assert.equal(failure(`(${source}) -> json/stringify`).message, message, source);
+  assert.equal(failure('attempt | 1 / 0 recover e | e -> json/stringify').message, '`json/stringify` cannot write an error as JSON');
+});
+
+test('json/stringify errors are reported at the caller, and the next call starts clean', () => {
+  const error = failure('1 => x\n[`c`] -> json/stringify');
+  assert.deepEqual(error.position, { line: 2, col: 7 });
+  assert.equal(output('attempt | {"a": [`c`]} -> json/stringify recover | "failed" -> io/print-line\n[`c`] => chars\nattempt | {"b": chars} -> json/stringify recover e | e -> error/message -> io/print-line'), 'failed\n`json/stringify` cannot write a char as JSON (at /b/0)\n');
+});
+
+test('the binary writes deep nesting, and stops a value that contains itself', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'slopersons-'));
+  const program = join(directory, 'nesting.slop');
+  writeFileSync(program, '[] => deep\n999 -> int/times\n| [deep] =>> deep\ndeep -> json/stringify -> string/length -> io/print-line\n[1] => looped\nlooped -> array/push looped\nlooped -> json/stringify\n');
+  const result = spawnSync(bin, [program], { encoding: 'utf8' });
+  assert.equal(result.stdout, '2000\n');
+  assert.equal(result.stderr, `error: \`json/stringify\` stopped after 1000 levels of nesting; the value is nested too deeply or contains itself\n  at ${program}:7:8\n`);
+  assert.equal(result.status, 1);
 });
