@@ -36,7 +36,7 @@ src/runtime/            hand-built algorithms: hashtable, hashing, sorting, text
 src/stdlib/             the builtin modules, one file per type; core.ts holds the bare builtins, `error/*`, the loop builtins and `runIo`, io.ts holds `io/*` and the standard streams, `math/*` lives in int.ts; registry.ts registers each file with explicit calls
 test/                   mirrors src/; test/helpers/ast-print.ts prints ASTs as S-expressions; test/helpers/run.ts runs source in-process
 test/no-proxy.test.ts   greps src/ for forbidden JS APIs (invariant 5); extend its rules when adding an allowed exception
-test/programs/          golden .slop programs with .out/.err expectations (optional .in for stdin, .args for arguments, one per line), run through the real binary
+test/programs/          golden programs (see "Golden programs" below), run through the real binary
 docs/                   language docs, stdlib reference, decisions, examples
 ```
 
@@ -72,6 +72,21 @@ These hold for every change. They come from the project owner and are not negoti
 2. Register it with `interpreter.defineIn(module, name, arity, implementation)`. `interpreter.builtinModule(name)` creates or returns the builtin module value and `defineIn` calls it, so a new module needs no other registration. `interpreter.defineValueIn(module, name, value)` binds a member that is a value rather than a procedure, used without `do` (today `io/stdin`, `io/stdout` and `io/stderr`). `interpreter.defineMethodIn(module, name, types, arity, implementation)` is only for a member that accepts several receiver types and dispatches on the piped value (today only `math/*` and `date/is-leap-year`); it reports `` `math/abs` cannot be used with a string; it works on int, float `` for the wrong receiver. `interpreter.defineBuiltin(name, arity, implementation)` is only for the bare builtins: `do`, `out`, `fail`, `exit`, `use`, `type-of`, `show`. Registering a member twice, or a bare name that is also a module name, throws at startup so collisions are caught by the first test run. Use the `expect*` helpers in `src/stdlib/core.ts` for argument checks and pass the qualified name in the message (`'the input of \`array/length\`'`) so it reads `` the input of `array/length` must be an array, got a string ``; arity errors read `` `array/each` expects 2 arguments, got 1 `` without extra work. Arity is exact (`2`) or `{ min, max }`. The call sits in the file's `register<Type>` function, already called by `registry.ts`.
 3. Document it in `docs/stdlib/<module>.md` with its signature in flow form (`xs -> array/length`) and an example. A new module also gets a row in the table in `docs/stdlib/core.md` and a link in `docs/overview.md`.
 4. Add a unit test in `test/stdlib/<type>.test.ts` using the `run` helper from `test/helpers/run.ts`, and a golden program under `test/programs/` if the behavior is user-visible.
+
+## Golden programs
+
+A golden program is a complete `.slop` program checked in next to the exact output it must produce. `test/programs.test.ts` runs every `.slop` file in `test/programs/` and `docs/examples/` through the real binary, `bin/slopersons.mjs`, so the worker thread, file descriptors and exit codes are the real ones, and compares the result byte for byte. Unit tests in `test/stdlib/` run in-process with a fake `Io` and cannot catch a bug in that plumbing: a worker that drops the program's arguments fails the `arguments` golden program while every unit test passes.
+
+Next to `name.slop`:
+
+- `name.out`: the expected standard output. Without it, standard output must be empty.
+- `name.err`: the expected standard error, with `<file>` standing for the program's absolute path. With it the expected exit code is 1; without it, 0 and an empty standard error.
+- `name.in`: standard input, optional.
+- `name.args`: command-line arguments, one per line, optional.
+
+At least one of `.out` and `.err` must exist. Each program runs in a fresh temporary working directory, so relative paths in `file/*` calls create files there and never in the repository.
+
+Write a golden program for behavior a person running a program sees: printed forms, error messages and their positions, exit codes, standard input, arguments, files. Cover the cases and edge conditions of a builtin with unit tests. Review the expected files by hand before committing them: a golden file states what correct output is, not whatever the interpreter happened to print.
 
 ## Working notes
 
