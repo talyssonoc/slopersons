@@ -345,4 +345,6 @@ Returns a string of `length` random lowercase hexadecimal digits, each carrying 
 32 -> string/random-hex -> io/print-line   ~ 9f86d081884c7d659a2feaa0c55ad015
 ```
 
+`docs/examples/passwords/passwords.slop` uses it with `array/pick` and `array/shuffle`.
+
 Errors: `length` is not an int; it is negative; it is above the size limit for built values.

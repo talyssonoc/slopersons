@@ -92,7 +92,7 @@ Next to `name.slop`:
 - `name.in`: standard input, optional.
 - `name.args`: command-line arguments, one per line, optional.
 
-At least one of `.out` and `.err` must exist. Only the files directly in `docs/examples/` are golden programs; an example that runs until it is stopped, such as the web app in `docs/examples/notes/`, lives in a folder of its own and is tested by `test/examples.test.ts`. Each program runs in a fresh temporary working directory, so relative paths in `file/*` calls create files there and never in the repository.
+At least one of `.out` and `.err` must exist. Only the files directly in `docs/examples/` are golden programs; an example that runs until it is stopped, such as the web app in `docs/examples/notes/`, or whose output changes on every run, such as `docs/examples/passwords/`, lives in a folder of its own and is tested by `test/examples.test.ts`. Each program runs in a fresh temporary working directory, so relative paths in `file/*` calls create files there and never in the repository.
 
 Write a golden program for behavior a person running a program sees: printed forms, error messages and their positions, exit codes, standard input, arguments, files. A program that needs something on the other end of a socket cannot be a golden program, because its output depends on a client and on ports the operating system chooses; `test/network.test.ts` runs those through the same binary and checks what both sides saw. Cover the cases and edge conditions of a builtin with unit tests. Review the expected files by hand before committing them: a golden file states what correct output is, not whatever the interpreter happened to print.
 

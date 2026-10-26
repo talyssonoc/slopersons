@@ -10,6 +10,7 @@ import { startProgramFile, within } from './helpers/network.ts';
 const bin = fileURLToPath(new URL('../bin/slopersons.mjs', import.meta.url));
 const usersExample = fileURLToPath(new URL('../docs/examples/users.slop', import.meta.url));
 const notesExample = fileURLToPath(new URL('../docs/examples/notes/notes.slop', import.meta.url));
+const passwordsExample = fileURLToPath(new URL('../docs/examples/passwords/passwords.slop', import.meta.url));
 
 const WELCOME = 'Welcome to the user registry.\n';
 const CHOICE = 'Register, list or quit? (r/l/q): ';
@@ -99,4 +100,44 @@ test('the notes example serves its pages, keeps notes added from the form, and s
   } finally {
     program.child.kill();
   }
+});
+
+function passwords(settings: Record<string, string>): { lines: string[]; error: string; code: number | null } {
+  const environment: NodeJS.ProcessEnv = { ...process.env };
+  delete environment['PASSWORD_LENGTH'];
+  delete environment['PASSWORD_COUNT'];
+  const result = spawnSync(bin, [passwordsExample], { encoding: 'utf8', timeout: 30_000, env: { ...environment, ...settings } });
+  return { lines: result.stdout.split('\n').slice(0, -1), error: result.stderr, code: result.status };
+}
+
+function assertPassword(password: string, length: number): void {
+  assert.equal(password.length, length, `${password} has the wrong length`);
+  assert.match(password, /^[A-Za-z0-9!#$%&*+\-=?@^_~]+$/);
+  for (const kind of [/[a-z]/, /[A-Z]/, /[0-9]/, /[!#$%&*+\-=?@^_~]/]) assert.match(password, kind);
+}
+
+test('the passwords example makes three passwords of 16 characters and a token by default', () => {
+  const { lines, error, code } = passwords({});
+  assert.equal(error, '');
+  assert.equal(code, 0);
+  assert.equal(lines.length, 4);
+  for (const password of lines.slice(0, 3)) assertPassword(password, 16);
+  assert.equal(new Set(lines.slice(0, 3)).size, 3);
+  assert.match(lines[3] ?? '', /^token: [0-9a-f]{32}$/);
+});
+
+// Without the shuffle, the four characters picked one from each kind would always come first
+// and in the same order. With it, all 20 starting with a lowercase letter has odds of 4^-20.
+test('the passwords example takes its length and count from environment variables, and shuffles', () => {
+  const { lines, code } = passwords({ PASSWORD_LENGTH: '4', PASSWORD_COUNT: '20' });
+  assert.equal(code, 0);
+  assert.equal(lines.length, 21);
+  for (const password of lines.slice(0, 20)) assertPassword(password, 4);
+  assert.ok(lines.slice(0, 20).some((password) => !/^[a-z]/.test(password)), 'every password starts with a lowercase letter');
+});
+
+test('the passwords example refuses settings it cannot use', () => {
+  assert.deepEqual(passwords({ PASSWORD_LENGTH: '3' }), { lines: [], error: 'PASSWORD_LENGTH must be at least 4, to fit one character of each kind, got 3\n', code: 2 });
+  assert.deepEqual(passwords({ PASSWORD_COUNT: 'lots' }), { lines: [], error: 'PASSWORD_COUNT must be a whole number, got "lots"\n', code: 2 });
+  assert.deepEqual(passwords({ PASSWORD_COUNT: '0' }), { lines: [], error: 'PASSWORD_COUNT must be at least 1, got 0\n', code: 2 });
 });

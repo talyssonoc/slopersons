@@ -35,7 +35,7 @@ even total: 30
 - [cli.md](cli.md): running programs, exit codes, error output
 - [adr/README.md](adr/README.md): the Architecture Decision Records, one file per decision with its context, rejected alternatives and consequences
 - [stdlib/core.md](stdlib/core.md): the bare builtins and how the standard library is split into modules; then one page per module: [io](stdlib/io.md), [file](stdlib/file.md), [path](stdlib/path.md), [stream](stdlib/stream.md), [socket](stdlib/socket.md), [http](stdlib/http.md), [int](stdlib/int.md), [float](stdlib/float.md), [math](stdlib/math.md), [char](stdlib/char.md), [boolean](stdlib/boolean.md), [string](stdlib/string.md), [array](stdlib/array.md), [hashmap](stdlib/hashmap.md), [set](stdlib/set.md), [date](stdlib/date.md), [time](stdlib/time.md), [datetime](stdlib/datetime.md), [error](stdlib/error.md), [module](stdlib/module.md), [json](stdlib/json.md), [test](stdlib/test.md)
-- [examples/](examples/): complete programs; each has a `.out` file with its exact output and runs as part of the test suite
+- [examples/](examples/): complete programs; each file directly in it has a `.out` file with its exact output and runs as part of the test suite. The folders hold programs whose output cannot be fixed in advance: [notes/](examples/notes/), a web app, and [passwords/](examples/passwords/), which makes passwords and tokens with random values and reads its settings from environment variables
 
 ## The shape in one minute
 

@@ -75,3 +75,5 @@ io/environment -> do => environment
 environment -> hashmap/at-or "PORT" "8080" -> string/to-int -> io/print-line   ~ 3000
 environment -> hashmap/has "DEBUG" -> io/print-line                            ~ no
 ```
+
+`docs/examples/passwords/passwords.slop` takes its settings this way and checks them before using them.
