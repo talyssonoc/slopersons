@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { failure, output } from '../helpers/run.ts';
+import { scriptedRandomness } from '../helpers/fake-randomness.ts';
 
 test('math/abs returns the magnitude and keeps the type of its input', () => {
   assert.equal(output('-5 -> math/abs -> io/print-line\n5 -> math/abs -> io/print-line\n-2.5 -> math/abs -> io/print-line\n0 -> math/abs -> io/print-line'), '5\n5\n2.5\n0\n');
@@ -95,4 +96,20 @@ test('int/to-string gives the io/print-line form of an int', () => {
 test('math/sign is an int -1, 0 or 1 for ints and floats', () => {
   assert.equal(output('-7 -> math/sign -> io/print-line\n0 -> math/sign -> io/print-line\n7 -> math/sign -> io/print-line'), '-1\n0\n1\n');
   assert.equal(output('-0.5 -> math/sign -> io/print-line\n0.0 -> math/sign -> io/print-line\n3.5 -> math/sign -> io/print-line\n3.5 -> math/sign -> type-of -> io/print-line'), '-1\n0\n1\nint\n');
+});
+
+test('int/random includes both ends of the range, below zero too', () => {
+  assert.equal(output('1 -> int/random 6 -> io/print-line', { randomness: scriptedRandomness([0x00]) }), '1\n');
+  assert.equal(output('1 -> int/random 6 -> io/print-line', { randomness: scriptedRandomness([0x05]) }), '6\n');
+  assert.equal(output('-10 -> int/random -8 -> io/print-line', { randomness: scriptedRandomness([0x02]) }), '-8\n');
+});
+
+test('int/random of a single value needs no random bytes', () => {
+  assert.equal(output('5 -> int/random 5 -> io/print-line', { randomness: scriptedRandomness([]) }), '5\n');
+});
+
+test('int/random refuses an empty range and inputs that are not ints', () => {
+  assert.equal(failure('6 -> int/random 1').message, 'the start of `int/random` cannot be greater than its end, got 6 and 1');
+  assert.equal(failure('1.5 -> int/random 3').message, 'the start of `int/random` must be an int, got a float');
+  assert.equal(failure('1 -> int/random "6"').message, 'the end of `int/random` must be an int, got a string');
 });

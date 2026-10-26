@@ -1,5 +1,6 @@
 import { runtimeError } from '../errors.ts';
 import { arithmetic, type CallContext, type Interpreter } from '../interpreter.ts';
+import { randomBelow, shuffled } from '../runtime/random.ts';
 import { stableSort } from '../runtime/sorting.ts';
 import { NOTHING, array, boolean, compareValues, describeType, int, newSet, string, valuesEqual, type Value } from '../values.ts';
 import { input, callLambda, expectArray, expectDecision, expectInt, expectProc, expectString, toIndex } from './core.ts';
@@ -44,6 +45,14 @@ function extreme(items: Value[], name: string, keepWhen: (comparison: number) =>
 }
 
 export function registerArray(interpreter: Interpreter): void {
+  interpreter.defineIn('array', 'pick', 1, (inputs, context) => {
+    const elements = items(inputs, 'pick', context);
+    if (elements.length === 0) throw runtimeError('cannot pick from an empty array', context.position);
+    return elements[Number(randomBelow(context.interpreter.randomness, BigInt(elements.length)))] ?? NOTHING;
+  });
+
+  interpreter.defineIn('array', 'shuffle', 1, (inputs, context) => array(shuffled(context.interpreter.randomness, items(inputs, 'shuffle', context))));
+
   interpreter.defineIn('array', 'length', 1, (inputs, context) => int(BigInt(items(inputs, 'length', context).length)));
 
   interpreter.defineIn('array', 'is-empty', 1, (inputs, context) => boolean(items(inputs, 'is-empty', context).length === 0));

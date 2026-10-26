@@ -1,6 +1,7 @@
 import { runtimeError } from '../errors.ts';
 import type { CallContext, Interpreter } from '../interpreter.ts';
 import { boolean, char, compareValues, describeType, float, formatValue, int, string, type FloatValue, type IntValue, type Value } from '../values.ts';
+import { randomBetween } from '../runtime/random.ts';
 import { input, expectInt } from './core.ts';
 
 type NumberValue = IntValue | FloatValue;
@@ -43,6 +44,13 @@ function floatPow(base: number, exponent: number, context: CallContext): number 
 }
 
 export function registerInt(interpreter: Interpreter): void {
+  interpreter.defineIn('int', 'random', 2, (inputs, context) => {
+    const low = expectInt(input(inputs, 0), 'the start of `int/random`', context);
+    const high = expectInt(input(inputs, 1), 'the end of `int/random`', context);
+    if (low > high) throw runtimeError(`the start of \`int/random\` cannot be greater than its end, got ${low} and ${high}`, context.position);
+    return int(randomBetween(context.interpreter.randomness, low, high));
+  });
+
   interpreter.defineMethodIn('math', 'abs', ['int', 'float'], 1, (inputs, context) => {
     const value = expectNumber(input(inputs, 0), 'the input of `math/abs`', context);
     return value.type === 'int' ? int(value.value < 0n ? -value.value : value.value) : float(Math.abs(value.value));

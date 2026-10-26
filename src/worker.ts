@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { EXIT_INTERNAL, INTERNAL_ERROR_LINE, LINE_ENDED, LINE_INTERRUPTED, LINE_WAITING, lineInput, type ReplIo } from './boundary.ts';
 import { INTERRUPT_HANDLED, bridgedHost } from './bridge.ts';
-import { createInterpreter, nodeOutput, runProgram, type WorkerData } from './cli.ts';
+import { createInterpreter, nodeOutput, processEnvironment, runProgram, systemRandomness, type WorkerData } from './cli.ts';
 import { InterruptSignal, type Io } from './interpreter.ts';
 import { Repl } from './repl.ts';
 
@@ -39,10 +39,10 @@ let code = EXIT_INTERNAL;
 try {
   if (given.mode === 'repl') {
     const io = replIo(given.control, given.data, given.bridge.interrupt);
-    code = new Repl(io, createInterpreter(io, { network: host.network, interruption: host.interruption })).run();
+    code = new Repl(io, createInterpreter(io, { environment: processEnvironment(), network: host.network, randomness: systemRandomness, interruption: host.interruption })).run();
   } else {
     const io: Io = { ...nodeOutput, readInput: host.readInput };
-    code = runProgram(given.source, given.file, io, createInterpreter(io, { programArguments: given.programArguments, network: host.network, interruption: host.interruption }));
+    code = runProgram(given.source, given.file, io, createInterpreter(io, { programArguments: given.programArguments, environment: processEnvironment(), network: host.network, randomness: systemRandomness, interruption: host.interruption }));
   }
 } catch {
   nodeOutput.writeError(INTERNAL_ERROR_LINE);

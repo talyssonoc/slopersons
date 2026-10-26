@@ -1,3 +1,4 @@
+import { randomFillSync } from 'node:crypto';
 import { readFileSync, writeSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MessageChannel, Worker, isMainThread } from 'node:worker_threads';
@@ -22,6 +23,7 @@ import { ExitSignal, Interpreter, type InterpreterOptions, type Io } from './int
 import { parse } from './parser.ts';
 import { registerModules } from './modules.ts';
 import { registerStdlib } from './stdlib/registry.ts';
+import type { Randomness } from './runtime/random.ts';
 
 const VERSION = '0.1.0';
 
@@ -105,6 +107,16 @@ export const nodeOutput: Pick<Io, 'write' | 'writeError'> = {
   write: (text) => writeAll(1, text),
   writeError: (text) => writeAll(2, text),
 };
+
+export const systemRandomness: Randomness = { fill: (bytes) => randomFillSync(bytes) };
+
+export function processEnvironment(): [string, string][] {
+  const variables: [string, string][] = [];
+  for (const [name, value] of Object.entries(process.env)) {
+    if (value !== undefined) variables.push([name, value]);
+  }
+  return variables;
+}
 
 const USAGE = 'usage: slopersons <file.slop> [arguments...]\n       slopersons --repl\n       slopersons --version\n';
 

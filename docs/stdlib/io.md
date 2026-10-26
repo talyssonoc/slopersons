@@ -1,6 +1,6 @@
 # Io builtins
 
-Standard input, standard output, standard error and the program's command-line arguments. The three standard streams are [stream](stream.md) values held by this module, `io/stdin`, `io/stdout` and `io/stderr`, and `io/print-line`, `io/print` and `io/read-line` are shortcuts over them, so a program that only talks to the person at the keyboard never needs the `stream` module. Output is written in order and fully flushed before the program ends, including when `exit` is called; see `cli.md` for exit codes and for what happens when the reader of standard output goes away early.
+Standard input, standard output, standard error, the program's command-line arguments and its environment variables. The three standard streams are [stream](stream.md) values held by this module, `io/stdin`, `io/stdout` and `io/stderr`, and `io/print-line`, `io/print` and `io/read-line` are shortcuts over them, so a program that only talks to the person at the keyboard never needs the `stream` module. Output is written in order and fully flushed before the program ends, including when `exit` is called; see `cli.md` for exit codes and for what happens when the reader of standard output goes away early.
 
 ## print-line
 
@@ -61,4 +61,17 @@ Returns the words written after the program file on the command line, as a new a
 io/arguments -> do => given
 given -> io/print-line                  ~ ["Ada" "--loud"]
 given -> array/at 0 -> io/print-line    ~ Ada
+```
+
+## environment
+
+`io/environment -> do`
+
+Returns the environment variables the program was started with, as a new hashmap from names to strings. A variable set to nothing has the value `""`. Names are kept exactly as the operating system gives them, so on Linux and macOS `PATH` and `path` are different variables. The REPL sees the variables of the shell that started it. Variables cannot be changed: each call builds a new hashmap from the ones the program started with, so changing it does not change what the next call returns. It takes no input, so it is called through `do`.
+
+```
+~ PORT=3000 slopersons server.slop
+io/environment -> do => environment
+environment -> hashmap/at-or "PORT" "8080" -> string/to-int -> io/print-line   ~ 3000
+environment -> hashmap/has "DEBUG" -> io/print-line                            ~ no
 ```

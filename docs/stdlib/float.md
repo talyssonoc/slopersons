@@ -77,3 +77,14 @@ Returns the float as `io/print-line` shows it: a float always keeps a decimal po
 ```
 2.0 -> float/to-string -> show -> io/print-line   ~ "2.0"
 ```
+
+## random
+
+`float/random -> do`
+
+Returns a float from 0.0 up to, but not including, 1.0, a multiple of 2^-53 with every one as likely as the others. It takes no input, so it is called through `do`. Random values come from a cryptographically secure generator, the kind used for encryption keys, so they are fit for session ids and tokens. There is no seed: a program cannot replay the same values, so code that depends on chance is tested by passing the chosen value in rather than drawing it inside. For a whole number in a range, `int/random` is exact where scaling a float is not.
+
+```
+float/random -> do -> io/print-line       ~ 0.7316412875011468
+(float/random -> do) < 0.25 ? "a one-in-four chance" -> io/print-line
+```

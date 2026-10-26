@@ -158,3 +158,5 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Free every socket however a program ends](./202610241736-free-every-socket-however-a-program-ends.md) | Accepted |
 | 2026-10-24 | [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) | Accepted |
 | 2026-10-24 | [Serve HTTP from a slopersons module over sockets](./202610241758-serve-http-from-a-slopersons-module-over-sockets.md) | Accepted |
+| 2026-10-26 | [Draw random values from a secure generator, with no seed](./202610261124-draw-random-values-from-a-secure-generator-with-no-seed.md) | Proposed |
+| 2026-10-26 | [Give programs their environment variables as a hashmap](./202610261125-give-programs-their-environment-variables-as-a-hashmap.md) | Proposed |

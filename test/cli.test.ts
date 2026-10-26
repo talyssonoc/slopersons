@@ -270,6 +270,24 @@ test('--repl runs an interactive session through the binary', () => {
   assert.equal(result.status, 0);
 });
 
+test('a program sees the environment it was started with and secure random values', () => {
+  const path = writeTemp('environment.slop', 'io/environment -> do -> hashmap/at "SLOPERSONS_TEST_GREETING" -> io/print-line\n16 -> string/random-hex -> io/print-line\n16 -> string/random-hex -> io/print-line\n');
+  const result = spawnSync(bin, [path], { encoding: 'utf8', timeout: 30_000, env: { ...process.env, SLOPERSONS_TEST_GREETING: 'olá, mundo' } });
+  assert.equal(result.stderr, '');
+  const [greeting, first, second] = result.stdout.split('\n');
+  assert.equal(greeting, 'olá, mundo');
+  assert.match(first ?? '', /^[0-9a-f]{16}$/);
+  assert.notEqual(first, second);
+  assert.equal(result.status, 0);
+});
+
+test('a REPL session sees the environment and random values too', () => {
+  const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', timeout: 30_000, env: { ...process.env, SLOPERSONS_TEST_GREETING: 'hi' }, input: 'io/environment -> do -> hashmap/at "SLOPERSONS_TEST_GREETING"\n4 -> string/random-hex -> string/length\n' });
+  assert.equal(result.stdout, 'slopersons, Ctrl-D to leave\n> -> "hi"\n> -> 4\n> \n');
+  assert.equal(result.stderr, '');
+  assert.equal(result.status, 0);
+});
+
 test('read-line inside a REPL entry reads the next input line through the same channel', () => {
   const result = spawnSync(bin, ['--repl'], { encoding: 'utf8', timeout: 30_000, input: 'io/read-line -> do -> string/upper\nhello\n' });
   assert.equal(result.stdout, 'slopersons, Ctrl-D to leave\n> -> "HELLO"\n> \n');

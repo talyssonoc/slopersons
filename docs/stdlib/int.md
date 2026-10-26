@@ -98,3 +98,16 @@ Runs the body `count` times. With one parameter the lambda receives the iteratio
 ```
 
 Errors: the count is not an int; the body is not a procedure.
+
+## random
+
+`low -> int/random high`
+
+Returns an int from `low` to `high`, both included, every one as likely as the others. The range can be as large as ints are, and can go below zero. Random values come from a cryptographically secure generator, the kind used for encryption keys, so they are fit for session ids and tokens. There is no seed: a program cannot replay the same values, so code that depends on chance is tested by passing the chosen value in rather than drawing it inside.
+
+```
+1 -> int/random 6 -> io/print-line        ~ 4, a die roll
+-1 -> int/random 1 -> io/print-line       ~ -1, 0 or 1
+```
+
+Errors: `low` or `high` is not an int; `low` is greater than `high` (`the start of \`int/random\` cannot be greater than its end, got 6 and 1`).

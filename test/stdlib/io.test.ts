@@ -42,3 +42,14 @@ test('standard input cannot be written and standard output cannot be read', () =
   assert.equal(failure('io/stdout -> stream/read-line').message, 'cannot read standard output: it can only be written');
   assert.equal(failure('io/stderr -> stream/read-all').message, 'cannot read standard error: it can only be written');
 });
+
+test('io/environment gives the environment variables as a hashmap of strings', () => {
+  const environment: [string, string][] = [['HOME', '/home/ada'], ['EMPTY', '']];
+  assert.equal(output('io/environment -> do -> io/print-line', { environment }), '{"HOME": "/home/ada"  "EMPTY": ""}\n');
+  assert.equal(output('io/environment -> do -> hashmap/at-or "PORT" "8080" -> io/print-line', { environment }), '8080\n');
+});
+
+test('io/environment builds a new hashmap on every call, so changing one does not change the next', () => {
+  const source = 'io/environment -> do -> hashmap/put "HOME" "/tmp" -> io/print-line\nio/environment -> do -> io/print-line';
+  assert.equal(output(source, { environment: [['HOME', '/home/ada']] }), '{"HOME": "/tmp"}\n{"HOME": "/home/ada"}\n');
+});

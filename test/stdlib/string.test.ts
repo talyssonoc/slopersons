@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { failure, output } from '../helpers/run.ts';
+import { scriptedRandomness } from '../helpers/fake-randomness.ts';
 
 test('string/length counts code points', () => {
   assert.equal(output('"abc" -> string/length -> io/print-line\n"" -> string/length -> io/print-line'), '3\n0\n');
@@ -217,4 +218,16 @@ test('string/repeat refuses to build a string beyond the size limit', () => {
     failure('"ab" -> string/repeat 100000000000').message,
     '`string/repeat` would build a value of 200000000000 characters, which is more than the limit of 50000000',
   );
+});
+
+test('string/random-hex gives that many lowercase hexadecimal digits', () => {
+  assert.equal(output('6 -> string/random-hex -> io/print-line', { randomness: scriptedRandomness([0xab, 0x01, 0xf0]) }), 'ab01f0\n');
+  assert.equal(output('3 -> string/random-hex -> io/print-line', { randomness: scriptedRandomness([0xab, 0x01]) }), 'ab0\n');
+  assert.equal(output('0 -> string/random-hex -> string/length -> io/print-line', { randomness: scriptedRandomness([]) }), '0\n');
+});
+
+test('string/random-hex refuses a negative, oversized or non-int length', () => {
+  assert.equal(failure('-1 -> string/random-hex').message, 'the length of `string/random-hex` cannot be negative, got -1');
+  assert.equal(failure('"8" -> string/random-hex').message, 'the length of `string/random-hex` must be an int, got a string');
+  assert.match(failure('50000001 -> string/random-hex').message, /^`string\/random-hex` would build a value of 50000001 characters/);
 });

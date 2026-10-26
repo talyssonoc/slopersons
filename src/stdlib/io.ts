@@ -1,7 +1,7 @@
 import { systemFailure } from '../file-system.ts';
 import type { Interpreter, Io } from '../interpreter.ts';
 import { ChannelStream, TextOutputStream, type ByteChannel } from '../runtime/stream.ts';
-import { NOTHING, array, formatValue, streamValue, string } from '../values.ts';
+import { NOTHING, array, formatValue, newMap, streamValue, string } from '../values.ts';
 import { input, runIo } from './core.ts';
 
 function standardInputChannel(io: Io): ByteChannel {
@@ -43,6 +43,12 @@ export function registerIo(interpreter: Interpreter): void {
   });
 
   interpreter.defineIn('io', 'arguments', 0, (_inputs, context) => array(context.interpreter.programArguments.map(string)));
+
+  interpreter.defineIn('io', 'environment', 0, (_inputs, context) => {
+    const variables = newMap();
+    for (const [name, value] of context.interpreter.environment) variables.table.set(string(name), string(value));
+    return variables;
+  });
 
   interpreter.defineValueIn('io', 'stdin', streamValue(standardInput));
   interpreter.defineValueIn('io', 'stdout', streamValue(standardOutput));

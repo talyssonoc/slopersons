@@ -334,3 +334,15 @@ Returns the number of non-overlapping occurrences of `needle` in `text` as an in
 ```
 
 Errors: `needle` is not a string; `needle` is empty, reported as `` `count` needs a non-empty text to look for ``.
+
+## random-hex
+
+`length -> string/random-hex`
+
+Returns a string of `length` random lowercase hexadecimal digits, each carrying 4 bits of chance: 32 digits are 128 bits, enough that two session ids or tokens made this way will not collide. Random values come from a cryptographically secure generator, the kind used for encryption keys, so they are fit for session ids and tokens. There is no seed: a program cannot replay the same values, so code that depends on chance is tested by passing the chosen value in rather than drawing it inside.
+
+```
+32 -> string/random-hex -> io/print-line   ~ 9f86d081884c7d659a2feaa0c55ad015
+```
+
+Errors: `length` is not an int; it is negative; it is above the size limit for built values.

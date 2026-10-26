@@ -444,3 +444,27 @@ b -> array/push 3
 a -> io/print-line                         ~ [1 2]
 b -> io/print-line                         ~ [1 2 3]
 ```
+
+## pick
+
+`xs -> array/pick`
+
+Returns one element of the array, every position as likely as the others. Random values come from a cryptographically secure generator, the kind used for encryption keys, so they are fit for session ids and tokens. There is no seed: a program cannot replay the same values, so code that depends on chance is tested by passing the chosen value in rather than drawing it inside.
+
+```
+["rock" "paper" "scissors"] -> array/pick -> io/print-line   ~ paper
+```
+
+Errors: the input is not an array; the array is empty (`cannot pick from an empty array`).
+
+## shuffle
+
+`xs -> array/shuffle`
+
+Returns a new array with the same elements in a random order, every order as likely as the others. The input is left as it was. Random values come from a cryptographically secure generator, the kind used for encryption keys, so they are fit for session ids and tokens. There is no seed: a program cannot replay the same values, so code that depends on chance is tested by passing the chosen value in rather than drawing it inside.
+
+```
+[1 2 3 4 5] -> array/shuffle -> io/print-line   ~ [3 5 1 4 2]
+```
+
+Errors: the input is not an array.

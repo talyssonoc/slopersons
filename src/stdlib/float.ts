@@ -1,6 +1,7 @@
 import { runtimeError } from '../errors.ts';
 import type { CallContext, Interpreter } from '../interpreter.ts';
-import { boolean, describeType, int, type Value } from '../values.ts';
+import { randomFloat } from '../runtime/random.ts';
+import { boolean, describeType, float, int, type Value } from '../values.ts';
 import { input } from './core.ts';
 
 function expectFloat(value: Value, what: string, context: CallContext): number {
@@ -19,6 +20,8 @@ function roundHalfAwayFromZero(value: number): number {
 }
 
 export function registerFloat(interpreter: Interpreter): void {
+  interpreter.defineIn('float', 'random', 0, (_inputs, context) => float(randomFloat(context.interpreter.randomness)));
+
   interpreter.defineIn('float', 'round', 1, (inputs, context) => int(BigInt(roundHalfAwayFromZero(finiteInput(inputs, 'float/round', context)))));
 
   interpreter.defineIn('float', 'floor', 1, (inputs, context) => int(BigInt(Math.floor(finiteInput(inputs, 'float/floor', context)))));

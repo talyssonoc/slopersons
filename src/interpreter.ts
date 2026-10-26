@@ -26,6 +26,7 @@ import {
   type Value,
 } from './values.ts';
 import { NO_NETWORK, type Network } from './runtime/network.ts';
+import { NO_RANDOMNESS, type Randomness } from './runtime/random.ts';
 import { StreamRegistry } from './runtime/stream.ts';
 
 export interface Io {
@@ -65,7 +66,9 @@ export const NO_INTERRUPTION: Interruption = { take: () => false, clear: () => {
 
 export interface InterpreterOptions {
   programArguments?: readonly string[];
+  environment?: readonly (readonly [string, string])[];
   network?: Network;
+  randomness?: Randomness;
   interruption?: Interruption;
 }
 
@@ -169,7 +172,9 @@ export class Interpreter {
   private topActivation: number;
   currentFile: string | null;
   readonly programArguments: readonly string[];
+  readonly environment: readonly (readonly [string, string])[];
   readonly network: Network;
+  readonly randomness: Randomness;
   private readonly interruption: Interruption;
   readonly streams: StreamRegistry;
   readonly endHooks: (() => number)[];
@@ -178,7 +183,9 @@ export class Interpreter {
   constructor(io: Io, options: InterpreterOptions = {}) {
     this.io = io;
     this.programArguments = options.programArguments ?? [];
+    this.environment = options.environment ?? [];
     this.network = options.network ?? NO_NETWORK;
+    this.randomness = options.randomness ?? NO_RANDOMNESS;
     this.interruption = options.interruption ?? NO_INTERRUPTION;
     this.streams = new StreamRegistry();
     this.endHooks = [];

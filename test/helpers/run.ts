@@ -1,5 +1,5 @@
 import { SlopersonsError } from '../../src/errors.ts';
-import { Interpreter } from '../../src/interpreter.ts';
+import { Interpreter, type InterpreterOptions } from '../../src/interpreter.ts';
 import { parse } from '../../src/parser.ts';
 import { registerStdlib } from '../../src/stdlib/registry.ts';
 import { lineInput, type ReplIo } from '../../src/boundary.ts';
@@ -36,9 +36,9 @@ export function fakeIo(inputLines: string[] = []): FakeIo {
   return io;
 }
 
-export function run(source: string, inputLines: string[] = [], network: Network = NO_NETWORK): RunResult {
+export function run(source: string, inputLines: string[] = [], network: Network = NO_NETWORK, options: InterpreterOptions = {}): RunResult {
   const io = fakeIo(inputLines);
-  const interpreter = new Interpreter(io, { network });
+  const interpreter = new Interpreter(io, { network, ...options });
   registerStdlib(interpreter);
   try {
     interpreter.run(parse(source));
@@ -51,14 +51,14 @@ export function run(source: string, inputLines: string[] = [], network: Network 
   }
 }
 
-export function output(source: string): string {
-  const result = run(source);
+export function output(source: string, options: InterpreterOptions = {}): string {
+  const result = run(source, [], NO_NETWORK, options);
   if (result.error !== null) throw new Error(`unexpected error: ${result.error.message}`);
   return result.out;
 }
 
-export function failure(source: string): SlopersonsError {
-  const result = run(source);
+export function failure(source: string, options: InterpreterOptions = {}): SlopersonsError {
+  const result = run(source, [], NO_NETWORK, options);
   if (result.error === null) throw new Error(`expected an error, got output: ${JSON.stringify(result.out)}`);
   return result.error;
 }

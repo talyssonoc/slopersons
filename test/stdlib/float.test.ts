@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { failure, output } from '../helpers/run.ts';
+import { scriptedRandomness } from '../helpers/fake-randomness.ts';
 
 const OVERFLOWED = '1.0 => x\n400 -> int/times | x * 10.0 =>> x\n';
 
@@ -45,4 +46,10 @@ test('float builtins reject other receivers and extra arguments', () => {
   assert.equal(failure('yes -> float/floor').message, 'the input of `float/floor` must be a float, got a boolean');
   assert.equal(failure('3 -> float/is-integer').message, 'the input of `float/is-integer` must be a float, got an int');
   assert.equal(failure('2.5 -> float/ceil 1').message, '`float/ceil` expects 1 argument, got 2');
+});
+
+test('float/random is a float from 0 up to but not including 1', () => {
+  assert.equal(output('float/random -> do -> io/print-line', { randomness: scriptedRandomness([0x80, 0, 0, 0, 0, 0, 0]) }), '0.5\n');
+  assert.equal(output('float/random -> do -> type-of -> io/print-line', { randomness: scriptedRandomness([0, 0, 0, 0, 0, 0, 0]) }), 'float\n');
+  assert.equal(output('(float/random -> do) < 1.0 -> io/print-line', { randomness: scriptedRandomness([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]) }), 'yes\n');
 });

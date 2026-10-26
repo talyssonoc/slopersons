@@ -1,0 +1,15 @@
+~ Random values and the environment differ on every run, so this prints facts about them
+~ rather than the values themselves.
+
+1 -> int/random 6 => roll
+(roll >= 1 and roll <= 6) -> io/print-line
+float/random -> do => fraction
+(fraction >= 0.0 and fraction < 1.0) -> io/print-line
+[1 2 3 4 5] => numbers
+numbers -> array/shuffle -> array/sort -> io/print-line
+numbers -> array/contains (numbers -> array/pick) -> io/print-line
+32 -> string/random-hex => token
+token -> string/length -> io/print-line
+(token -> string/chars -> array/keep c | not ("0123456789abcdef" -> string/contains (c -> char/to-string))) -> io/print-line
+io/environment -> do -> type-of -> io/print-line
+[] -> array/pick

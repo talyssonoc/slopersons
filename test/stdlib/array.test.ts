@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { failure, output } from '../helpers/run.ts';
+import { scriptedRandomness } from '../helpers/fake-randomness.ts';
 
 test('length and is-empty', () => {
   assert.equal(output('[1 2 3] -> array/length -> io/print-line\n[] -> array/length -> io/print-line'), '3\n0\n');
@@ -210,4 +211,20 @@ test('type errors name the qualified builtin and the offending type', () => {
   assert.equal(failure('"ab" -> array/flatten').message, 'the input of `array/flatten` must be an array, got a string');
   assert.equal(failure('1 -> array/sort').message, 'the input of `array/sort` must be an array, got an int');
   assert.equal(failure('nothing -> array/with-index').message, 'the input of `array/with-index` must be an array, got a nothing');
+});
+
+test('array/pick returns one of the elements', () => {
+  assert.equal(output('[10 20 30] -> array/pick -> io/print-line', { randomness: scriptedRandomness([0x02]) }), '30\n');
+  assert.equal(output('["only"] -> array/pick -> io/print-line', { randomness: scriptedRandomness([]) }), 'only\n');
+});
+
+test('array/pick refuses an empty array', () => {
+  assert.equal(failure('[] -> array/pick').message, 'cannot pick from an empty array');
+  assert.equal(failure('"abc" -> array/pick').message, 'the input of `array/pick` must be an array, got a string');
+});
+
+test('array/shuffle returns a new array in a random order and leaves the input as it was', () => {
+  const source = '[1 2 3 4] => xs\nxs -> array/shuffle -> io/print-line\nxs -> io/print-line';
+  assert.equal(output(source, { randomness: scriptedRandomness([0x00, 0x00, 0x00]) }), '[2 3 4 1]\n[1 2 3 4]\n');
+  assert.equal(output('[] -> array/shuffle -> io/print-line', { randomness: scriptedRandomness([]) }), '[]\n');
 });
