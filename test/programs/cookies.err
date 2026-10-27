@@ -1,0 +1,2 @@
+error: the cookie value "two words" is not valid: it can only hold visible ASCII characters other than double quotes, commas, semicolons and backslashes
+  at <file>:6:4

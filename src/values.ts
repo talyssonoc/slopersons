@@ -93,6 +93,7 @@ export interface ErrorValue {
   type: 'error';
   message: string;
   position: Position | null;
+  details: Value;
 }
 
 export interface ProcedureValue {
@@ -197,7 +198,7 @@ export function listenerValue(listener: Listener): ListenerValue {
 }
 
 export function errorValue(error: SlopersonsError): ErrorValue {
-  return { type: 'error', message: error.message, position: error.position };
+  return { type: 'error', message: error.message, position: error.position, details: error.details ?? NOTHING };
 }
 
 export function typeName(value: Value): TypeName {
@@ -234,7 +235,7 @@ export function valuesEqual(first: Value, second: Value): boolean {
       return first.milliseconds === (second as TimeValue | DateTimeValue).milliseconds;
     case 'error': {
       const other = second as ErrorValue;
-      return first.message === other.message && first.position?.line === other.position?.line && first.position?.col === other.position?.col;
+      return first.message === other.message && first.position?.line === other.position?.line && first.position?.col === other.position?.col && valuesEqual(first.details, other.details);
     }
     case 'array': {
       const other = second as ArrayValue;

@@ -90,6 +90,15 @@ test('a source module becomes a builtin module: exports become members, and erro
   assert.equal(code, 1);
 });
 
+test('an error a source module raises with details keeps them when it is moved to the caller', () => {
+  const io = fakeIo();
+  const interpreter = createInterpreter(io);
+  registerSourceModule(interpreter, 'tool', 'proc refuse | "no" -> fail {"kind": "refused"}\nexport refuse\n');
+  const code = runProgram('attempt | tool/refuse -> do recover e | "{e -> error/line}: {e -> error/details}" -> io/print-line\n', 'main.slop', io, interpreter);
+  assert.equal(io.out, '1: {"kind": "refused"}\n');
+  assert.equal(code, 0);
+});
+
 test('a source module that exports a name it never binds fails at startup', () => {
   const directory = mkdtempSync(join(tmpdir(), 'slopersons-source-'));
   const path = join(directory, 'empty.slop');

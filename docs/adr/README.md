@@ -95,7 +95,7 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-23 | [Read a line of bare names followed by a block as a lambda](./202610231539-read-a-line-of-bare-names-followed-by-a-block-as-a-lambda.md) | Accepted |
 | 2026-10-23 | [Merge continuation lines in the parser, not the lexer](./202610231540-merge-continuation-lines-in-the-parser.md) | Accepted |
 | 2026-10-23 | [Require parentheses for zero-parameter lambdas outside calls](./202610231541-require-parentheses-for-zero-parameter-lambdas-outside-calls.md) | Accepted |
-| 2026-10-23 | [Let brackets span lines without margins](./202610231542-let-brackets-span-lines-without-margins.md) | Accepted |
+| 2026-10-23 | [Let brackets span lines without margins](./202610231542-let-brackets-span-lines-without-margins.md) | Superseded by [Drop a repeated block margin inside brackets](./202610262105-drop-a-repeated-block-margin-inside-brackets.md) |
 | 2026-10-23 | [Implement data structures and algorithms instead of wrapping JavaScript](./202610231543-implement-data-structures-and-algorithms-instead-of-wrapping-javascript.md) | Accepted |
 | 2026-10-23 | [Never show JavaScript to the person running a program](./202610231544-never-show-javascript-to-the-person-running-a-program.md) | Accepted |
 | 2026-10-23 | [Represent ints as BigInt](./202610231545-represent-ints-as-bigint.md) | Accepted |
@@ -160,3 +160,7 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Serve HTTP from a slopersons module over sockets](./202610241758-serve-http-from-a-slopersons-module-over-sockets.md) | Accepted |
 | 2026-10-26 | [Draw random values from a secure generator, with no seed](./202610261124-draw-random-values-from-a-secure-generator-with-no-seed.md) | Proposed |
 | 2026-10-26 | [Give programs their environment variables as a hashmap](./202610261125-give-programs-their-environment-variables-as-a-hashmap.md) | Proposed |
+| 2026-10-26 | [Hash passwords with Node's PBKDF2 in a password module](./202610262055-hash-passwords-with-node-pbkdf2-in-a-password-module.md) | Accepted |
+| 2026-10-26 | [Let fail attach details that handlers read with error/details](./202610262058-let-fail-attach-details-that-handlers-read-with-error-details.md) | Proposed |
+| 2026-10-26 | [Default cookies to HttpOnly, SameSite=Lax, for the whole site](./202610262100-default-cookies-to-httponly-samesite-lax-for-the-whole-site.md) | Proposed |
+| 2026-10-26 | [Drop a repeated block margin inside brackets](./202610262105-drop-a-repeated-block-margin-inside-brackets.md) | Proposed |

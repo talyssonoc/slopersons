@@ -21,6 +21,23 @@ Returns the message as a string.
 attempt | "boom" -> fail recover e | e -> error/message -> io/print-line   ~ boom
 ```
 
+## details
+
+`error -> error/details`
+
+Returns the value given to `fail` after the message, or `nothing` for an error raised without one, including every error the interpreter raises itself. Raising the error again with `e -> fail` keeps its details.
+
+```
+proc find-issue id
+| "issue {id} does not exist" -> fail {"kind": "not-found"  "id": id}
+
+attempt
+| 9 -> find-issue
+recover e
+| (e -> error/details) = nothing ? e -> fail
+| e -> error/details -> hashmap/at "kind" -> io/print-line   ~ not-found
+```
+
 ## line
 
 `error -> error/line`

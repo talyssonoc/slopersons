@@ -227,6 +227,29 @@ test('fail with a string raises a custom error; fail with an error rethrows it u
   assert.equal(failure('attempt | 1 / 0 recover e | "again: {e}" -> fail').message, 'again: division by zero');
 });
 
+test('fail takes details, which error/details reads back and a rethrow keeps', () => {
+  const source = 'attempt\n| "no issue 9" -> fail {"kind": "not-found"  "id": 9}\nrecover e\n| e -> error/details -> io/print-line\n| e -> error/message -> io/print-line\n| attempt | e -> fail recover again | again -> error/details -> hashmap/at "kind" -> io/print-line';
+  assert.equal(output(source), '{"kind": "not-found"  "id": 9}\nno issue 9\nnot-found\n');
+  assert.equal(output('attempt | "x" -> fail [1 2] recover e | e -> error/details -> io/print-line'), '[1 2]\n');
+  assert.equal(failure('"x" -> fail 1').details?.type, 'int');
+});
+
+test('an error without details has nothing as its details', () => {
+  assert.equal(output('attempt | "plain" -> fail recover e | e -> error/details -> io/print-line'), 'nothing\n');
+  assert.equal(output('attempt | 1 / 0 recover e | e -> error/details -> io/print-line'), 'nothing\n');
+});
+
+test('errors with different details are not equal', () => {
+  assert.equal(output('proc raise d | attempt | "x" -> fail d recover e | e\n(1 -> raise) = (1 -> raise) -> io/print-line\n(1 -> raise) = (2 -> raise) -> io/print-line'), 'yes\nno\n');
+});
+
+test('fail refuses details for an error value, a message that is not a string and a third input', () => {
+  assert.equal(failure('attempt | 1 / 0 recover e | e -> fail 1').message, '`fail` raises an error value again unchanged, so it takes no details');
+  assert.equal(failure('1 -> fail').message, 'the message of `fail` must be a string, got an int');
+  assert.equal(failure('"x" -> fail 1 2').message, '`fail` expects 1 to 2 arguments, got 3');
+  assert.equal(failure('1 -> error/details').message, 'the input of `error/details` must be an error, got an int');
+});
+
 test('an error raised inside recover propagates, and attempts nest', () => {
   assert.equal(failure('attempt | 1 / 0 recover | "x" -> string/to-int').message, 'cannot convert "x" to an int');
   assert.equal(output('attempt\n| attempt | 1 / 0 recover | "inner" -> fail\nrecover e\n| "outer saw {e}" -> io/print-line'), 'outer saw inner\n');

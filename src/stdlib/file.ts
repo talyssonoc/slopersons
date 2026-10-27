@@ -1,5 +1,5 @@
 import { runtimeError } from '../errors.ts';
-import { listDirectory, openFile, pathKind, removeFile, renamePath } from '../file-system.ts';
+import { listDirectory, makeDirectory, openFile, pathKind, removeFile, renamePath } from '../file-system.ts';
 import type { CallContext, Interpreter } from '../interpreter.ts';
 import { stableSort } from '../runtime/sorting.ts';
 import { ChannelStream, type StreamMode } from '../runtime/stream.ts';
@@ -95,6 +95,12 @@ export function registerFile(interpreter: Interpreter): void {
     const to = expectString(input(inputs, 1), 'the new path of `file/rename`', context);
     runIo(context, () => renamePath(from, to, describePath(from), describePath(to)));
     return input(inputs, 1);
+  });
+
+  interpreter.defineIn('file', 'make-directory', 1, (inputs, context) => {
+    const path = expectString(input(inputs, 0), 'the path of `file/make-directory`', context);
+    runIo(context, () => makeDirectory(path, describePath(path)));
+    return input(inputs, 0);
   });
 
   interpreter.defineIn('file', 'list', 1, (inputs, context) => {

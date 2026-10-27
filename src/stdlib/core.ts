@@ -1,4 +1,4 @@
-import { SlopersonsError, runtimeError } from '../errors.ts';
+import { runtimeError } from '../errors.ts';
 import { ExitSignal, OutSignal, StopSignal, type CallContext, type Interpreter } from '../interpreter.ts';
 import { IoFailure } from '../runtime/stream.ts';
 import { NOTHING, array, describeType, formatValue, int, string, typeName, type ErrorValue, type Value } from '../values.ts';
@@ -99,11 +99,17 @@ export function registerCore(interpreter: Interpreter): void {
     throw new OutSignal(context.environment.activation, input(inputs, 0), context.position);
   });
 
-  interpreter.defineBuiltin('fail', 1, (inputs, context) => {
+  interpreter.defineBuiltin('fail', { min: 1, max: 2 }, (inputs, context) => {
     const value = input(inputs, 0);
-    if (value.type === 'error') throw new SlopersonsError('runtime', value.message, value.position ?? context.position);
-    throw runtimeError(expectString(value, 'the message of `fail`', context), context.position);
+    const details = inputs[1];
+    if (value.type === 'error') {
+      if (details !== undefined) throw runtimeError('`fail` raises an error value again unchanged, so it takes no details', context.position);
+      throw runtimeError(value.message, value.position ?? context.position, value.details);
+    }
+    throw runtimeError(expectString(value, 'the message of `fail`', context), context.position, details ?? null);
   });
+
+  interpreter.defineIn('error', 'details', 1, (inputs, context) => expectError(input(inputs, 0), 'the input of `error/details`', context).details);
 
   interpreter.defineIn('error', 'message', 1, (inputs, context) => string(expectError(input(inputs, 0), 'the input of `error/message`', context).message));
 

@@ -1,0 +1,19 @@
+proc find-issue id
+| id > 3 ? "issue {id} does not exist" -> fail {"kind": "not-found"  "id": id}
+| "issue {id}"
+
+proc status-for e
+| e -> error/details => details
+| details = nothing ? e -> fail
+| (details -> hashmap/at "kind") = "not-found" ? 404 : 400
+
+[2 9] -> array/each id
+| attempt
+| | id -> find-issue -> io/print-line
+| recover e
+| | "{e} ({e -> status-for})" -> io/print-line
+
+attempt | 1 / 0 recover e | e -> error/details -> io/print-line
+attempt | 9 -> find-issue recover e | attempt | e -> fail recover again | again -> error/details -> io/print-line
+
+9 -> find-issue

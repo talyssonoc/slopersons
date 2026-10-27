@@ -11,6 +11,7 @@ import { registerFloat } from './float.ts';
 import { registerHashmap } from './hashmap.ts';
 import { registerInt } from './int.ts';
 import { registerIo } from './io.ts';
+import { registerPassword } from './password.ts';
 import { registerPath } from './path.ts';
 import { registerSet } from './set.ts';
 import { registerSocket } from './socket.ts';
@@ -36,6 +37,7 @@ export function registerStdlib(interpreter: Interpreter): void {
   registerDate(interpreter);
   registerTime(interpreter);
   registerDatetime(interpreter);
+  registerPassword(interpreter);
   registerSourceModule(interpreter, 'json', standardSourceModule('json'));
   registerSourceModule(interpreter, 'test', standardSourceModule('test'));
   registerSourceModule(interpreter, 'http', standardSourceModule('http'));

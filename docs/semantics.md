@@ -16,7 +16,7 @@
 | `date` | built with `date/make`, `date/parse` or `date/today` | no | calendar date, no time of day |
 | `time` | built with `time/make` or `time/parse` | no | time of day, millisecond precision, no zone |
 | `datetime` | built with `date/at-time`, `datetime/parse`, `datetime/from-epoch` or `datetime/now` | no | a date with a time, UTC |
-| `error` | bound by `recover` | no | a message and the position it was raised at |
+| `error` | bound by `recover` | no | a message, the position it was raised at and optional details |
 | `module` | `use`, or a builtin module name such as `io` | no | read-only exported members |
 | `stream` | `file/open`, `socket/accept`, `socket/connect`, or `io/stdin`, `io/stdout`, `io/stderr` | yes | an open file, a network connection or a standard stream; reading and writing move its position |
 | `listener` | `socket/listen` | yes | a port a server accepts connections on |
@@ -91,11 +91,11 @@ Errors raised while a module loads, or later inside its procedures, report the m
 
 ## Errors
 
-A runtime error that nothing handles ends the program: the CLI prints `error: <message>` and `  at <file>:<line>:<col>` to standard error and exits with code 1. `message -> fail` raises an error with a custom message at the position of the call.
+A runtime error that nothing handles ends the program: the CLI prints `error: <message>` and `  at <file>:<line>:<col>` to standard error and exits with code 1. `message -> fail` raises an error with a custom message at the position of the call, and `message -> fail details` attaches any value to it as well.
 
 `attempt` and `recover` handle errors. When a runtime error happens anywhere inside the `attempt` body, including inside procedures it calls, control moves to the `recover` body with the error bound to the given name as a value of type `error`. The value of the statement is the value of whichever body finished. Neither body is a new scope.
 
-An error value carries the message and the position where it was raised: `e -> error/message`, `e -> error/line`, `e -> error/column`, `e -> error/file`. It prints as its message. `e -> fail` raises it again unchanged, which is how a handler passes on an error it does not want.
+An error value carries the message, the position where it was raised and the details given to `fail`, or `nothing`: `e -> error/message`, `e -> error/line`, `e -> error/column`, `e -> error/file`, `e -> error/details`. It prints as its message. `e -> fail` raises it again unchanged, which is how a handler passes on an error it does not want.
 
 Catchable: every runtime error, whether raised by the interpreter (division by zero, a type mismatch, a missing key, an arity mismatch, an unknown name, the call depth limit, a size limit) or by `fail`.
 

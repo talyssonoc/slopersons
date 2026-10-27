@@ -1,0 +1,4 @@
+data/archive/2026
+["2026"]
+["archive" "notes.txt"]
+cannot make the directory "data/notes.txt": it already exists and is not a directory

@@ -144,6 +144,7 @@ class Lexer {
           atLineStart = true;
         }
         this.advance();
+        if (!atLineStart && current !== null) this.skipRepeatedMargin(current.depth);
         continue;
       }
       if (isBlank(symbol)) {
@@ -197,6 +198,21 @@ class Lexer {
     }
     const location = this.position();
     return { depth, tokens: [], position: location, endPosition: location };
+  }
+
+  // A literal that spans lines inside a block repeats the block's bars on each line, so the lines
+  // still read as part of the block. Any other count of bars stays in the line as tokens.
+  private skipRepeatedMargin(depth: number): void {
+    if (depth === 0) return;
+    let cursor = this.i;
+    let bars = 0;
+    while (cursor < this.source.length) {
+      const character = this.source[cursor] ?? '';
+      if (character === '|') bars++;
+      else if (!isBlank(character)) break;
+      cursor++;
+    }
+    if (bars === depth) this.advance(cursor - this.i);
   }
 
   private skipComment(): void {

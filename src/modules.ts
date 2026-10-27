@@ -31,7 +31,7 @@ function callFromOutside(procedure: ProcedureValue, file: string, inputs: Value[
   try {
     return context.interpreter.callValue(procedure, inputs, context.position, context.environment);
   } catch (error) {
-    if (error instanceof SlopersonsError && error.position?.file === file) throw runtimeError(error.message, context.position);
+    if (error instanceof SlopersonsError && error.position?.file === file) throw runtimeError(error.message, context.position, error.details);
     throw error;
   }
 }

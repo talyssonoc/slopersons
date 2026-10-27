@@ -140,3 +140,41 @@ Replaces `&`, `<`, `>`, `"` and `'` with their HTML entities. Pass anything that
 ```
 "<b>Tom & Jerry</b>" -> http/escape-html -> io/print-line   ~ &lt;b&gt;Tom &amp; Jerry&lt;/b&gt;
 ```
+
+## cookies
+
+`request -> http/cookies`
+
+Returns the cookies the client sent in its `Cookie` header, as a hashmap from names to values. A value in double quotes loses them. When a name appears twice, the first value is kept, since browsers send the cookie for the most specific path first. Pieces without `=` or without a name are skipped, and a request without the header gives `{}`. Values are returned as sent, without percent-decoding.
+
+```
+request -> http/cookies -> hashmap/at-or "session" nothing => token
+```
+
+Errors: the input is not a hashmap; its `cookie` header is not a string.
+
+## set-cookie
+
+`response -> http/set-cookie name value options`
+
+Adds a `Set-Cookie` header to the response and returns the response, so calls chain. A cookie already set on the response stays: each call adds one header line.
+
+`options` is a hashmap; pass `{}` for the defaults. The defaults are for a session cookie: available on the whole site, hidden from JavaScript in the page, and not sent with requests that other sites start, which stops them from submitting the app's forms as the person logged in.
+
+| Option | Default | Sends |
+| --- | --- | --- |
+| `"path"` | `"/"` | `Path=/` |
+| `"domain"` | none | `Domain=...` |
+| `"max-age"` | none: the cookie lasts until the browser closes | `Max-Age=...`, in seconds; `0` deletes the cookie |
+| `"http-only"` | `yes` | `HttpOnly` |
+| `"secure"` | `no` | `Secure`: sent only over HTTPS, which `http/serve` does not speak |
+| `"same-site"` | `"Lax"` | `SameSite=Lax`; also `"Strict"` or `"None"` |
+
+```
+"/" -> http/redirect -> http/set-cookie "session" token {"max-age": 604800}
+~ set-cookie: session=...; Path=/; Max-Age=604800; HttpOnly; SameSite=Lax
+
+"/login" -> http/redirect -> http/set-cookie "session" "" {"max-age": 0}   ~ logs out
+```
+
+Errors: the response is not a hashmap, or its `headers` is not one; the name is not a valid header token; the value has characters a cookie cannot hold (spaces, double quotes, commas, semicolons, backslashes, or anything outside visible ASCII), so encode such values first; an option is unknown or has the wrong type; `path` or `domain` contains a semicolon or a control character; `same-site` is not `"Strict"`, `"Lax"` or `"None"`; `same-site` is `"None"` without `secure`, which browsers refuse.

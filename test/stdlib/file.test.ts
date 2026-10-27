@@ -267,3 +267,22 @@ test('operating-system error codes become plain words, with the code itself as t
   assert.equal(failed('EWEIRD'), 'cannot rename "a" to "b": the operating system reported EWEIRD');
   assert.throws(() => systemFailure('rename', '"a"', new TypeError('an interpreter bug')), TypeError);
 });
+
+test('file/make-directory makes a directory with any missing parents and returns the path', () => {
+  const directory = join(scratchDirectory(), 'data', 'nested');
+  assert.equal(output(`${literal(directory)} -> file/make-directory -> io/print-line\n${literal(directory)} -> file/is-directory -> io/print-line`), `${directory}\nyes\n`);
+});
+
+test('file/make-directory does nothing when the directory already exists', () => {
+  const directory = scratchDirectory();
+  writeFileSync(join(directory, 'kept.txt'), 'still here');
+  assert.equal(output(`${literal(directory)} -> file/make-directory -> file/list -> io/print-line`), '["kept.txt"]\n');
+});
+
+test('file/make-directory refuses a path that is a file, or that goes through one', () => {
+  const file = join(scratchDirectory(), 'plain.txt');
+  writeFileSync(file, '');
+  assert.equal(failure(`${literal(file)} -> file/make-directory`).message, `cannot make the directory "${file}": it already exists and is not a directory`);
+  assert.equal(failure(`${literal(join(file, 'inner'))} -> file/make-directory`).message, `cannot make the directory "${join(file, 'inner')}": a part of the path is not a directory`);
+  assert.equal(failure('1 -> file/make-directory').message, 'the path of `file/make-directory` must be a string, got an int');
+});

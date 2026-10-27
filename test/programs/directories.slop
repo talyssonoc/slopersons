@@ -1,0 +1,6 @@
+~ the runner gives every program a fresh working directory
+"data/archive/2026" -> file/make-directory -> io/print-line
+"data/archive" -> file/make-directory -> file/list -> io/print-line
+"data/notes.txt" -> file/write "kept"
+"data" -> file/make-directory -> file/list -> io/print-line
+attempt | "data/notes.txt" -> file/make-directory recover e | e -> io/print-line

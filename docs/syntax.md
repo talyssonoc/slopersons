@@ -282,6 +282,14 @@ Brackets may span lines; inside them line breaks are plain whitespace and leadin
  "born": 1815} => person
 ```
 
+Inside a block, each further line of the literal may repeat the bars of the line it started on, so it still reads as part of the block. Those bars are dropped; a different number of bars stays in the literal as `|` tokens.
+
+```
+proc person
+| {"name": "Ada"
+|  "born": 1815}
+```
+
 A lambda inside a literal must be parenthesized unless it is the last thing in the literal:
 
 ```

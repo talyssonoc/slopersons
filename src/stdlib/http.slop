@@ -137,6 +137,85 @@ proc escape-html text
 | text -> expect-string "the input of `http/escape-html`"
 | text -> string/replace "&" "&amp;" -> string/replace "<" "&lt;" -> string/replace ">" "&gt;" -> string/replace "\"" "&quot;" -> string/replace "'" "&#39;"
 
+proc unquote text
+| (text -> string/length) >= 2 and (text -> string/starts-with "\"") and (text -> string/ends-with "\"") ? text -> string/slice 1 ((text -> string/length) - 1) -> out
+| text
+
+~ A browser sends the cookie for the most specific path first, so the first of two cookies with the
+~ same name is the one meant for this request.
+proc cookies request
+| (request -> type-of) /= "hashmap" ? "the input of `http/cookies` must be a request hashmap, got {request -> describe-type}" -> fail
+| {} => found
+| request -> hashmap/at-or "headers" {} -> hashmap/at-or "cookie" "" => header
+| header -> expect-string "the cookie header of the request"
+| header -> string/split ";" -> array/each piece
+| | piece -> string/index-of "=" => split-at
+| | split-at /= nothing ?
+| | | piece -> string/slice 0 split-at -> string/trim => name
+| | | piece -> string/slice (split-at + 1) (piece -> string/length) -> string/trim -> unquote => value
+| | | name /= "" and not (found -> hashmap/has name) ? found -> hashmap/put name value
+| found
+
+~ RFC 6265, section 4.1.1: a cookie value is visible ASCII except the double quote, the comma, the
+~ semicolon and the backslash.
+proc is-cookie-value text
+| yes => valid
+| text -> string/each c
+| | c -> char/to-int => code
+| | not (code = 33 or (code >= 35 and code <= 43) or (code >= 45 and code <= 58) or (code >= 60 and code <= 91) or (code >= 93 and code <= 126)) ? no =>> valid
+| valid
+
+proc is-attribute-value text
+| yes => valid
+| text -> string/each c
+| | c -> char/to-int => code
+| | (code < 32 or code = 59 or code = 127) ? no =>> valid
+| valid
+
+["path" "domain" "max-age" "http-only" "secure" "same-site"] => cookie-options
+
+proc cookie-text name value options
+| name -> expect-string "the name of `http/set-cookie`"
+| not (name -> is-token) ? "the cookie name {name -> show} is not valid" -> fail
+| value -> expect-string "the value of `http/set-cookie`"
+| not (value -> is-cookie-value) ? "the cookie value {value -> show} is not valid: it can only hold visible ASCII characters other than double quotes, commas, semicolons and backslashes" -> fail
+| (options -> type-of) /= "hashmap" ? "the options of `http/set-cookie` must be a hashmap, got {options -> describe-type}" -> fail
+| options -> hashmap/keys -> array/each key
+| | not (cookie-options -> array/contains key) ? "`http/set-cookie` has no option {key -> show}; it takes {cookie-options -> array/map (option | option -> show) -> array/join ", "}" -> fail
+| {"path": "/"  "http-only": yes  "same-site": "Lax"  "secure": no} -> hashmap/merge options => settings
+| ["{name}={value}"] => parts
+| ["path" "domain"] -> array/each option
+| | settings -> hashmap/at-or option nothing => setting
+| | setting /= nothing ?
+| | | setting -> expect-string "the {option} option of `http/set-cookie`"
+| | | not (setting -> is-attribute-value) ? "the {option} option of `http/set-cookie` cannot contain semicolons or control characters" -> fail
+| | | parts -> array/push "{option -> string/upper -> string/slice 0 1}{option -> string/slice 1 (option -> string/length)}={setting}"
+| settings -> hashmap/at-or "max-age" nothing => max-age
+| max-age /= nothing and (max-age -> type-of) /= "int" ? "the max-age option of `http/set-cookie` must be an int of seconds, got {max-age -> describe-type}" -> fail
+| max-age /= nothing ? parts -> array/push "Max-Age={max-age}"
+| ["http-only" "secure"] -> array/each option
+| | settings -> hashmap/at option => flag
+| | (flag -> type-of) /= "boolean" ? "the {option} option of `http/set-cookie` must be yes or no, got {flag -> describe-type}" -> fail
+| settings -> hashmap/at "http-only" ? parts -> array/push "HttpOnly"
+| settings -> hashmap/at "secure" ? parts -> array/push "Secure"
+| settings -> hashmap/at "same-site" => same-site
+| not (["Strict" "Lax" "None"] -> array/contains same-site) ? "the same-site option of `http/set-cookie` must be \"Strict\", \"Lax\" or \"None\", got {same-site -> show}" -> fail
+| same-site = "None" and not (settings -> hashmap/at "secure") ? "a cookie with same-site \"None\" must also be secure, or browsers refuse it" -> fail
+| parts -> array/push "SameSite={same-site}"
+| parts -> array/join "; "
+
+proc set-cookie response name value options
+| (response -> type-of) /= "hashmap" ? "the response given to `http/set-cookie` must be a hashmap, got {response -> describe-type}" -> fail
+| name -> cookie-text value options => line
+| not (response -> hashmap/has "headers") ? response -> hashmap/put "headers" {}
+| response -> hashmap/at "headers" => headers
+| (headers -> type-of) /= "hashmap" ? "the headers of the response given to `http/set-cookie` must be a hashmap, got {headers -> describe-type}" -> fail
+| headers -> hashmap/at-or "set-cookie" [] => existing
+| (existing -> type-of) = "string" ? [existing] => existing
+| existing -> array/push line
+| headers -> hashmap/put "set-cookie" existing
+| response
+
 proc text body
 | body -> expect-string "the body of `http/text`"
 | {"status": 200  "headers": {"content-type": "text/plain; charset=utf-8"}  "body": body}
@@ -332,4 +411,4 @@ proc serve listener handler
 | | always
 | | | attempt | connection -> stream/close recover | nothing
 
-export serve read-request write-response text html json redirect escape-html parse-form
+export serve read-request write-response text html json redirect escape-html parse-form cookies set-cookie

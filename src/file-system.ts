@@ -1,4 +1,4 @@
-import { closeSync, fstatSync, lstatSync, openSync, readSync, readdirSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs';
+import { closeSync, fstatSync, lstatSync, mkdirSync, openSync, readSync, readdirSync, renameSync, statSync, unlinkSync, writeSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { IoFailure, type ByteChannel, type StreamMode } from './runtime/stream.ts';
 
@@ -142,5 +142,15 @@ export function listDirectory(path: string, description: string): string[] {
     return readdirSync(path);
   } catch (error) {
     throw systemFailure('list', description, error);
+  }
+}
+
+export function makeDirectory(path: string, description: string): void {
+  try {
+    const existing = pathKind(path);
+    if (existing !== null && existing !== 'directory') throw new IoFailure(`cannot make the directory ${description}: it already exists and is not a directory`);
+    mkdirSync(path, { recursive: true });
+  } catch (error) {
+    throw systemFailure('make the directory', description, error);
   }
 }

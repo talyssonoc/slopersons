@@ -1,3 +1,5 @@
+import type { Value } from './values.ts';
+
 export interface Position {
   line: number;
   col: number;
@@ -11,6 +13,7 @@ export class SlopersonsError extends Error {
   position: Position | null;
   file: string | null;
   incomplete: boolean;
+  details: Value | null;
 
   constructor(kind: ErrorKind, message: string, location: Position | null = null) {
     super(message);
@@ -19,6 +22,7 @@ export class SlopersonsError extends Error {
     this.position = location;
     this.file = null;
     this.incomplete = false;
+    this.details = null;
   }
 
   withFile(file: string): SlopersonsError {
@@ -42,6 +46,8 @@ export function incompleteError(message: string, position: Position | null): Slo
   return error;
 }
 
-export function runtimeError(message: string, position: Position | null): SlopersonsError {
-  return new SlopersonsError('runtime', message, position);
+export function runtimeError(message: string, position: Position | null, details: Value | null = null): SlopersonsError {
+  const error = new SlopersonsError('runtime', message, position);
+  error.details = details;
+  return error;
 }

@@ -101,6 +101,18 @@ test('open brackets join physical lines and suppress margin detection', () => {
   assert.deepEqual(lexBrief('[1\n  2\n| 3]\nx'), ['0: operator:[ int:1 int:2 operator:| int:3 operator:] ', '0: name:x'].map((text) => text.trimEnd()));
 });
 
+test('inside a block, a bracket line that repeats the block\'s bars drops them; any other count of bars stays as tokens', () => {
+  assert.deepEqual(lexBrief('f\n| {"a": 1\n|  "b": 2}\n| x'), ['0: name:f', '1: operator:{ string:"a" operator:: int:1 string:"b" operator:: int:2 operator:}', '1: name:x']);
+  assert.deepEqual(lexBrief('f\n| | [1\n| | 2\n| |   3]'), ['0: name:f', '2: operator:[ int:1 int:2 int:3 operator:]']);
+  assert.deepEqual(lexBrief('f\n| [1\n| | 2]'), ['0: name:f', '1: operator:[ int:1 operator:| operator:| int:2 operator:]']);
+  assert.deepEqual(lexBrief('f\n| | [1\n| 2]'), ['0: name:f', '2: operator:[ int:1 operator:| int:2 operator:]']);
+});
+
+test('the bars of a repeated margin keep the positions of the tokens after them', () => {
+  const tokens = lex('f\n| [1\n|  22]')[1]?.tokens ?? [];
+  assert.deepEqual(tokens[2]?.position, { line: 3, col: 4 });
+});
+
 test('bracket errors carry the position of the offending bracket', () => {
   const unclosed = lexError('a\n(1 + 2');
   assert.match(unclosed.message, /unclosed `\(`/);

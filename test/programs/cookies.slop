@@ -1,0 +1,6 @@
+{"headers": {"cookie": "session=abc123; theme=\"dark\""}} -> http/cookies -> io/print-line
+"/" -> http/redirect
+-> http/set-cookie "session" "abc123" {"max-age": 604800}
+-> http/set-cookie "theme" "" {"max-age": 0  "http-only": no}
+-> hashmap/at "headers" -> hashmap/at "set-cookie" -> array/each line | line -> io/print-line
+{} -> http/set-cookie "note" "two words" {}

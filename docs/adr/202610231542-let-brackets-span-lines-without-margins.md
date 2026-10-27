@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [Drop a repeated block margin inside brackets](./202610262105-drop-a-repeated-block-margin-inside-brackets.md)
 
 ## Context
 

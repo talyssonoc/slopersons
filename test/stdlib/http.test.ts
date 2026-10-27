@@ -156,3 +156,54 @@ test('http/escape-html escapes the five characters that are special in HTML', ()
   assert.equal(output('"<a href=\\"x\\" title=\'y\'>Tom & Jerry</a>" -> http/escape-html -> io/print-line'), '&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;Tom &amp; Jerry&lt;/a&gt;\n');
   assert.equal(failure('5 -> http/escape-html').message, 'the input of `http/escape-html` must be a string, got an int');
 });
+
+test('http/cookies reads the Cookie header into a hashmap, unquoting values and keeping the first of a repeated name', () => {
+  assert.equal(output('{"headers": {"cookie": "session=abc123; theme=\\"dark\\"; session=other; junk; =x; empty="}} -> http/cookies -> io/print-line'), '{"session": "abc123"  "theme": "dark"  "empty": ""}\n');
+  assert.equal(output('{"headers": {}} -> http/cookies -> io/print-line\n{} -> http/cookies -> io/print-line'), '{}\n{}\n');
+});
+
+test('http/cookies works on a request read from the wire', () => {
+  assert.equal(output(`${readRequest('GET / HTTP/1.1\r\nCookie: a=1; b=2\r\n\r\n')} -> http/cookies -> io/print-line`), '{"a": "1"  "b": "2"}\n');
+});
+
+test('http/cookies names what it rejects', () => {
+  assert.equal(failure('"x" -> http/cookies').message, 'the input of `http/cookies` must be a request hashmap, got a string');
+  assert.equal(failure('{"headers": {"cookie": 1}} -> http/cookies').message, 'the cookie header of the request must be a string, got an int');
+});
+
+test('http/set-cookie adds a Set-Cookie header that is HttpOnly, SameSite=Lax and for the whole site unless the options say otherwise', () => {
+  assert.equal(output('{} -> http/set-cookie "session" "abc" {} -> io/print-line'), '{"headers": {"set-cookie": ["session=abc; Path=/; HttpOnly; SameSite=Lax"]}}\n');
+  assert.equal(
+    output('{} -> http/set-cookie "theme" "dark" {"max-age": 3600  "http-only": no  "secure": yes  "same-site": "Strict"  "domain": "example.com"  "path": "/app"} -> hashmap/at "headers" -> io/print-line'),
+    '{"set-cookie": ["theme=dark; Path=/app; Domain=example.com; Max-Age=3600; Secure; SameSite=Strict"]}\n',
+  );
+});
+
+test('http/set-cookie adds to the Set-Cookie lines already there and returns the response', () => {
+  assert.equal(output('"ok" -> http/text -> http/set-cookie "a" "1" {} -> http/set-cookie "b" "2" {"max-age": 0} -> hashmap/at "headers" -> hashmap/at "set-cookie" -> io/print-line'), '["a=1; Path=/; HttpOnly; SameSite=Lax" "b=2; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"]\n');
+  assert.equal(output('{"headers": {"set-cookie": "a=1"}} -> http/set-cookie "b" "2" {} -> hashmap/at "headers" -> hashmap/at "set-cookie" -> io/print-line'), '["a=1" "b=2; Path=/; HttpOnly; SameSite=Lax"]\n');
+});
+
+test('cookies set with http/set-cookie are written as one header line each', () => {
+  assert.equal(written('({"status": 204} -> http/set-cookie "a" "1" {} -> http/set-cookie "b" "2" {})'), 'HTTP/1.1 204 No Content\r\nset-cookie: a=1; Path=/; HttpOnly; SameSite=Lax\r\nset-cookie: b=2; Path=/; HttpOnly; SameSite=Lax\r\nconnection: close\r\n\r\n');
+});
+
+test('http/set-cookie refuses names, values and options a browser would misread', () => {
+  const message = (call: string) => failure(`{} -> http/set-cookie ${call}`).message;
+  assert.equal(message('"a b" "x" {}'), 'the cookie name "a b" is not valid');
+  for (const value of ['x;y', 'x y', 'x,y', 'x\\\\y', 'x\\"y', 'é']) {
+    assert.match(message(`"a" "${value}" {}`), /^the cookie value .* is not valid: it can only hold visible ASCII characters other than double quotes, commas, semicolons and backslashes$/, value);
+  }
+  assert.equal(message('"a" "x" {"expires": 1}'), '`http/set-cookie` has no option "expires"; it takes "path", "domain", "max-age", "http-only", "secure", "same-site"');
+  assert.equal(message('"a" "x" {"same-site": "None"}'), 'a cookie with same-site "None" must also be secure, or browsers refuse it');
+  assert.equal(message('"a" "x" {"same-site": "lax"}'), 'the same-site option of `http/set-cookie` must be "Strict", "Lax" or "None", got "lax"');
+  assert.equal(message('"a" "x" {"max-age": "1"}'), 'the max-age option of `http/set-cookie` must be an int of seconds, got a string');
+  assert.equal(message('"a" "x" {"path": "/;x"}'), 'the path option of `http/set-cookie` cannot contain semicolons or control characters');
+  assert.equal(message('"a" "x" {"domain": 1}'), 'the domain option of `http/set-cookie` must be a string, got an int');
+  assert.equal(message('"a" "x" {"secure": 1}'), 'the secure option of `http/set-cookie` must be yes or no, got an int');
+  assert.equal(message('1 "x" {}'), 'the name of `http/set-cookie` must be a string, got an int');
+  assert.equal(message('"a" 1 {}'), 'the value of `http/set-cookie` must be a string, got an int');
+  assert.equal(message('"a" "x" []'), 'the options of `http/set-cookie` must be a hashmap, got an array');
+  assert.equal(failure('[] -> http/set-cookie "a" "x" {}').message, 'the response given to `http/set-cookie` must be a hashmap, got an array');
+  assert.equal(failure('{"headers": []} -> http/set-cookie "a" "x" {}').message, 'the headers of the response given to `http/set-cookie` must be a hashmap, got an array');
+});

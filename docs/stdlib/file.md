@@ -122,3 +122,15 @@ Returns the names of the entries in the directory at `path`, files and directori
 ```
 
 Errors: the path is not a directory (`cannot list "notes.txt": it is not a directory`); it does not exist.
+
+## make-directory
+
+`path -> file/make-directory`
+
+Makes the directory at `path`, with any missing directories above it, and returns `path`. A directory that already exists is left as it is, so a program can call it at startup for the directory its data lives in.
+
+```
+path/this-directory -> do -> path/join "data" -> file/make-directory => data-directory
+```
+
+Errors: `path`, or a directory above it, already exists as a file (`cannot make the directory "notes.txt": it already exists and is not a directory`); the operating system refuses, for example for lack of permission.
