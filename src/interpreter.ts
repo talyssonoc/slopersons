@@ -146,6 +146,12 @@ export class Environment {
   }
 }
 
+export type Run = (environment: Environment) => Value;
+
+function constant(value: Value): Run {
+  return () => value;
+}
+
 export const MAX_CALL_DEPTH = 10_000;
 
 export interface ExportRequest {
@@ -304,7 +310,7 @@ export class Interpreter {
 
   runIn(program: Statement[], environment: Environment): Value {
     try {
-      const value = this.execBlock(program, environment);
+      const value = this.compileBlock(program)(environment);
       const returning = this.returning;
       if (returning !== null) throw returning;
       return value;
@@ -329,178 +335,348 @@ export class Interpreter {
     return this.nextActivation++;
   }
 
-  execBlock(statements: Statement[], environment: Environment): Value {
-    let result: Value = NOTHING;
-    for (const statement of statements) {
-      result = this.execStatement(statement, environment);
-      if (this.returning !== null) return NOTHING;
-    }
-    return result;
+  // Programs are compiled once into nested functions, one per node of the syntax tree, so running a node
+  // calls its function instead of dispatching on its kind each time. Each function does what the node
+  // means, in the same order and with the same errors as a walk over the tree.
+  compileBlock(statements: Statement[]): Run {
+    const runs = statements.map((statement) => this.compileStatement(statement));
+    return (environment) => {
+      let result: Value = NOTHING;
+      for (const run of runs) {
+        result = run(environment);
+        if (this.returning !== null) return NOTHING;
+      }
+      return result;
+    };
   }
 
-  private returnsDirectly(statement: FlowStatement, environment: Environment): boolean {
-    const flow = statement.expression;
-    if (this.expressionDepth !== 0 || flow.kind !== 'flow') return false;
-    const last = flow.steps[flow.steps.length - 1];
-    if (last === undefined || last.kind !== 'call' || last.callee.kind !== 'name' || last.callee.name !== 'out' || last.arguments.length > 0 || last.body !== null) return false;
-    const callee = environment.lookup('out') ?? this.builtins.get('out');
-    if (callee === undefined || callee.type !== 'builtin' || callee.name !== 'out') return false;
-    let value = this.evaluateExpression(flow.head, environment);
-    for (let index = 0; index < flow.steps.length - 1; index++) {
-      const step = flow.steps[index];
-      if (step !== undefined) value = this.evalStep(step, value, environment);
-    }
-    this.checkInterruption();
-    this.returning = new OutSignal(environment.activation, value, last.position);
-    return true;
-  }
-
-  execStatement(statement: Statement, environment: Environment): Value {
+  private compileStatement(statement: Statement): Run {
     switch (statement.kind) {
       case 'flow-statement':
-        if (this.returnsDirectly(statement, environment)) return NOTHING;
-        return this.evaluateExpression(statement.expression, environment);
+        return this.compileFlowStatement(statement);
       case 'proc': {
-        const procedure: ProcedureValue = {
-          type: 'proc',
-          id: freshId(),
-          name: statement.name,
-          parameters: statement.parameters,
-          body: statement.body,
-          environment,
-          isProc: true,
+        const body = this.compileBlock(statement.body);
+        const { name, parameters, position } = statement;
+        return (environment) => {
+          const procedure: ProcedureValue = { type: 'proc', id: freshId(), name, parameters, run: body, environment, isProc: true };
+          environment.bindLocal(name, procedure, position);
+          return NOTHING;
         };
-        environment.bindLocal(statement.name, procedure, statement.position);
-        return NOTHING;
       }
-      case 'while':
-        while (this.evalCondition(statement.condition, environment)) {
-          this.checkInterruption();
-          try {
-            this.execBlock(statement.body, environment);
-          } catch (signal) {
-            if (signal instanceof StopSignal) break;
-            throw signal;
+      case 'while': {
+        const condition = this.compileCondition(statement.condition);
+        const body = this.compileBlock(statement.body);
+        return (environment) => {
+          while (condition(environment)) {
+            this.checkInterruption();
+            try {
+              body(environment);
+            } catch (signal) {
+              if (signal instanceof StopSignal) break;
+              throw signal;
+            }
+            if (this.returning !== null) break;
           }
-          if (this.returning !== null) break;
-        }
-        return NOTHING;
+          return NOTHING;
+        };
+      }
       case 'conditional':
-        return this.evalConditional(statement, environment);
-      case 'stop':
-        throw new StopSignal(statement.position);
+        return this.compileConditional(statement);
+      case 'stop': {
+        const { position } = statement;
+        return () => {
+          throw new StopSignal(position);
+        };
+      }
       case 'attempt':
-        return this.execAttempt(statement, environment);
+        return this.compileAttempt(statement);
       case 'export': {
-        const requests = this.exportStack[this.exportStack.length - 1];
-        if (requests !== undefined) for (const name of statement.names) requests.push({ name, position: statement.position });
-        return NOTHING;
+        const { names, position } = statement;
+        return () => {
+          const requests = this.exportStack[this.exportStack.length - 1];
+          if (requests !== undefined) for (const name of names) requests.push({ name, position });
+          return NOTHING;
+        };
       }
     }
   }
 
-  private execAttempt(statement: Expression & { kind: 'attempt' }, environment: Environment): Value {
-    let outcome: { value: Value } | { thrown: unknown };
-    try {
-      outcome = { value: this.execBlock(statement.body, environment) };
-    } catch (error) {
-      if (isRuntimeError(error) && statement.handler !== null) {
-        if (statement.errorName !== null) environment.defineParam(statement.errorName, errorValue(error));
-        try {
-          outcome = { value: this.execBlock(statement.handler, environment) };
-        } catch (inner) {
-          outcome = { thrown: inner };
+  // `-> out` ending a statement records the return instead of throwing (see `returning`), when `out` is
+  // the builtin and no expression is being evaluated around the statement; otherwise it runs as a call.
+  private compileFlowStatement(statement: FlowStatement): Run {
+    const flow = statement.expression;
+    const whole = this.compileExpression(flow);
+    if (flow.kind !== 'flow') return whole;
+    const last = flow.steps[flow.steps.length - 1];
+    if (last === undefined || last.kind !== 'call' || last.callee.kind !== 'name' || last.callee.name !== 'out' || last.arguments.length > 0 || last.body !== null) return whole;
+    const head = this.compileExpression(flow.head);
+    const before = flow.steps.slice(0, -1).map((step) => this.compileStep(step));
+    const position = last.position;
+    return (environment) => {
+      if (this.expressionDepth !== 0) return whole(environment);
+      const callee = environment.lookup('out') ?? this.builtins.get('out');
+      if (callee === undefined || callee.type !== 'builtin' || callee.name !== 'out') return whole(environment);
+      let value = head(environment);
+      for (const step of before) value = step(value, environment);
+      this.checkInterruption();
+      this.returning = new OutSignal(environment.activation, value, position);
+      return NOTHING;
+    };
+  }
+
+  private compileAttempt(statement: Expression & { kind: 'attempt' }): Run {
+    const body = this.compileBlock(statement.body);
+    const handler = statement.handler === null ? null : this.compileBlock(statement.handler);
+    const cleanup = statement.cleanup === null ? null : this.compileBlock(statement.cleanup);
+    const { errorName } = statement;
+    return (environment) => {
+      let outcome: { value: Value } | { thrown: unknown };
+      try {
+        outcome = { value: body(environment) };
+      } catch (error) {
+        if (isRuntimeError(error) && handler !== null) {
+          if (errorName !== null) environment.defineParam(errorName, errorValue(error));
+          try {
+            outcome = { value: handler(environment) };
+          } catch (inner) {
+            outcome = { thrown: inner };
+          }
+        } else {
+          outcome = { thrown: error };
         }
-      } else {
-        outcome = { thrown: error };
       }
-    }
-    if (statement.cleanup !== null && cleanupRuns(outcome)) {
-      const pending = this.returning;
-      this.returning = null;
-      this.execBlock(statement.cleanup, environment);
-      if (this.returning === null) this.returning = pending;
-    }
-    if ('thrown' in outcome) throw outcome.thrown;
-    return outcome.value;
+      if (cleanup !== null && cleanupRuns(outcome)) {
+        const pending = this.returning;
+        this.returning = null;
+        cleanup(environment);
+        if (this.returning === null) this.returning = pending;
+      }
+      if ('thrown' in outcome) throw outcome.thrown;
+      return outcome.value;
+    };
   }
 
-  private evalConditional(expression: Expression & { kind: 'conditional' }, environment: Environment): Value {
-    for (const branch of expression.branches) {
-      if (this.evalCondition(branch.condition, environment)) return this.execBlock(branch.body, environment);
-    }
-    return expression.otherwise === null ? NOTHING : this.execBlock(expression.otherwise, environment);
+  private compileConditional(expression: Expression & { kind: 'conditional' }): Run {
+    const branches = expression.branches.map((branch) => ({ condition: this.compileCondition(branch.condition), body: this.compileBlock(branch.body) }));
+    const otherwise = expression.otherwise === null ? null : this.compileBlock(expression.otherwise);
+    return (environment) => {
+      for (const branch of branches) {
+        if (branch.condition(environment)) return branch.body(environment);
+      }
+      return otherwise === null ? NOTHING : otherwise(environment);
+    };
   }
 
-  private evalCondition(expression: Expression, environment: Environment): boolean {
-    const value = this.evaluateExpression(expression, environment);
-    if (value.type !== 'boolean') throw runtimeError(`a condition must be \`yes\` or \`no\`, got ${describeType(value)}`, expression.position);
-    return value.value;
+  private compileCondition(expression: Expression): (environment: Environment) => boolean {
+    const run = this.compileExpression(expression);
+    const { position } = expression;
+    return (environment) => {
+      const value = run(environment);
+      if (value.type !== 'boolean') throw runtimeError(`a condition must be \`yes\` or \`no\`, got ${describeType(value)}`, position);
+      return value.value;
+    };
   }
 
-  evaluateExpression(expression: Expression, environment: Environment): Value {
+  // Inside a conditional or `attempt` used as a value, `out` must throw, so the expression around it
+  // does not go on with a value it never got.
+  private insideExpression(run: Run): Run {
+    return (environment) => {
+      this.expressionDepth++;
+      try {
+        return run(environment);
+      } finally {
+        this.expressionDepth--;
+      }
+    };
+  }
+
+  compileExpression(expression: Expression): Run {
     switch (expression.kind) {
-      case 'name':
-        return this.lookup(expression.name, expression.position, environment);
-      case 'int':
-        return int(expression.value);
-      case 'binary':
-        return this.evalBinary(expression, environment);
-      case 'flow': {
-        let value = this.evaluateExpression(expression.head, environment);
-        for (const step of expression.steps) value = this.evalStep(step, value, environment);
-        return value;
+      case 'name': {
+        const { name, position } = expression;
+        return (environment) => this.lookup(name, position, environment);
       }
-      case 'qualified':
-        return this.resolveQualified(expression.parts, expression.position, environment);
+      case 'int':
+        return constant(int(expression.value));
+      case 'binary':
+        return this.compileBinary(expression);
+      case 'flow': {
+        const head = this.compileExpression(expression.head);
+        const steps = expression.steps.map((step) => this.compileStep(step));
+        return (environment) => {
+          let value = head(environment);
+          for (const step of steps) value = step(value, environment);
+          return value;
+        };
+      }
+      case 'qualified': {
+        const { parts, position } = expression;
+        return (environment) => this.resolveQualified(parts, position, environment);
+      }
       case 'string':
-        return string(expression.value);
+        return constant(string(expression.value));
       case 'boolean':
-        return expression.value ? YES : NO;
+        return constant(expression.value ? YES : NO);
       case 'conditional':
-        this.expressionDepth++;
-        try {
-          return this.evalConditional(expression, environment);
-        } finally {
-          this.expressionDepth--;
-        }
+        return this.insideExpression(this.compileConditional(expression));
       case 'lambda':
-        return this.makeLambda(expression, environment);
+        return this.compileLambda(expression);
       case 'interpolation': {
-        let text = '';
-        for (const part of expression.parts) text += typeof part === 'string' ? part : formatValue(this.evaluateExpression(part, environment), 'print');
-        return string(text);
+        const parts = expression.parts.map((part) => (typeof part === 'string' ? part : this.compileExpression(part)));
+        return (environment) => {
+          let text = '';
+          for (const part of parts) text += typeof part === 'string' ? part : formatValue(part(environment), 'print');
+          return string(text);
+        };
       }
       case 'unary': {
-        const operand = this.evaluateExpression(expression.operand, environment);
+        const operand = this.compileExpression(expression.operand);
+        const { position } = expression;
         if (expression.operator === 'not') {
-          if (operand.type !== 'boolean') throw runtimeError(`\`not\` needs a boolean, got ${describeType(operand)}`, expression.position);
-          return boolean(!operand.value);
+          return (environment) => {
+            const value = operand(environment);
+            if (value.type !== 'boolean') throw runtimeError(`\`not\` needs a boolean, got ${describeType(value)}`, position);
+            return boolean(!value.value);
+          };
         }
-        if (operand.type === 'int') return int(-operand.value);
-        if (operand.type === 'float') return float(-operand.value);
-        throw runtimeError(`cannot negate ${describeType(operand)}`, expression.position);
+        return (environment) => {
+          const value = operand(environment);
+          if (value.type === 'int') return int(-value.value);
+          if (value.type === 'float') return float(-value.value);
+          throw runtimeError(`cannot negate ${describeType(value)}`, position);
+        };
       }
       case 'float':
-        return float(expression.value);
+        return constant(float(expression.value));
       case 'char':
-        return char(expression.value);
+        return constant(char(expression.value));
       case 'nothing':
-        return NOTHING;
-      case 'array':
-        return array(expression.items.map((item) => this.evaluateExpression(item, environment)));
+        return constant(NOTHING);
+      case 'array': {
+        const items = expression.items.map((item) => this.compileExpression(item));
+        return (environment) => array(items.map((item) => item(environment)));
+      }
       case 'map': {
-        const map = newMap();
-        for (const entry of expression.entries) map.table.set(this.evaluateExpression(entry.key, environment), this.evaluateExpression(entry.value, environment));
-        return map;
+        const entries = expression.entries.map((entry) => ({ key: this.compileExpression(entry.key), value: this.compileExpression(entry.value) }));
+        return (environment) => {
+          const map = newMap();
+          for (const entry of entries) map.table.set(entry.key(environment), entry.value(environment));
+          return map;
+        };
       }
       case 'attempt':
-        this.expressionDepth++;
-        try {
-          return this.execAttempt(expression, environment);
-        } finally {
-          this.expressionDepth--;
-        }
+        return this.insideExpression(this.compileAttempt(expression));
+    }
+  }
+
+  private compileLambda(lambda: Lambda): Run {
+    const body = this.compileBlock(lambda.body);
+    const { parameters } = lambda;
+    return (environment) => ({ type: 'proc', id: freshId(), name: null, parameters, run: body, environment, isProc: false });
+  }
+
+  private compileStep(step: Step): (piped: Value, environment: Environment) => Value {
+    if (step.kind === 'bind') {
+      const { name, position } = step;
+      if (step.outer) {
+        return (piped, environment) => {
+          environment.bindOuter(name, piped, position);
+          return piped;
+        };
+      }
+      return (piped, environment) => {
+        environment.bindLocal(name, piped, position);
+        return piped;
+      };
+    }
+    const callee = this.compileExpression(step.callee);
+    const inputs = step.arguments.map((argument) => this.compileExpression(argument));
+    const body = step.body === null ? null : this.compileLambda(step.body);
+    const { position } = step;
+    return (piped, environment) => {
+      const procedure = callee(environment);
+      const values: Value[] = [piped];
+      for (const input of inputs) values.push(input(environment));
+      if (body !== null) values.push(body(environment));
+      return this.callValue(procedure, values, position, environment);
+    };
+  }
+
+  // Each operator gets its own function with the int case first, the commonest by far; anything else
+  // goes through arithmetic and compareValues, which hold the rules and the errors.
+  private compileBinary(expression: Expression & { kind: 'binary' }): Run {
+    const left = this.compileExpression(expression.left);
+    const right = this.compileExpression(expression.right);
+    const { operator, position } = expression;
+    if (operator === 'and' || operator === 'or') {
+      const leftPosition = expression.left.position;
+      const rightPosition = expression.right.position;
+      return (environment) => {
+        const first = left(environment);
+        if (first.type !== 'boolean') throw runtimeError(`\`${operator}\` needs booleans, got ${describeType(first)}`, leftPosition);
+        if (operator === 'and' && !first.value) return NO;
+        if (operator === 'or' && first.value) return YES;
+        const second = right(environment);
+        if (second.type !== 'boolean') throw runtimeError(`\`${operator}\` needs booleans, got ${describeType(second)}`, rightPosition);
+        return second;
+      };
+    }
+    switch (operator) {
+      case '=':
+        return (environment) => boolean(valuesEqual(left(environment), right(environment)));
+      case '/=':
+        return (environment) => boolean(!valuesEqual(left(environment), right(environment)));
+      case '<':
+        return (environment) => {
+          const first = left(environment);
+          const second = right(environment);
+          if (first.type === 'int' && second.type === 'int') return first.value < second.value ? YES : NO;
+          return boolean(compareValues(first, second, position) < 0);
+        };
+      case '>':
+        return (environment) => {
+          const first = left(environment);
+          const second = right(environment);
+          if (first.type === 'int' && second.type === 'int') return first.value > second.value ? YES : NO;
+          return boolean(compareValues(first, second, position) > 0);
+        };
+      case '<=':
+        return (environment) => {
+          const first = left(environment);
+          const second = right(environment);
+          if (first.type === 'int' && second.type === 'int') return first.value <= second.value ? YES : NO;
+          return boolean(compareValues(first, second, position) <= 0);
+        };
+      case '>=':
+        return (environment) => {
+          const first = left(environment);
+          const second = right(environment);
+          if (first.type === 'int' && second.type === 'int') return first.value >= second.value ? YES : NO;
+          return boolean(compareValues(first, second, position) >= 0);
+        };
+      case '+':
+        return (environment) => {
+          const first = left(environment);
+          const second = right(environment);
+          if (first.type === 'int' && second.type === 'int') return int(first.value + second.value);
+          return arithmetic(operator, first, second, position);
+        };
+      case '-':
+        return (environment) => {
+          const first = left(environment);
+          const second = right(environment);
+          if (first.type === 'int' && second.type === 'int') return int(first.value - second.value);
+          return arithmetic(operator, first, second, position);
+        };
+      case '*':
+        return (environment) => {
+          const first = left(environment);
+          const second = right(environment);
+          if (first.type === 'int' && second.type === 'int') return int(first.value * second.value);
+          return arithmetic(operator, first, second, position);
+        };
+      default:
+        return (environment) => arithmetic(operator, left(environment), right(environment), position);
     }
   }
 
@@ -523,26 +699,6 @@ export class Interpreter {
     const value = environment.lookup(name) ?? this.builtins.get(name);
     if (value === undefined) throw runtimeError(`unknown name \`${name}\``, position);
     return value;
-  }
-
-  private makeLambda(lambda: Lambda, environment: Environment): ProcedureValue {
-    return { type: 'proc', id: freshId(), name: null, parameters: lambda.parameters, body: lambda.body, environment, isProc: false };
-  }
-
-  private evalStep(step: Step, piped: Value, environment: Environment): Value {
-    if (step.kind === 'bind') {
-      if (step.outer) {
-        environment.bindOuter(step.name, piped, step.position);
-      } else {
-        environment.bindLocal(step.name, piped, step.position);
-      }
-      return piped;
-    }
-    const callee = this.evaluateExpression(step.callee, environment);
-    const inputs: Value[] = [piped];
-    for (const argument of step.arguments) inputs.push(this.evaluateExpression(argument, environment));
-    if (step.body !== null) inputs.push(this.makeLambda(step.body, environment));
-    return this.callValue(callee, inputs, step.position, environment);
   }
 
   // Taking the flag is an atomic operation on memory shared with the main thread; doing it on every
@@ -578,7 +734,7 @@ export class Interpreter {
     const expressionDepth = this.expressionDepth;
     this.expressionDepth = 0;
     try {
-      const result = this.execBlock(callee.body, frame);
+      const result = callee.run(frame);
       const returning = this.returning;
       if (returning === null) return result;
       this.returning = null;
@@ -604,36 +760,6 @@ export class Interpreter {
     const expected = arity.max === null ? `at least ${arity.min}` : arity.min === arity.max ? `${arity.min}` : `${arity.min} to ${arity.max}`;
     const noun = expected === '1' ? 'argument' : 'arguments';
     throw runtimeError(`\`${name}\` expects ${expected} ${noun}, got ${count}`, position);
-  }
-
-  private evalBinary(expression: Expression & { kind: 'binary' }, environment: Environment): Value {
-    if (expression.operator === 'and' || expression.operator === 'or') {
-      const left = this.evaluateExpression(expression.left, environment);
-      if (left.type !== 'boolean') throw runtimeError(`\`${expression.operator}\` needs booleans, got ${describeType(left)}`, expression.left.position);
-      if (expression.operator === 'and' && !left.value) return NO;
-      if (expression.operator === 'or' && left.value) return YES;
-      const right = this.evaluateExpression(expression.right, environment);
-      if (right.type !== 'boolean') throw runtimeError(`\`${expression.operator}\` needs booleans, got ${describeType(right)}`, expression.right.position);
-      return right;
-    }
-    const left = this.evaluateExpression(expression.left, environment);
-    const right = this.evaluateExpression(expression.right, environment);
-    switch (expression.operator) {
-      case '=':
-        return boolean(valuesEqual(left, right));
-      case '/=':
-        return boolean(!valuesEqual(left, right));
-      case '<':
-        return boolean(compareValues(left, right, expression.position) < 0);
-      case '>':
-        return boolean(compareValues(left, right, expression.position) > 0);
-      case '<=':
-        return boolean(compareValues(left, right, expression.position) <= 0);
-      case '>=':
-        return boolean(compareValues(left, right, expression.position) >= 0);
-      default:
-        return arithmetic(expression.operator, left, right, expression.position);
-    }
   }
 }
 

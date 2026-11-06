@@ -71,7 +71,7 @@ A hashmap or set key that is mutated after insertion leaves the container in an 
 
 ## Evaluation order
 
-Within a flow, the head is evaluated first, then each step left to right. Within a step, the callee is evaluated, then the arguments left to right, then the call happens. Binary operators evaluate their left operand first; `and` and `or` do not evaluate their right operand when the left one decides the result.
+Within a flow, the head is evaluated first, then each step left to right. Within a step, the callee is evaluated, then the arguments left to right, then the call happens. Binary operators evaluate their left operand first; `and` and `or` do not evaluate their right operand when the left one decides the result. Array items and map entries are evaluated left to right, each key before its value.
 
 ## Printing
 

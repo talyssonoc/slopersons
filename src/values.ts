@@ -1,7 +1,6 @@
-import type { Statement } from './ast.ts';
 import type { Position } from './errors.ts';
 import { runtimeError, type SlopersonsError } from './errors.ts';
-import type { CallContext, Environment } from './interpreter.ts';
+import type { CallContext, Environment, Run } from './interpreter.ts';
 import { civilFromDays, formatDate } from './runtime/calendar.ts';
 import { hashBigInt, hashBoolean, hashCombine, hashNumber, hashString } from './runtime/hashing.ts';
 import { HashTable, type KeyOperations } from './runtime/hashtable.ts';
@@ -101,7 +100,7 @@ export interface ProcedureValue {
   id: number;
   name: string | null;
   parameters: string[];
-  body: Statement[];
+  run: Run;
   environment: Environment;
   isProc: boolean;
 }

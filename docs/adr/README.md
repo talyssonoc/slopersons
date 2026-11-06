@@ -174,3 +174,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-11-06 | [Show builtin documentation in the editor from docs/stdlib](./202611061652-show-builtin-documentation-in-the-editor-from-docs-stdlib.md) | Accepted |
 | 2026-11-06 | [Rename only when every name keeps its meaning](./202611061710-rename-only-when-every-name-keeps-its-meaning.md) | Accepted |
 | 2026-11-06 | [Cache stripped TypeScript with Node's compile cache](./202611061807-cache-stripped-typescript-with-node-compile-cache.md) | Proposed |
+| 2026-11-06 | [Compile the syntax tree into closures before running it](./202611061852-compile-the-syntax-tree-into-closures-before-running-it.md) | Proposed |

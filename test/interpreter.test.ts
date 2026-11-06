@@ -62,6 +62,24 @@ test('and/or need booleans and short-circuit', () => {
   assert.equal(failure('not 1').message, '`not` needs a boolean, got an int');
 });
 
+test('a step evaluates its callee, then its arguments left to right, then calls', () => {
+  const source = [
+    'proc pick',
+    '| "callee" -> io/print-line',
+    '| x y z | x + y + z',
+    'proc arg v',
+    '| "argument {v}" -> io/print-line',
+    '| v',
+    '1 -> (pick -> do) (2 -> arg) (3 -> arg) -> io/print-line',
+  ].join('\n');
+  assert.equal(output(source), 'callee\nargument 2\nargument 3\n6\n');
+});
+
+test('array items and map entries evaluate left to right, each key before its value', () => {
+  const source = ['proc note v', '| "{v}" -> io/print-line', '| v', '[(1 -> note) (2 -> note)] => items', '{(3 -> note): (4 -> note) (5 -> note): (6 -> note)} => entries'].join('\n');
+  assert.equal(output(source), '1\n2\n3\n4\n5\n6\n');
+});
+
 test('conditions must be booleans', () => {
   assert.equal(failure('1 ? "x" -> io/print-line').message, 'a condition must be `yes` or `no`, got an int');
   assert.equal(failure('while "s" | stop').message, 'a condition must be `yes` or `no`, got a string');
