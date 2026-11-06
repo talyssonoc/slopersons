@@ -169,3 +169,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-11-06 | [Recover from parse errors at top-level statement boundaries](./202611061212-recover-from-parse-errors-at-top-level-statement-boundaries.md) | Proposed |
 | 2026-11-06 | [Mark what the grammar cannot with semantic tokens from the parser](./202611061425-mark-what-the-grammar-cannot-with-semantic-tokens-from-the-parser.md) | Proposed |
 | 2026-11-06 | [Resolve names statically in statement order for editors](./202611061526-resolve-names-statically-in-statement-order-for-editors.md) | Proposed |
+| 2026-11-06 | [Warn about unknown names in the editor without running the program](./202611061548-warn-about-unknown-names-in-the-editor-without-running-the-program.md) | Proposed |

@@ -692,6 +692,22 @@ export function parse(source: string, file?: string): Statement[] {
 export interface RecoveredParse {
   statements: Statement[];
   errors: SlopersonsError[];
+  unparsedNames: Set<string>;
+}
+
+function collectNames(tokens: Token[], names: Set<string>): void {
+  for (const token of tokens) {
+    if (token.kind === 'name') names.add(token.name);
+    else if (token.kind === 'qualified') names.add(token.parts[0] ?? '');
+    else if (token.kind === 'string') for (const part of token.parts) if (part.kind === 'expr') collectNames(part.tokens, names);
+  }
+}
+
+function collectLineNames(lines: Line[], names: Set<string>): void {
+  for (const line of lines) {
+    collectNames(line.tokens, names);
+    collectLineNames(line.children, names);
+  }
 }
 
 function continuesStatementAbove(line: Line): boolean {
@@ -708,7 +724,7 @@ export function parseRecovering(source: string, file?: string): RecoveredParse {
   try {
     tree = buildLineTree(lex(source, file));
   } catch (error) {
-    if (error instanceof SlopersonsError) return { statements: [], errors: [error] };
+    if (error instanceof SlopersonsError) return { statements: [], errors: [error], unparsedNames: new Set() };
     throw error;
   }
   const groups: Line[][] = [];
@@ -719,13 +735,15 @@ export function parseRecovering(source: string, file?: string): RecoveredParse {
   }
   const statements: Statement[] = [];
   const errors: SlopersonsError[] = [];
+  const unparsedNames = new Set<string>();
   for (const group of groups) {
     try {
       statements.push(...new Parser().parseBlock(group));
     } catch (error) {
       if (!(error instanceof SlopersonsError)) throw error;
       errors.push(error);
+      collectLineNames(group, unparsedNames);
     }
   }
-  return { statements, errors };
+  return { statements, errors, unparsedNames };
 }

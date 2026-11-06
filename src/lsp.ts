@@ -38,14 +38,30 @@ function rangeOf(error: SlopersonsError, lines: string[]): Range {
   return { start: { line, character: start }, end: { line, character: end } };
 }
 
-export function diagnosticsFor(source: string): Diagnostic[] {
+function unknownNameMessage(occurrence: Occurrence): string {
+  return occurrence.role === 'write' ? `\`=>> ${occurrence.name}\` found no existing binding named \`${occurrence.name}\`` : `unknown name \`${occurrence.name}\``;
+}
+
+// A name that appears in a statement that does not parse may be declared there, so it is not reported.
+// `=>>` updates only bindings the program made, never a builtin.
+export function diagnosticsFor(source: string, builtins: readonly string[]): Diagnostic[] {
   const lines = source.split('\n');
-  return parseRecovering(source).errors.map((error) => ({
+  const parsed = parseRecovering(source);
+  const errors: Diagnostic[] = parsed.errors.map((error) => ({
     range: rangeOf(error, lines),
     severity: DiagnosticSeverity.Error,
     source: 'slopersons',
     message: error.message,
   }));
+  const warnings: Diagnostic[] = resolveNames(parsed.statements)
+    .filter((occurrence) => occurrence.binding === null && !parsed.unparsedNames.has(occurrence.name) && (occurrence.role === 'write' || !builtins.includes(occurrence.name)))
+    .map((occurrence) => ({
+      range: occurrenceRange(occurrence.position, occurrence.name),
+      severity: DiagnosticSeverity.Warning,
+      source: 'slopersons',
+      message: unknownNameMessage(occurrence),
+    }));
+  return stableSort([...errors, ...warnings], (first, second) => first.range.start.line - second.range.start.line || first.range.start.character - second.range.start.character);
 }
 
 export type SemanticTokenType = 'parameter' | 'keyValueSeparator';
@@ -231,10 +247,10 @@ function answer<Result>(connection: Connection, documents: TextDocuments<TextDoc
   }
 }
 
-function publishDiagnostics(connection: Connection, document: TextDocument): void {
+function publishDiagnostics(connection: Connection, document: TextDocument, builtins: readonly string[]): void {
   let diagnostics: Diagnostic[];
   try {
-    diagnostics = diagnosticsFor(document.getText());
+    diagnostics = diagnosticsFor(document.getText(), builtins);
   } catch {
     connection.console.error(`internal error while checking ${document.uri}; this is a bug in slopersons, not in your program`);
     diagnostics = [];
@@ -244,7 +260,7 @@ function publishDiagnostics(connection: Connection, document: TextDocument): voi
 
 // The library ends the process itself: on the protocol's `exit` notification, when standard input
 // closes, and when the editor that started it is gone. So the returned promise never settles.
-export function runLanguageServer(version: string): Promise<number> {
+export function runLanguageServer(version: string, builtins: readonly string[]): Promise<number> {
   const connection = createConnection(process.stdin, process.stdout);
   const documents = new TextDocuments(TextDocument);
   connection.onInitialize(() => ({
@@ -257,7 +273,7 @@ export function runLanguageServer(version: string): Promise<number> {
     },
     serverInfo: { name: 'slopersons', version },
   }));
-  documents.onDidChangeContent((change) => publishDiagnostics(connection, change.document));
+  documents.onDidChangeContent((change) => publishDiagnostics(connection, change.document, builtins));
   connection.languages.semanticTokens.on(({ textDocument }) => answer(connection, documents, textDocument.uri, { data: [] }, (source) => ({ data: encodeSemanticTokens(semanticTokensFor(source)) })));
   connection.onDefinition(({ textDocument, position }) =>
     answer(connection, documents, textDocument.uri, null, (source) => {

@@ -5,7 +5,7 @@ import { StreamMessageReader, StreamMessageWriter, createMessageConnection, type
 
 interface PublishedDiagnostics {
   uri: string;
-  diagnostics: Array<{ message: string; range: { start: { line: number; character: number } } }>;
+  diagnostics: Array<{ message: string; severity: number; range: { start: { line: number; character: number } } }>;
 }
 
 interface Session {
@@ -116,8 +116,15 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
         { range: use, kind: 2 },
       ]);
 
-      await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 3 }, contentChanges: [{ text: 'proc' }] });
-      assert.equal((await nextPublished()).diagnostics.length, 1);
+      await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 3 }, contentChanges: [{ text: 'proc\ntotl -> io/print-line' }] });
+      const broken = await nextPublished();
+      assert.deepEqual(
+        broken.diagnostics.map((diagnostic) => [diagnostic.severity, diagnostic.message]),
+        [
+          [1, 'expected a procedure name after `proc`'],
+          [2, 'unknown name `totl`'],
+        ],
+      );
 
       await connection.sendNotification('textDocument/didClose', { textDocument: { uri } });
       assert.deepEqual(await nextPublished(), { uri, diagnostics: [] });

@@ -1,18 +1,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DocumentHighlightKind, SemanticTokenTypes, type Range } from 'vscode-languageserver/node';
+import { DiagnosticSeverity, DocumentHighlightKind, SemanticTokenTypes, type Range } from 'vscode-languageserver/node';
+import { createInterpreter } from '../src/cli.ts';
 import { SEMANTIC_TOKENS_LEGEND, definitionAt, diagnosticsFor, encodeSemanticTokens, highlightsAt, referencesAt, semanticTokensFor } from '../src/lsp.ts';
 import { defineLanguageServerTests } from './helpers/language-server.ts';
+import { repositoryPrograms } from './helpers/repository-programs.ts';
+import { fakeIo } from './helpers/run.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const bin = join(root, 'bin/slopersons.mjs');
+const builtins = createInterpreter(fakeIo()).builtinNames();
 
 function ranges(source: string): Array<[number, number, number, string]> {
-  return diagnosticsFor(source).map((diagnostic) => [diagnostic.range.start.line, diagnostic.range.start.character, diagnostic.range.end.character, typeof diagnostic.message === 'string' ? diagnostic.message : diagnostic.message.value]);
+  return diagnosticsFor(source, builtins).map((diagnostic) => [diagnostic.range.start.line, diagnostic.range.start.character, diagnostic.range.end.character, typeof diagnostic.message === 'string' ? diagnostic.message : diagnostic.message.value]);
 }
 
 test('a diagnostic covers the whole name the error points at', () => {
@@ -36,8 +40,52 @@ test('each broken top-level statement gets its own diagnostic, and a valid file 
       [2, 3, 4, 'expected a procedure name after `->`, found end of line'],
     ],
   );
-  assert.deepEqual(diagnosticsFor('[1 2 3] -> array/each n\n| n -> io/print-line'), []);
-  assert.equal(diagnosticsFor('x ->')[0]?.source, 'slopersons');
+  assert.deepEqual(diagnosticsFor('[1 2 3] -> array/each n\n| n -> io/print-line', builtins), []);
+  assert.equal(diagnosticsFor('x ->', builtins)[0]?.source, 'slopersons');
+});
+
+function warnings(...lines: string[]): string[] {
+  return diagnosticsFor(lines.join('\n'), builtins).map((diagnostic) => {
+    const severity = diagnostic.severity === DiagnosticSeverity.Warning ? 'warning' : 'error';
+    const message = typeof diagnostic.message === 'string' ? diagnostic.message : diagnostic.message.value;
+    return `${severity} ${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.character} ${message}`;
+  });
+}
+
+test('a name bound nowhere is a warning with the message running the program would give, a builtin is not', () => {
+  assert.deepEqual(warnings('0 => total', '[1 2] -> array/each n', '| totl + n =>> total', 'total -> io/print-line'), ['warning 2:2-6 unknown name `totl`']);
+  assert.deepEqual(warnings('totl/area -> io/print-line'), ['warning 0:0-4 unknown name `totl`']);
+  assert.deepEqual(warnings('"{missing}" -> io/print-line'), ['warning 0:2-9 unknown name `missing`']);
+});
+
+test('=>> with no binding to update is a warning, even for a builtin name', () => {
+  assert.deepEqual(warnings('1 =>> total'), ['warning 0:6-11 `=>> total` found no existing binding named `total`']);
+  assert.deepEqual(warnings('1 =>> io'), ['warning 0:6-8 `=>> io` found no existing binding named `io`']);
+});
+
+test('a use before its binding in the same scope is a warning, a procedure called before it is declared is not', () => {
+  assert.deepEqual(warnings('x -> io/print-line', '1 => x'), ['warning 0:0-1 unknown name `x`']);
+  assert.deepEqual(warnings('proc first', '| 1 -> second', 'proc second n', '| n'), []);
+});
+
+test('a name that appears in a statement that does not parse is not reported, other unknown names still are', () => {
+  assert.deepEqual(warnings('1 + => total', 'total -> io/print-line', 'totl -> io/print-line'), [
+    'error 0:4-5 expected a value, found `=>`',
+    'warning 2:0-4 unknown name `totl`',
+  ]);
+  assert.deepEqual(warnings('[1] -> array/each', '| 1 + => total', 'total -> io/print-line'), ['error 1:6-7 expected a value, found `=>`']);
+  assert.deepEqual(warnings('"{total +}" -> io/print-line', 'total -> io/print-line'), ['error 0:2-7 expected a value, found end of line']);
+});
+
+test('the repository programs get no warnings, except the unknown name a golden program expects', () => {
+  const programs = repositoryPrograms();
+  assert.ok(programs.length >= 30);
+  for (const program of programs) {
+    const errorFile = program.slice(0, -'.slop'.length) + '.err';
+    const expected = existsSync(errorFile) ? /unknown name `[^`]+`/.exec(readFileSync(errorFile, 'utf8'))?.[0] : undefined;
+    const messages = diagnosticsFor(readFileSync(program, 'utf8'), builtins).map((diagnostic) => diagnostic.message);
+    assert.deepEqual(messages, expected === undefined ? [] : [expected], program);
+  }
 });
 
 function marked(...lines: string[]): string[] {

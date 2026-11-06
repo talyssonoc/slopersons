@@ -1,8 +1,8 @@
 {
   "name": "slopersons",
   "displayName": "slopersons",
-  "description": "slopersons language support: syntax highlighting, parse errors as you type, parser-based highlighting, go to definition and references",
-  "version": "0.4.0",
+  "description": "slopersons language support: syntax highlighting, parse errors and unknown names as you type, parser-based highlighting, go to definition and references",
+  "version": "0.5.0",
   "publisher": "slopersons",
   "private": true,
   "packageManager": "pnpm@10.23.0",

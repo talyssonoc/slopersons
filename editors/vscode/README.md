@@ -10,6 +10,7 @@ What it does:
 
 - highlights comments, strings with `{}` interpolation and escapes, chars, numbers, keywords, `yes`/`no`/`nothing`, operators, margin bars, procedure declarations and their parameters, inline lambda parameters, the callee after `->`, the name after `=>` and `=>>`, and qualified names (builtin modules such as `io` and `array` get their own scope);
 - underlines parse errors from the interpreter's own parser, one per broken top-level statement, without saving or running the file;
+- warns about names bound nowhere (`totl` for `total`) and `=>>` with nothing to update, with the message running the program would give;
 - marks, from the parser, what the grammar cannot: parameters of procedures and lambdas wherever they are used, lambda parameters in block form, and the `:` between a hashmap key and its value (as `punctuation.separator.key-value.slop`, not the conditional operator);
 - F12 goes to the declaration of a binding, procedure, parameter or `recover` name in the same file; Shift+F12 lists its references; the cursor on a name highlights its other uses;
 - `~` toggles line comments; brackets, quotes and backticks auto-close;
@@ -33,7 +34,7 @@ pnpm typecheck
 pnpm build                      # dist/extension.js
 code --extensionDevelopmentPath="$PWD" ../../docs/examples
 pnpm run package                # slopersons-<version>.vsix
-code --install-extension slopersons-0.4.0.vsix
+code --install-extension slopersons-0.5.0.vsix
 ```
 
 "Developer: Inspect Editor Tokens and Scopes" shows the scope under the cursor. "Output: slopersons" shows the client's log.
@@ -54,4 +55,4 @@ A regular-expression grammar sees one line at a time and does not parse:
 - The grammar marks a lambda's parameters only when the bar follows them on the same line (`-> array/each n | ...`, `n | n * 2`), and scopes every `:` as the conditional operator. The language server's semantic tokens correct both, but only while the server runs, under a color theme with semantic highlighting on (VS Code's default themes have it), and only for statements that parse: while you type a lambda, its parameters fall back to the grammar.
 - `-` is always an operator; the interpreter decides whether it is unary from the spacing.
 
-Go to definition stays within one file: a qualified name such as `geometry/area` does not lead into the file `use` loaded, and builtins have no definition. Names resolve in statement order, so a loop that reads a name bound later in its own body is resolved to the outer binding. The language server reports parse errors only. Errors that need running the program, such as an unknown name, show up when it runs. After a lexer error (an unclosed bracket, an unterminated string), it reports only that error until it is fixed.
+Go to definition stays within one file: a qualified name such as `geometry/area` does not lead into the file `use` loaded, and builtins have no definition. Names resolve in statement order, so a loop that reads a name bound later in its own body is resolved to the outer binding. Unknown names are found in statement order too, so that loop also gets a warning it does not deserve; bind the name before the loop. While a statement does not parse, names that appear in it are not reported. Other runtime errors show up only when the program runs. After a lexer error (an unclosed bracket, an unterminated string), it reports only that error until it is fixed.
