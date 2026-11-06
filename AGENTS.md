@@ -22,10 +22,10 @@ SLOPERSONS_DEBUG=1 ./bin/slopersons.mjs file.slop   # only way to see a JS stack
 ## Layout
 
 ```
-bin/slopersons.mjs      shebang entry; imports src/cli.ts; last-resort catch so no JS error ever escapes
+bin/slopersons.mjs      shebang entry; turns on Node's compile cache, then imports src/cli.ts; last-resort catch so no JS error ever escapes
 src/cli.ts              argument handling, file reading, the error boundary (runProgram), worker launch (with the main-thread half of the bridge), Ctrl-C: the first sets the shared interrupt flag and cancels what the worker waits on, a second re-raises SIGINT
 src/boundary.ts         exit codes, ReplIo (the REPL's line reading with a prompt), BrokenPipe, lineInput (standard input bytes from a line source), finishProgram (end hooks, then closeOpenStreams) and the messages for JS-level failures, shared by cli.ts, worker.ts and repl.ts
-src/file-system.ts      the operating-system calls behind files (open, read, write, close, stat, list, make a directory, remove, rename, making a path absolute) and the translation of OS error codes into messages; with cli.ts, worker.ts, modules.ts, bridge.ts and crypto.ts, the only files that import `node:`
+src/file-system.ts      the operating-system calls behind files (open, read, write, close, stat, list, make a directory, remove, rename, making a path absolute) and the translation of OS error codes into messages; with cli.ts, worker.ts, modules.ts, bridge.ts and crypto.ts, the only TypeScript files that import `node:` (the JavaScript entries bin/slopersons.mjs and src/worker-start.mjs import `node:module` for the compile cache)
 src/crypto.ts           Node's PBKDF2 and constant-time comparison, behind `password/*`; apart from the random bytes in cli.ts, the only use of Node's crypto
 src/bridge.ts           what the program's thread asks the main thread to do: sockets (with `node:net`) and reading standard input, so that Ctrl-C can cancel any wait. hostBridge runs on the main thread; bridgedHost, in the worker, sends each request and waits for the reply (Atomics.wait, then receiveMessageOnPort), so these calls block. Also holds the queue of at most 10 clients waiting to be accepted and the shared interrupt flag Ctrl-C sets
 src/modules.ts          the `use` builtin (module resolution relative to the importing file, caching, cycle detection), the `module/*` builtins, and `registerSourceModule`, which turns a standard library module written in slopersons into a builtin module
@@ -36,7 +36,7 @@ src/module-files.ts     finding and reading the file a `use` path names, a modul
 src/hover.ts            hover and signature help; src/builtin-docs.ts reads the usage and summary of each builtin from docs/stdlib/*.md
 src/outline.ts          document symbols; src/rename.ts rename, within a file and, for exported names, across the workspace; src/name-ranges.ts the editor ranges of names
 src/repl.ts             the --repl loop: complete lines run at once, incomplete ones collect a block until an empty line; in REPL mode cli.ts reads lines with readline on the main thread and hands them to the worker over shared memory
-src/worker.ts           worker-thread entry: runs the program on a 256 MB stack with a heap limit
+src/worker.ts           worker-thread entry: runs the program on a 256 MB stack with a heap limit; from a checkout the worker starts at src/worker-start.mjs, which turns on the compile cache for its thread and imports it
 src/lexer.ts            physical lines -> margin depth + tokens; strings with interpolation segments
 src/line-tree.ts        lexed lines -> nested blocks by margin depth
 src/parser.ts           recursive descent over the line tree -> AST (src/ast.ts)
@@ -133,6 +133,7 @@ Write a golden program for behavior a person running a program sees: printed for
 
 ## Working notes
 
+- Start-up: Node strips the types of every source file on each start, once per thread. `bin/slopersons.mjs` and `src/worker-start.mjs` call `enableCompileCache()`, so the stripped code and V8's compiled code are kept in the operating system's temporary directory, keyed by each file's contents; an edited file is stripped again on its next run. `NODE_DEBUG_NATIVE=COMPILE_CACHE` shows each file taken from it, `NODE_DISABLE_COMPILE_CACHE=1` turns it off, and `test/start-up.test.ts` checks that both threads use it. A new thread that loads TypeScript needs the same JavaScript entry.
 - Lexer and parser edits are easiest to verify with `node --test test/parser.test.ts`; the S-expression printer makes expected ASTs one line each.
 - The call depth limit (`MAX_CALL_DEPTH` in `src/interpreter.ts`) exists so deep recursion becomes a slopersons error before the JS stack overflows; the CLI still catches a JS `RangeError` as a backstop.
 - `python3` is not available in this environment through asdf; use Node scripts for scripted edits.

@@ -125,3 +125,7 @@ The heap limit can be changed with the environment variable `SLOPERSONS_MAX_HEAP
 - On macOS the build signs it ad hoc (`codesign --sign -`), which is enough to run it on the machine that built it.
 
 Development does not use this: `./bin/slopersons.mjs` keeps running the TypeScript sources directly.
+
+## Start-up cache
+
+From a checkout, Node removes the TypeScript types from the interpreter's sources each time it starts. `slopersons` keeps the result in Node's compile cache, in the operating system's temporary directory (`node-compile-cache`), so only the first run after a source file changes pays for it; that halves start-up. Node's own environment variables control it: `NODE_COMPILE_CACHE` chooses the directory and `NODE_DISABLE_COMPILE_CACHE=1` turns it off. Turning on the cache adds no variable to the ones a program sees with `io/environment`.

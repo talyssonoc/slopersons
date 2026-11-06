@@ -173,3 +173,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-11-06 | [Follow use into module files from the language server](./202611061623-follow-use-into-module-files-from-the-language-server.md) | Accepted |
 | 2026-11-06 | [Show builtin documentation in the editor from docs/stdlib](./202611061652-show-builtin-documentation-in-the-editor-from-docs-stdlib.md) | Accepted |
 | 2026-11-06 | [Rename only when every name keeps its meaning](./202611061710-rename-only-when-every-name-keeps-its-meaning.md) | Accepted |
+| 2026-11-06 | [Cache stripped TypeScript with Node's compile cache](./202611061807-cache-stripped-typescript-with-node-compile-cache.md) | Proposed |

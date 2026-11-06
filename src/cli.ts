@@ -267,7 +267,7 @@ declare const SLOPERSONS_WORKER_SOURCE: string | undefined;
 function startWorker(data: WorkerData): Worker {
   const options = { workerData: data, transferList: [data.bridge.messages], resourceLimits: { stackSizeMb: WORKER_STACK_MB, maxOldGenerationSizeMb: workerHeapMb() } };
   if (typeof SLOPERSONS_WORKER_SOURCE === 'string') return new Worker(SLOPERSONS_WORKER_SOURCE, { ...options, eval: true });
-  return new Worker(new URL('./worker.ts', import.meta.url), options);
+  return new Worker(new URL('./worker-start.mjs', import.meta.url), options);
 }
 
 function runInWorker(task: WorkerTask, hooks: WorkerHooks = {}): Promise<number> {

@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-import { main } from '../src/cli.ts';
+import { enableCompileCache } from 'node:module';
+
+// Node strips the types of every source file at each start, on the main thread and again in the worker.
+// The compile cache keeps the result on disk, keyed by each file's contents, which halves start-up.
+enableCompileCache();
+const { main } = await import('../src/cli.ts');
 
 try {
   process.exitCode = await main(process.argv.slice(2));
