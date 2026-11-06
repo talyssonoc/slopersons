@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { bundle } from '../scripts/build-binary.ts';
 import { defineEntryPointTests } from './helpers/golden.ts';
+import { defineLanguageServerTests } from './helpers/language-server.ts';
 
 const directory = mkdtempSync(join(tmpdir(), 'slopersons-bundle-'));
 let bundlePath = '';
@@ -20,3 +21,4 @@ test('the bundle is a single file, with the worker and the standard library insi
 });
 
 defineEntryPointTests('bundle: ', () => [process.execPath, bundlePath]);
+defineLanguageServerTests('bundle: ', () => [process.execPath, bundlePath]);

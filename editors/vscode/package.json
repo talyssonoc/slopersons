@@ -1,0 +1,63 @@
+{
+  "name": "slopersons",
+  "displayName": "slopersons",
+  "description": "slopersons language support: syntax highlighting and parse errors as you type",
+  "version": "0.2.0",
+  "publisher": "slopersons",
+  "private": true,
+  "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --minify --external:vscode --outfile=dist/extension.js",
+    "typecheck": "tsc --noEmit",
+    "vscode:prepublish": "pnpm build",
+    "package": "vsce package --no-dependencies --allow-missing-repository --skip-license"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "slopersons",
+        "aliases": [
+          "slopersons"
+        ],
+        "extensions": [
+          ".slop"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "slopersons",
+        "scopeName": "source.slop",
+        "path": "./syntaxes/slopersons.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "slopersons",
+      "properties": {
+        "slopersons.server.path": {
+          "type": "string",
+          "default": "slopersons",
+          "markdownDescription": "The slopersons executable that runs the language server as `<path> --lsp`. Reload the window after changing it."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "vscode-languageclient": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@types/vscode": "1.91.0",
+    "@vscode/vsce": "^4.1.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

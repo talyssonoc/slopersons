@@ -118,7 +118,7 @@ export function processEnvironment(): [string, string][] {
   return variables;
 }
 
-const USAGE = 'usage: slopersons <file.slop> [arguments...]\n       slopersons --repl\n       slopersons --version\n';
+const USAGE = 'usage: slopersons <file.slop> [arguments...]\n       slopersons --repl\n       slopersons --lsp\n       slopersons --version\n';
 
 export async function main(argv: string[]): Promise<number> {
   const io = nodeOutput;
@@ -139,6 +139,14 @@ export async function main(argv: string[]): Promise<number> {
       return EXIT_USAGE;
     }
     return runReplInWorker();
+  }
+  if (path === '--lsp') {
+    if (programArguments.some((word) => word !== '--stdio')) {
+      io.writeError(`error: --lsp takes no file or arguments other than --stdio\n${USAGE}`);
+      return EXIT_USAGE;
+    }
+    const { runLanguageServer } = await import('./lsp.ts');
+    return runLanguageServer(VERSION);
   }
   if (path === undefined) {
     io.writeError(USAGE);

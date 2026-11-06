@@ -20,6 +20,13 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vscode-jsonrpc": "10.0.0",
+    "vscode-oniguruma": "2.0.1",
+    "vscode-textmate": "9.3.2"
+  },
+  "dependencies": {
+    "vscode-languageserver": "^11.0.0",
+    "vscode-languageserver-textdocument": "^1.0.16"
   }
 }

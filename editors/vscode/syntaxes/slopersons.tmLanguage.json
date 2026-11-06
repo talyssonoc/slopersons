@@ -1,0 +1,228 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "slopersons",
+  "scopeName": "source.slop",
+  "fileTypes": ["slop"],
+  "patterns": [
+    { "include": "#margin" },
+    { "include": "#comment" },
+    { "include": "#string" },
+    { "include": "#char" },
+    { "include": "#procedure-declaration" },
+    { "include": "#callee" },
+    { "include": "#binding" },
+    { "include": "#lambda-parameters" },
+    { "include": "#qualified-name" },
+    { "include": "#keywords" },
+    { "include": "#number" },
+    { "include": "#name" },
+    { "include": "#braces" },
+    { "include": "#brackets" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "margin": {
+      "match": "^\\s*((?:\\|\\s*)+)",
+      "captures": {
+        "1": { "name": "punctuation.definition.margin.slop" }
+      }
+    },
+    "comment": {
+      "match": "~.*$",
+      "name": "comment.line.tilde.slop"
+    },
+    "string": {
+      "begin": "\"",
+      "end": "\"|$",
+      "name": "string.quoted.double.slop",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.slop" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.slop" }
+      },
+      "patterns": [
+        { "include": "#escape" },
+        { "include": "#interpolation" },
+        {
+          "match": "\\}",
+          "name": "invalid.illegal.brace.slop"
+        }
+      ]
+    },
+    "escape": {
+      "patterns": [
+        {
+          "match": "\\\\[nrt\\\\\"`{}]",
+          "name": "constant.character.escape.slop"
+        },
+        {
+          "match": "\\\\.?",
+          "name": "invalid.illegal.escape.slop"
+        }
+      ]
+    },
+    "interpolation": {
+      "begin": "\\{",
+      "end": "\\}|$",
+      "name": "meta.embedded.line.interpolation.slop",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.interpolation.begin.slop" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.section.interpolation.end.slop" }
+      },
+      "patterns": [{ "include": "$self" }]
+    },
+    "char": {
+      "match": "`(?:(\\\\[nrt\\\\\"`{}])|(\\\\.)|[^\\\\`])`",
+      "name": "string.quoted.single.char.slop",
+      "captures": {
+        "1": { "name": "constant.character.escape.slop" },
+        "2": { "name": "invalid.illegal.escape.slop" }
+      }
+    },
+    "procedure-declaration": {
+      "match": "(?<![A-Za-z0-9/-])(proc)(?:\\s+([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*))?((?:\\s+(?!(?:proc|while|stop|attempt|recover|always|export|yes|no|nothing|and|or|not|mod)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z]))[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)*)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z])",
+      "captures": {
+        "1": { "name": "keyword.control.proc.slop" },
+        "2": { "name": "entity.name.function.slop" },
+        "3": {
+          "patterns": [
+            {
+              "match": "[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*",
+              "name": "variable.parameter.slop"
+            }
+          ]
+        }
+      }
+    },
+    "callee": {
+      "match": "(->)\\s*([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*(?:/[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)*)",
+      "captures": {
+        "1": { "name": "keyword.operator.flow.slop" },
+        "2": {
+          "name": "entity.name.function.call.slop",
+          "patterns": [{ "include": "#qualified-name" }, { "include": "#builtin-procedures" }]
+        }
+      }
+    },
+    "binding": {
+      "match": "(=>>?)\\s*([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)",
+      "captures": {
+        "1": { "name": "keyword.operator.binding.slop" },
+        "2": { "name": "variable.other.assignment.slop" }
+      }
+    },
+    "lambda-parameters": {
+      "match": "(?<![A-Za-z0-9/-])((?:(?!(?:proc|while|stop|attempt|recover|always|export|yes|no|nothing|and|or|not|mod)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z]))[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*\\s+)*(?!(?:proc|while|stop|attempt|recover|always|export|yes|no|nothing|and|or|not|mod)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z]))[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)\\s*(?=\\|)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "match": "[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*",
+              "name": "variable.parameter.slop"
+            }
+          ]
+        }
+      }
+    },
+    "qualified-name": {
+      "match": "(?<![A-Za-z0-9/-])([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)((?:/[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)+)",
+      "captures": {
+        "1": {
+          "name": "entity.name.namespace.slop",
+          "patterns": [{ "include": "#builtin-modules" }]
+        },
+        "2": { "name": "entity.name.function.member.slop" }
+      }
+    },
+    "builtin-modules": {
+      "match": "(?<![A-Za-z0-9/-])(?:io|file|path|stream|socket|int|float|math|char|boolean|string|array|hashmap|set|date|time|datetime|error|module|json|test|http|password)(?![A-Za-z0-9]|-[A-Za-z0-9])",
+      "name": "support.module.slop"
+    },
+    "builtin-procedures": {
+      "match": "(?<![A-Za-z0-9/-])(?:do|out|fail|exit|use|type-of|show)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z])",
+      "name": "support.function.builtin.slop"
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "match": "(?<![A-Za-z0-9/-])(?:proc|while|stop|attempt|recover|always|export)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z])",
+          "name": "keyword.control.slop"
+        },
+        {
+          "match": "(?<![A-Za-z0-9/-])(?:and|or|not|mod)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z])",
+          "name": "keyword.operator.word.slop"
+        },
+        {
+          "match": "(?<![A-Za-z0-9/-])(?:yes|no)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z])",
+          "name": "constant.language.boolean.slop"
+        },
+        {
+          "match": "(?<![A-Za-z0-9/-])(?:nothing)(?![A-Za-z0-9]|-[A-Za-z0-9]|/[A-Za-z])",
+          "name": "constant.language.nothing.slop"
+        }
+      ]
+    },
+    "number": {
+      "patterns": [
+        {
+          "match": "(?<![A-Za-z0-9])\\d[\\d_]*\\.\\d[\\d_]*",
+          "name": "constant.numeric.float.slop"
+        },
+        {
+          "match": "(?<![A-Za-z0-9])\\d[\\d_]*",
+          "name": "constant.numeric.integer.slop"
+        }
+      ]
+    },
+    "name": {
+      "match": "[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*",
+      "name": "variable.other.slop"
+    },
+    "braces": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.braces.begin.slop" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.section.braces.end.slop" }
+      },
+      "patterns": [{ "include": "$self" }]
+    },
+    "brackets": {
+      "match": "[\\[\\]()}]",
+      "name": "punctuation.section.brackets.slop"
+    },
+    "operators": {
+      "patterns": [
+        {
+          "match": "->",
+          "name": "keyword.operator.flow.slop"
+        },
+        {
+          "match": "=>>?",
+          "name": "keyword.operator.binding.slop"
+        },
+        {
+          "match": "/=|<=|>=|=|<|>",
+          "name": "keyword.operator.comparison.slop"
+        },
+        {
+          "match": "[+\\-*/]",
+          "name": "keyword.operator.arithmetic.slop"
+        },
+        {
+          "match": "[?:]",
+          "name": "keyword.operator.conditional.slop"
+        },
+        {
+          "match": "\\|",
+          "name": "keyword.operator.lambda.slop"
+        }
+      ]
+    }
+  }
+}

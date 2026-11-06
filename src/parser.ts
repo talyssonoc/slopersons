@@ -13,7 +13,7 @@ import type {
   Step,
   WhileStatement,
 } from './ast.ts';
-import { incompleteError, parseError, type Position } from './errors.ts';
+import { SlopersonsError, incompleteError, parseError, type Position } from './errors.ts';
 import { lex, type OpToken, type QualifiedToken, type StringPart, type Token } from './lexer.ts';
 import { buildLineTree, type Line } from './line-tree.ts';
 
@@ -673,4 +673,45 @@ class Parser {
 export function parse(source: string, file?: string): Statement[] {
   const tree = buildLineTree(lex(source, file));
   return new Parser().parseBlock(tree);
+}
+
+export interface RecoveredParse {
+  statements: Statement[];
+  errors: SlopersonsError[];
+}
+
+function continuesStatementAbove(line: Line): boolean {
+  const first = line.tokens[0];
+  if (first === undefined) return false;
+  if (first.kind === 'keyword') return first.word === 'recover' || first.word === 'always';
+  return first.kind === 'op' && (first.operator === ':' || first.operator === '->' || first.operator === '=>' || first.operator === '=>>');
+}
+
+// Top-level statements are parsed one at a time so an error in one does not hide errors in the
+// others; lines that parseStatements merges into the statement above stay in its group.
+export function parseRecovering(source: string, file?: string): RecoveredParse {
+  let tree: Line[];
+  try {
+    tree = buildLineTree(lex(source, file));
+  } catch (error) {
+    if (error instanceof SlopersonsError) return { statements: [], errors: [error] };
+    throw error;
+  }
+  const groups: Line[][] = [];
+  for (const line of tree) {
+    const group = groups[groups.length - 1];
+    if (group !== undefined && continuesStatementAbove(line)) group.push(line);
+    else groups.push([line]);
+  }
+  const statements: Statement[] = [];
+  const errors: SlopersonsError[] = [];
+  for (const group of groups) {
+    try {
+      statements.push(...new Parser().parseBlock(group));
+    } catch (error) {
+      if (!(error instanceof SlopersonsError)) throw error;
+      errors.push(error);
+    }
+  }
+  return { statements, errors };
 }

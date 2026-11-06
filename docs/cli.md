@@ -3,6 +3,7 @@
 ```
 slopersons <file.slop> [arguments...]
 slopersons --repl
+slopersons --lsp
 slopersons --version
 slopersons --help
 ```
@@ -39,13 +40,21 @@ Everything after the program file is passed to the program, which reads it with 
 
 Line editing comes from Node's readline: the arrow keys move within the line and recall earlier entries, and the usual shortcuts work. Up to 200 entries are kept in the session's history. This path is exercised by a test that drives the REPL inside a pseudo-terminal (`test/repl-terminal.test.ts`), not only through pipes.
 
+## Language server
+
+`slopersons --lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server over standard input and output, for editors. `--stdio` may follow it, because editors that start a server over standard input and output add it; nothing else may.
+
+The server reports parse errors as diagnostics while a file is edited, from the editor's copy of the file, without saving or running it. Each top-level statement is parsed on its own, so a broken statement does not hide errors in the ones after it. Lines that start with `:`, `recover`, `always`, `->`, `=>` or `=>>` belong to the statement above them. An error the lexer reports, such as an unclosed bracket or an unterminated string, or a block nested deeper than its header allows, stops the check at that error, as running the file would.
+
+It exits with 0 after the protocol's `shutdown` request and `exit` notification, and with 1 when standard input closes or the editor that started it is gone without a `shutdown`. The VS Code extension in `editors/vscode/` starts it; any other editor with an LSP client can run `slopersons --lsp` for files with the `.slop` extension.
+
 ## Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | 0 | the program finished, or called `0 -> exit` |
 | 1 | the program failed with a parse or runtime error, or a file it left open could not be written when it ended |
-| 2 | usage error: no file given, an unknown option, words after `--repl`, or the file could not be read |
+| 2 | usage error: no file given, an unknown option, words after `--repl` or after `--lsp` other than `--stdio`, or the file could not be read |
 | 70 | an internal interpreter error; a bug in slopersons, not in the program |
 | 130 | Ctrl-C ended the program (see [Ctrl-C](#ctrl-c)) |
 | other | the value passed to `exit` |

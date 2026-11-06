@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildExecutable } from '../scripts/build-binary.ts';
 import { defineEntryPointTests } from './helpers/golden.ts';
+import { defineLanguageServerTests } from './helpers/language-server.ts';
 
 if (process.env['SLOPERSONS_TEST_BINARY'] !== '1') {
   test('the standalone executable', { skip: 'building it copies the Node runtime (about 150 MB); run pnpm test:binary' }, () => {});
@@ -26,4 +27,5 @@ if (process.env['SLOPERSONS_TEST_BINARY'] !== '1') {
   });
 
   defineEntryPointTests('binary: ', () => [executable]);
+  defineLanguageServerTests('binary: ', () => [executable]);
 }

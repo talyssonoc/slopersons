@@ -208,6 +208,10 @@ export class Interpreter {
     return this.builtins.get(name);
   }
 
+  builtinNames(): string[] {
+    return [...this.builtins.keys()];
+  }
+
   builtinModule(name: string): ModuleValue {
     const existing = this.builtins.get(name);
     if (existing !== undefined) {

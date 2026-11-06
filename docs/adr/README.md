@@ -164,3 +164,6 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-26 | [Let fail attach details that handlers read with error/details](./202610262058-let-fail-attach-details-that-handlers-read-with-error-details.md) | Proposed |
 | 2026-10-26 | [Default cookies to HttpOnly, SameSite=Lax, for the whole site](./202610262100-default-cookies-to-httponly-samesite-lax-for-the-whole-site.md) | Proposed |
 | 2026-10-26 | [Drop a repeated block margin inside brackets](./202610262105-drop-a-repeated-block-margin-inside-brackets.md) | Proposed |
+| 2026-11-06 | [Ship a TextMate grammar inside the interpreter repository](./202611061056-ship-a-textmate-grammar-inside-the-interpreter-repository.md) | Proposed |
+| 2026-11-06 | [Serve editors from a language server in the slopersons executable](./202611061211-serve-editors-from-a-language-server-in-the-slopersons-executable.md) | Proposed |
+| 2026-11-06 | [Recover from parse errors at top-level statement boundaries](./202611061212-recover-from-parse-errors-at-top-level-statement-boundaries.md) | Proposed |

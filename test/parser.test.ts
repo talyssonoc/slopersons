@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parse } from '../src/parser.ts';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parse, parseRecovering } from '../src/parser.ts';
 import { SlopersonsError } from '../src/errors.ts';
 import { printProgram } from './helpers/ast-print.ts';
 
@@ -235,4 +238,61 @@ test('errors: always placement', () => {
   assert.match(parseError('attempt | x\n| y').message, /put `recover` or `always` on the same line/);
   assert.match(parseError('attempt | x').message, /needs a `recover` or an `always`/);
   assert.match(parseError('(attempt | x) => n').message, /needs a `recover` or an `always` on the same line/);
+});
+
+function recovered(source: string): { program: string; errors: string[] } {
+  const result = parseRecovering(source);
+  return { program: printProgram(result.statements), errors: result.errors.map((error) => `${error.message} at ${error.position?.line}:${error.position?.col}`) };
+}
+
+test('recovering parse reports an error in each broken top-level statement and keeps the others', () => {
+  assert.deepEqual(recovered('1 +\n2 => y\nx ->\n5 => ok'), {
+    program: '(flow 2 (=> y))\n(flow 5 (=> ok))',
+    errors: ['expected a value, found end of line at 1:4', 'expected a procedure name after \`->\`, found end of line at 3:5'],
+  });
+  assert.deepEqual(recovered('proc a\n| 1 +\nproc b\n| 2 =>').errors.length, 2);
+});
+
+test('recovering parse keeps continuation lines with the statement above them', () => {
+  for (const source of [
+    'x > 1 ? "a" -> f\n: x > 0 ? "b" -> f\n: "c" -> f',
+    'attempt | x -> do\nrecover e | 0\nalways | 1',
+    'numbers\n-> array/map n | n * 2\n=> doubled\n=>> total',
+  ]) {
+    assert.deepEqual(recovered(source), { program: printed(source), errors: [] }, source);
+  }
+  assert.deepEqual(recovered('attempt | x -> do\n5 => y').errors, ['\`attempt\` needs a \`recover\` or an \`always\` at 1:1']);
+});
+
+test('recovering parse stops at the first error the lexer or the margins report', () => {
+  assert.deepEqual(recovered('"open\n5 => x'), { program: '', errors: ['unterminated string at 1:1'] });
+  assert.deepEqual(recovered('proc a\n| 1 +\nproc b\n| [1 2'), { program: '', errors: ['unclosed \`[\` at 4:3'] });
+  assert.deepEqual(recovered('x -> f\n|| y'), { program: '', errors: ['block is nested deeper than the line above it allows at 2:4'] });
+});
+
+test('the first recovered error is the error parse throws', () => {
+  for (const source of ['1 +\n2 => y', '1 => geometry/pi', 'x -> f\n: 2', 'recover e | 0', '"a}b"', 'proc', 'x -> f | | y\nz ->']) {
+    const thrown = parseError(source);
+    const first = parseRecovering(source).errors[0];
+    assert.equal(first?.message, thrown.message, source);
+    assert.deepEqual(first?.position, thrown.position, source);
+  }
+});
+
+function slopFiles(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return slopFiles(path);
+    return entry.name.endsWith('.slop') ? [path] : [];
+  });
+}
+
+test('recovering parse gives the same program as parse for every .slop file in the repository', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const files = ['docs/examples', 'test/programs', 'src/stdlib'].flatMap((directory) => slopFiles(join(root, directory)));
+  assert.ok(files.length >= 30);
+  for (const file of files) {
+    const source = readFileSync(file, 'utf8');
+    assert.deepEqual(recovered(source), { program: printed(source), errors: [] }, file);
+  }
 });

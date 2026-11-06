@@ -40,6 +40,9 @@ export async function bundle(outputDirectory: string): Promise<string> {
     target: 'node26',
     outfile: mainFile,
     define: { SLOPERSONS_SOURCE_MODULES: embeddedSources, SLOPERSONS_WORKER_SOURCE: JSON.stringify(workerSource) },
+    // The language server library is CommonJS and requires Node's modules at run time; an ES module
+    // bundle has no `require` for it to call. process.execPath is a valid base inside the executable too.
+    banner: { js: "import { createRequire as createRequireForBundle } from 'node:module';\nconst require = createRequireForBundle(process.execPath);" },
     logLevel: 'warning',
   });
   return mainFile;

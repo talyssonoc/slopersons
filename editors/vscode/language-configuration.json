@@ -1,0 +1,141 @@
+{
+  "comments": {
+    "lineComment": "~"
+  },
+  "brackets": [
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ]
+  ],
+  "autoClosingPairs": [
+    {
+      "open": "{",
+      "close": "}",
+      "notIn": [
+        "comment"
+      ]
+    },
+    {
+      "open": "[",
+      "close": "]",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "(",
+      "close": ")",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "\"",
+      "close": "\"",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    },
+    {
+      "open": "`",
+      "close": "`",
+      "notIn": [
+        "string",
+        "comment"
+      ]
+    }
+  ],
+  "surroundingPairs": [
+    [
+      "{",
+      "}"
+    ],
+    [
+      "[",
+      "]"
+    ],
+    [
+      "(",
+      ")"
+    ],
+    [
+      "\"",
+      "\""
+    ],
+    [
+      "`",
+      "`"
+    ]
+  ],
+  "wordPattern": "[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*(?:/[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*)*|\\d[\\d_]*(?:\\.\\d[\\d_]*)?",
+  "onEnterRules": [
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){1}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| "
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){2}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| | "
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){3}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| | | "
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){4}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| | | | "
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){5}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| | | | | "
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){6}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| | | | | | "
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){7}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| | | | | | | "
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:\\|\\s*){8}[^|\\s]",
+      "action": {
+        "indent": "none",
+        "appendText": "| | | | | | | | "
+      }
+    }
+  ]
+}
