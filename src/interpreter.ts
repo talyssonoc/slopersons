@@ -175,6 +175,7 @@ export class Interpreter {
   // the procedure that made the lambda, through any builtin that called it.
   private returning: OutSignal | null;
   private expressionDepth: number;
+  private interruptionChecks: number;
   private nextActivation: number;
   private topActivation: number;
   currentFile: string | null;
@@ -201,6 +202,7 @@ export class Interpreter {
     this.depth = 0;
     this.returning = null;
     this.expressionDepth = 0;
+    this.interruptionChecks = 0;
     this.nextActivation = 0;
     this.topActivation = -1;
     this.currentFile = null;
@@ -438,36 +440,37 @@ export class Interpreter {
 
   evaluateExpression(expression: Expression, environment: Environment): Value {
     switch (expression.kind) {
-      case 'int':
-        return int(expression.value);
-      case 'float':
-        return float(expression.value);
-      case 'string':
-        return string(expression.value);
-      case 'char':
-        return char(expression.value);
-      case 'boolean':
-        return expression.value ? YES : NO;
-      case 'nothing':
-        return NOTHING;
       case 'name':
         return this.lookup(expression.name, expression.position, environment);
+      case 'int':
+        return int(expression.value);
+      case 'binary':
+        return this.evalBinary(expression, environment);
+      case 'flow': {
+        let value = this.evaluateExpression(expression.head, environment);
+        for (const step of expression.steps) value = this.evalStep(step, value, environment);
+        return value;
+      }
       case 'qualified':
         return this.resolveQualified(expression.parts, expression.position, environment);
+      case 'string':
+        return string(expression.value);
+      case 'boolean':
+        return expression.value ? YES : NO;
+      case 'conditional':
+        this.expressionDepth++;
+        try {
+          return this.evalConditional(expression, environment);
+        } finally {
+          this.expressionDepth--;
+        }
+      case 'lambda':
+        return this.makeLambda(expression, environment);
       case 'interpolation': {
         let text = '';
         for (const part of expression.parts) text += typeof part === 'string' ? part : formatValue(this.evaluateExpression(part, environment), 'print');
         return string(text);
       }
-      case 'array':
-        return array(expression.items.map((item) => this.evaluateExpression(item, environment)));
-      case 'map': {
-        const map = newMap();
-        for (const entry of expression.entries) map.table.set(this.evaluateExpression(entry.key, environment), this.evaluateExpression(entry.value, environment));
-        return map;
-      }
-      case 'binary':
-        return this.evalBinary(expression, environment);
       case 'unary': {
         const operand = this.evaluateExpression(expression.operand, environment);
         if (expression.operator === 'not') {
@@ -478,20 +481,19 @@ export class Interpreter {
         if (operand.type === 'float') return float(-operand.value);
         throw runtimeError(`cannot negate ${describeType(operand)}`, expression.position);
       }
-      case 'flow': {
-        let value = this.evaluateExpression(expression.head, environment);
-        for (const step of expression.steps) value = this.evalStep(step, value, environment);
-        return value;
+      case 'float':
+        return float(expression.value);
+      case 'char':
+        return char(expression.value);
+      case 'nothing':
+        return NOTHING;
+      case 'array':
+        return array(expression.items.map((item) => this.evaluateExpression(item, environment)));
+      case 'map': {
+        const map = newMap();
+        for (const entry of expression.entries) map.table.set(this.evaluateExpression(entry.key, environment), this.evaluateExpression(entry.value, environment));
+        return map;
       }
-      case 'lambda':
-        return this.makeLambda(expression, environment);
-      case 'conditional':
-        this.expressionDepth++;
-        try {
-          return this.evalConditional(expression, environment);
-        } finally {
-          this.expressionDepth--;
-        }
       case 'attempt':
         this.expressionDepth++;
         try {
@@ -506,12 +508,12 @@ export class Interpreter {
     let value = this.lookup(parts[0] ?? '', position, environment);
     for (let index = 1; index < parts.length; index++) {
       const part = parts[index] ?? '';
-      const prefix = parts.slice(0, index).join('/');
       if (value.type !== 'module') {
+        const prefix = parts.slice(0, index).join('/');
         throw runtimeError(`\`${prefix}\` is ${describeType(value)}, not a module, so \`${prefix}/${part}\` cannot be looked up`, position);
       }
       const member = value.members.get(part);
-      if (member === undefined) throw runtimeError(`module \`${prefix}\` has no exported name \`${part}\``, position);
+      if (member === undefined) throw runtimeError(`module \`${parts.slice(0, index).join('/')}\` has no exported name \`${part}\``, position);
       value = member;
     }
     return value;
@@ -543,8 +545,11 @@ export class Interpreter {
     return this.callValue(callee, inputs, step.position, environment);
   }
 
+  // Taking the flag is an atomic operation on memory shared with the main thread; doing it on every
+  // call and loop pass cost about 5% of a program's time. Every 1024th still stops a busy loop at once.
   private checkInterruption(): void {
-    if (this.interruption.take()) throw new InterruptSignal();
+    this.interruptionChecks = (this.interruptionChecks + 1) & 1023;
+    if (this.interruptionChecks === 0 && this.interruption.take()) throw new InterruptSignal();
   }
 
   clearInterruption(): void {
