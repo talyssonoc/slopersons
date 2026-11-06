@@ -167,3 +167,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-11-06 | [Ship a TextMate grammar inside the interpreter repository](./202611061056-ship-a-textmate-grammar-inside-the-interpreter-repository.md) | Proposed |
 | 2026-11-06 | [Serve editors from a language server in the slopersons executable](./202611061211-serve-editors-from-a-language-server-in-the-slopersons-executable.md) | Proposed |
 | 2026-11-06 | [Recover from parse errors at top-level statement boundaries](./202611061212-recover-from-parse-errors-at-top-level-statement-boundaries.md) | Proposed |
+| 2026-11-06 | [Mark what the grammar cannot with semantic tokens from the parser](./202611061425-mark-what-the-grammar-cannot-with-semantic-tokens-from-the-parser.md) | Proposed |

@@ -72,8 +72,12 @@ const INITIALIZE = { processId: process.pid, rootUri: null, capabilities: {} };
 export function defineLanguageServerTests(prefix: string, command: () => string[]): void {
   test(`${prefix}the language server publishes diagnostics as a document opens, changes and closes, then exits cleanly`, { timeout: 30_000 }, () =>
     withSession(command(), async ({ connection, exited, nextPublished }) => {
-      const initialized = await connection.sendRequest<{ capabilities: { textDocumentSync: number }; serverInfo: { name: string } }>('initialize', INITIALIZE);
+      const initialized = await connection.sendRequest<{
+        capabilities: { textDocumentSync: number; semanticTokensProvider: { legend: { tokenTypes: string[]; tokenModifiers: string[] }; full: boolean } };
+        serverInfo: { name: string };
+      }>('initialize', INITIALIZE);
       assert.equal(initialized.capabilities.textDocumentSync, 1);
+      assert.deepEqual(initialized.capabilities.semanticTokensProvider, { legend: { tokenTypes: ['parameter', 'keyValueSeparator'], tokenModifiers: ['declaration'] }, full: true });
       assert.equal(initialized.serverInfo.name, 'slopersons');
       await connection.sendNotification('initialized', {});
 
@@ -89,8 +93,9 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
         ],
       );
 
-      await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: '1 + 2\n2 => y' }] });
+      await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: '1 + 2\n{"a": 1} => y' }] });
       assert.deepEqual((await nextPublished()).diagnostics, []);
+      assert.deepEqual(await connection.sendRequest('textDocument/semanticTokens/full', { textDocument: { uri } }), { data: [1, 4, 1, 1, 0] });
 
       await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 3 }, contentChanges: [{ text: 'proc' }] });
       assert.equal((await nextPublished()).diagnostics.length, 1);

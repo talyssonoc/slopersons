@@ -1,8 +1,8 @@
 {
   "name": "slopersons",
   "displayName": "slopersons",
-  "description": "slopersons language support: syntax highlighting and parse errors as you type",
-  "version": "0.2.0",
+  "description": "slopersons language support: syntax highlighting, parse errors as you type and parser-based highlighting",
+  "version": "0.3.0",
   "publisher": "slopersons",
   "private": true,
   "packageManager": "pnpm@10.23.0",
@@ -37,6 +37,22 @@
         "language": "slopersons",
         "scopeName": "source.slop",
         "path": "./syntaxes/slopersons.tmLanguage.json"
+      }
+    ],
+    "semanticTokenTypes": [
+      {
+        "id": "keyValueSeparator",
+        "description": "The `:` between a key and its value in a hashmap"
+      }
+    ],
+    "semanticTokenScopes": [
+      {
+        "language": "slopersons",
+        "scopes": {
+          "keyValueSeparator": [
+            "punctuation.separator.key-value.slop"
+          ]
+        }
       }
     ],
     "configuration": {

@@ -135,15 +135,19 @@ function simplify(flow: Flow): Expression {
   return flow.steps.length === 0 ? flow.head : flow;
 }
 
-function popTrailingNames(inputs: Expression[]): string[] {
-  const parameters: string[] = [];
+function popTrailingNames(inputs: Expression[]): Name[] {
+  const parameters: Name[] = [];
   while (inputs.length > 0) {
     const last = inputs[inputs.length - 1];
     if (last === undefined || last.kind !== 'name') break;
-    parameters.unshift(last.name);
+    parameters.unshift(last);
     inputs.pop();
   }
   return parameters;
+}
+
+function lambda(parameters: Name[], body: Statement[], position: Position): Lambda {
+  return { kind: 'lambda', parameters: parameters.map((parameter) => parameter.name), parameterPositions: parameters.map((parameter) => parameter.position), body, position };
 }
 
 const EMPTY: ReadonlySet<string> = new Set();
@@ -241,7 +245,7 @@ class Parser {
     if (last.kind !== 'call') throw parseError('a binding cannot take a block', last.position);
     if (last.body !== null) throw parseError('this call already has an inline lambda, so it cannot take a block', last.position);
     const parameters = popTrailingNames(last.arguments);
-    last.body = { kind: 'lambda', parameters, body: this.parseBlock(children), position: last.position };
+    last.body = lambda(parameters, this.parseBlock(children), last.position);
   }
 
   private parseProc(cursor: Cursor, children: Line[]): ProcedureDefinition {
@@ -418,19 +422,17 @@ class Parser {
     while (cursor.isName(names)) names++;
     if (names > 0 && cursor.isOp('|', names)) {
       const location = cursor.position();
-      const parameters: string[] = [];
-      for (let index = 0; index < names; index++) parameters.push(cursor.expectName('parameter').name);
+      const parameters: Name[] = [];
+      for (let index = 0; index < names; index++) parameters.push(cursor.expectName('parameter'));
       cursor.next();
       const body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
-      const lambda: Lambda = { kind: 'lambda', parameters, body, position: location };
-      return { flow: asFlow(lambda), consumedChildren: false };
+      return { flow: asFlow(lambda(parameters, body, location)), consumedChildren: false };
     }
     if (names > 0 && cursor.peek(names) === undefined && children.length > 0) {
       const position = cursor.position();
-      const parameterNames: string[] = [];
-      for (let offset = 0; offset < names; offset++) parameterNames.push(cursor.expectName('parameter').name);
-      const lambda: Lambda = { kind: 'lambda', parameters: parameterNames, body: this.parseBlock(children), position };
-      return { flow: asFlow(lambda), consumedChildren: true };
+      const parameters: Name[] = [];
+      for (let offset = 0; offset < names; offset++) parameters.push(cursor.expectName('parameter'));
+      return { flow: asFlow(lambda(parameters, this.parseBlock(children), position)), consumedChildren: true };
     }
     return { flow: this.parseFlow(cursor), consumedChildren: false };
   }
@@ -477,7 +479,7 @@ class Parser {
       const barPosition = cursor.next().position;
       const parameters = popTrailingNames(inputs);
       const body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
-      step.body = { kind: 'lambda', parameters, body, position: barPosition };
+      step.body = lambda(parameters, body, barPosition);
     }
     return step;
   }
@@ -628,7 +630,7 @@ class Parser {
     if (cursor.isOp('|')) {
       cursor.next();
       const body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
-      return { kind: 'lambda', parameters: [], body, position: location };
+      return lambda([], body, location);
     }
     const statement = this.parseStatement(cursor, NO_CHILDREN, EMPTY);
     switch (statement.kind) {
@@ -661,9 +663,9 @@ class Parser {
     while (!cursor.isOp('}')) {
       if (cursor.atEnd()) throw parseError('unclosed `{`', location);
       const key = this.parseExpression(cursor);
-      cursor.expectOp(':', '`:` between a key and its value');
+      const colon = cursor.expectOp(':', '`:` between a key and its value').position;
       const value = this.parseExpression(cursor);
-      entries.push({ key, value });
+      entries.push({ key, value, colon });
     }
     cursor.next();
     return { kind: 'map', entries, position: location };

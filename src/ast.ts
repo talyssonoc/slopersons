@@ -152,6 +152,7 @@ export interface ArrayLiteral {
 export interface MapEntry {
   key: Expression;
   value: Expression;
+  colon: Position;
 }
 
 export interface MapLiteral {
@@ -189,6 +190,7 @@ export interface Flow {
 export interface Lambda {
   kind: 'lambda';
   parameters: string[];
+  parameterPositions: Position[];
   body: Statement[];
   position: Position;
 }
