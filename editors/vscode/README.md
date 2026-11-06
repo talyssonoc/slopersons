@@ -51,7 +51,7 @@ In `core/`, `pnpm test` covers what this extension uses:
 - `test/vscode-grammar.test.ts` tokenizes with `vscode-textmate` and `vscode-oniguruma`, the engine VS Code uses. Besides targeted cases, it lexes every `.slop` file in the repository with the interpreter's lexer and checks that each token gets a matching scope. It also checks the grammar's keyword, builtin module and bare builtin lists against the lexer and the interpreter.
 - `test/names.test.ts` checks how names resolve to their declarations. `test/lsp.test.ts` checks diagnostic ranges, semantic tokens, definitions, references, highlights, that the custom token type is declared in this `package.json`, and runs a protocol session against `bin/slopersons.mjs --lsp`. `test/build.test.ts` and `pnpm test:binary` run the same session through the bundle and the executable.
 
-The client code in `src/extension.ts` has no automated test: running it needs a VS Code instance. Check it by hand with the development host above.
+`test/vscode-extension.test.ts` typechecks this extension and bundles it with the flags of the `build` script, so a dependency update that breaks it fails `pnpm test` in `core/`; it skips until `pnpm install` has run here. What the client does inside VS Code has no automated test: running it needs a VS Code instance. Check it by hand with the development host above.
 
 ## Known limits
 
