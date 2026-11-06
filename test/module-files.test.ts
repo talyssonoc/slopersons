@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createInterpreter } from '../src/cli.ts';
 import { builtinCatalog, completionsAt } from '../src/completion.ts';
-import { definitionAt, diagnosticsFor, type DocumentContext } from '../src/lsp.ts';
-import { filePath, moduleMembers, moduleUri } from '../src/module-files.ts';
+import { definitionAt, diagnosticsFor } from '../src/lsp.ts';
+import { filePath, moduleMembers, moduleUri, type DocumentContext } from '../src/module-files.ts';
 import type { ModuleSource } from '../src/names.ts';
 import { parseRecovering } from '../src/parser.ts';
 import { fakeIo } from './helpers/run.ts';
@@ -14,7 +14,7 @@ const GEOMETRY_SOURCE = ['3.14 => pi', 'proc area r', '| r * r', 'proc secret | 
 const catalog = builtinCatalog(createInterpreter(fakeIo()));
 
 function contextWith(files: Record<string, string>): DocumentContext {
-  return { uri: MAIN, catalog, read: (uri) => files[uri] ?? null };
+  return { uri: MAIN, catalog, read: (uri) => files[uri] ?? null, docs: {} };
 }
 
 const workspace = contextWith({ [GEOMETRY]: GEOMETRY_SOURCE });
@@ -31,11 +31,11 @@ test('a module path resolves against the importing file, with .slop added when i
 
 test('a module exports the names its export statements list, with their kind and declaration', () => {
   assert.deepEqual(moduleMembers(GEOMETRY, workspace.read), [
-    { name: 'area', kind: 'procedure', uri: GEOMETRY, declaration: { line: 2, col: 6 } },
-    { name: 'pi', kind: 'variable', uri: GEOMETRY, declaration: { line: 1, col: 9 } },
+    { name: 'area', kind: 'procedure', uri: GEOMETRY, declaration: { line: 2, col: 6 }, parameters: ['r'] },
+    { name: 'pi', kind: 'variable', uri: GEOMETRY, declaration: { line: 1, col: 9 }, parameters: null },
   ]);
   assert.deepEqual(moduleMembers('file:///work/missing.slop', workspace.read), null);
-  assert.deepEqual(moduleMembers(GEOMETRY, contextWith({ [GEOMETRY]: 'export ghost' }).read), [{ name: 'ghost', kind: null, uri: GEOMETRY, declaration: null }]);
+  assert.deepEqual(moduleMembers(GEOMETRY, contextWith({ [GEOMETRY]: 'export ghost' }).read), [{ name: 'ghost', kind: null, uri: GEOMETRY, declaration: null, parameters: null }]);
 });
 
 function messages(context: DocumentContext, ...lines: string[]): string[] {
@@ -71,7 +71,7 @@ test('a builtin module name that appears in a statement that does not parse is n
 
 test('each module file is read once per check, however many names reach into it', () => {
   const reads: string[] = [];
-  const counting: DocumentContext = { uri: MAIN, catalog, read: (uri) => (reads.push(uri), uri === GEOMETRY ? GEOMETRY_SOURCE : null) };
+  const counting: DocumentContext = { uri: MAIN, catalog, read: (uri) => (reads.push(uri), uri === GEOMETRY ? GEOMETRY_SOURCE : null), docs: {} };
   diagnosticsFor('"./lib/geometry" -> use => geometry\ngeometry/area\ngeometry/pi\ngeometry/aera', counting);
   assert.deepEqual(reads, [GEOMETRY]);
 });

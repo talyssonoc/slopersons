@@ -18,8 +18,11 @@ import type { Expression, Lambda, Statement, Step } from './ast.ts';
 import { builtinCatalog, completionsAt, type BuiltinEntry } from './completion.ts';
 import type { Position, SlopersonsError } from './errors.ts';
 import type { Interpreter } from './interpreter.ts';
-import { filePath, moduleMembers, moduleUri, type ModuleMember, type ReadDocument } from './module-files.ts';
-import { resolveNames, type ModuleSource, type Occurrence } from './names.ts';
+import { filePath, moduleUri, modulesOf, type DocumentContext, type ModulesOf, type ReadDocument } from './module-files.ts';
+import { contains, memberRange, moduleRange, occurrenceAt, occurrenceRange } from './name-ranges.ts';
+import { resolveNames, type Occurrence } from './names.ts';
+import { hoverAt, signatureAt } from './hover.ts';
+import { parseBuiltinDocs } from './builtin-docs.ts';
 import { parseRecovering } from './parser.ts';
 import { stableSort } from './runtime/sorting.ts';
 
@@ -46,36 +49,8 @@ function unknownNameMessage(occurrence: Occurrence): string {
   return occurrence.role === 'write' ? `\`=>> ${occurrence.name}\` found no existing binding named \`${occurrence.name}\`` : `unknown name \`${occurrence.name}\``;
 }
 
-export interface DocumentContext {
-  uri: string;
-  catalog: BuiltinEntry[];
-  read: ReadDocument;
-}
-
-type ModulesOf = (module: ModuleSource) => ModuleMember[] | null;
-
-function modulesOf(context: DocumentContext): ModulesOf {
-  const cache: Record<string, ModuleMember[] | null> = {};
-  return (module) => {
-    const uri = moduleUri(context.uri, module.path);
-    if (uri === null) return null;
-    if (!(uri in cache)) cache[uri] = moduleMembers(uri, context.read);
-    return cache[uri] ?? null;
-  };
-}
-
 function warning(range: Range, message: string): Diagnostic {
   return { range, severity: DiagnosticSeverity.Warning, source: 'slopersons', message };
-}
-
-function memberRange(occurrence: Occurrence): Range {
-  const start = { line: occurrence.position.line - 1, character: occurrence.position.col + occurrence.name.length };
-  return { start, end: { line: start.line, character: start.character + (occurrence.members[0]?.length ?? 0) } };
-}
-
-function moduleRange(module: ModuleSource): Range {
-  const start = { line: module.position.line - 1, character: module.position.col - 1 };
-  return { start, end: { line: start.line, character: start.character + module.length } };
 }
 
 function memberWarnings(occurrences: Occurrence[], unparsedNames: Set<string>, catalog: BuiltinEntry[], modules: ModulesOf): Diagnostic[] {
@@ -259,19 +234,6 @@ export function encodeSemanticTokens(tokens: SemanticToken[]): number[] {
   return data;
 }
 
-function occurrenceRange(position: Position, name: string): Range {
-  const start = { line: position.line - 1, character: position.col - 1 };
-  return { start, end: { line: start.line, character: start.character + name.length } };
-}
-
-function contains(range: Range, line: number, character: number): boolean {
-  return range.start.line === line && range.start.character <= character && character <= range.end.character;
-}
-
-function occurrenceAt(occurrences: Occurrence[], line: number, character: number): Occurrence | undefined {
-  return occurrences.find((occurrence) => contains(occurrenceRange(occurrence.position, occurrence.name), line, character));
-}
-
 function sameBindingAt(source: string, line: number, character: number): Occurrence[] {
   const occurrences = resolveNames(parseRecovering(source).statements);
   const binding = occurrenceAt(occurrences, line, character)?.binding;
@@ -335,15 +297,16 @@ function publishDiagnostics(connection: Connection, document: TextDocument, cont
 
 // The library ends the process itself: on the protocol's `exit` notification, when standard input
 // closes, and when the editor that started it is gone. So the returned promise never settles.
-export function runLanguageServer(version: string, interpreter: Interpreter, readFile: (path: string) => string | null): Promise<number> {
+export function runLanguageServer(version: string, interpreter: Interpreter, readFile: (path: string) => string | null, documentation: Record<string, string>): Promise<number> {
   const catalog = builtinCatalog(interpreter);
+  const docs = parseBuiltinDocs(documentation);
   const connection = createConnection(process.stdin, process.stdout);
   const documents = new TextDocuments(TextDocument);
   const read: ReadDocument = (uri) => {
     const open = documents.get(uri);
     return open === undefined ? readFile(filePath(uri)) : open.getText();
   };
-  const contextOf = (uri: string): DocumentContext => ({ uri, catalog, read });
+  const contextOf = (uri: string): DocumentContext => ({ uri, catalog, read, docs });
   connection.onInitialize(() => ({
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Full,
@@ -352,6 +315,8 @@ export function runLanguageServer(version: string, interpreter: Interpreter, rea
       referencesProvider: true,
       documentHighlightProvider: true,
       completionProvider: { triggerCharacters: ['/'] },
+      hoverProvider: true,
+      signatureHelpProvider: { triggerCharacters: [' '], retriggerCharacters: [' '] },
     },
     serverInfo: { name: 'slopersons', version },
   }));
@@ -366,6 +331,8 @@ export function runLanguageServer(version: string, interpreter: Interpreter, rea
     answer(connection, documents, textDocument.uri, [], (source) => referencesAt(source, position.line, position.character, context.includeDeclaration).map((range) => ({ uri: textDocument.uri, range }))),
   );
   connection.onCompletion(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => completionsAt(source, position.line, position.character, { catalog, modules: modulesOf(contextOf(textDocument.uri)) })));
+  connection.onHover(({ textDocument, position }) => answer(connection, documents, textDocument.uri, null, (source) => hoverAt(source, position.line, position.character, contextOf(textDocument.uri))));
+  connection.onSignatureHelp(({ textDocument, position }) => answer(connection, documents, textDocument.uri, null, (source) => signatureAt(source, position.line, position.character, contextOf(textDocument.uri))));
   connection.onDocumentHighlight(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => highlightsAt(source, position.line, position.character)));
   documents.onDidClose((event) => void connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }));
   documents.listen(connection);

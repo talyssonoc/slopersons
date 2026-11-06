@@ -7,7 +7,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DiagnosticSeverity, DocumentHighlightKind, SemanticTokenTypes, type Range } from 'vscode-languageserver/node';
 import { createInterpreter } from '../src/cli.ts';
 import { builtinCatalog } from '../src/completion.ts';
-import { SEMANTIC_TOKENS_LEGEND, definitionAt, type DocumentContext, diagnosticsFor, encodeSemanticTokens, highlightsAt, referencesAt, semanticTokensFor } from '../src/lsp.ts';
+import type { DocumentContext } from '../src/module-files.ts';
+import { SEMANTIC_TOKENS_LEGEND, definitionAt, diagnosticsFor, encodeSemanticTokens, highlightsAt, referencesAt, semanticTokensFor } from '../src/lsp.ts';
 import { defineLanguageServerTests } from './helpers/language-server.ts';
 import { repositoryPrograms } from './helpers/repository-programs.ts';
 import { fakeIo } from './helpers/run.ts';
@@ -15,7 +16,7 @@ import { fakeIo } from './helpers/run.ts';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const bin = join(root, 'bin/slopersons.mjs');
 const catalog = builtinCatalog(createInterpreter(fakeIo()));
-const context: DocumentContext = { uri: 'file:///work/main.slop', catalog, read: () => null };
+const context: DocumentContext = { uri: 'file:///work/main.slop', catalog, read: () => null, docs: {} };
 
 function readFromDisk(uri: string): string | null {
   try {
@@ -96,7 +97,7 @@ test('the repository programs get no warnings, except the unknown names golden p
   for (const program of programs) {
     const errorFile = program.slice(0, -'.slop'.length) + '.err';
     const expected = existsSync(errorFile) ? /unknown name `[^`]+`/.exec(readFileSync(errorFile, 'utf8'))?.[0] : undefined;
-    const programContext = { uri: pathToFileURL(program).href, catalog, read: readFromDisk };
+    const programContext = { uri: pathToFileURL(program).href, catalog, read: readFromDisk, docs: {} };
     const messages = diagnosticsFor(readFileSync(program, 'utf8'), programContext).map((diagnostic) => diagnostic.message);
     assert.deepEqual(messages, EXPECTED_WARNINGS[program.slice(root.length)] ?? (expected === undefined ? [] : [expected]), program);
   }

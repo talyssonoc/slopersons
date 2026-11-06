@@ -91,6 +91,8 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
           referencesProvider: boolean;
           documentHighlightProvider: boolean;
           completionProvider: { triggerCharacters: string[] };
+          hoverProvider: boolean;
+          signatureHelpProvider: { triggerCharacters: string[] };
         };
         serverInfo: { name: string };
       }>('initialize', INITIALIZE);
@@ -98,6 +100,8 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
       assert.deepEqual(initialized.capabilities.semanticTokensProvider, { legend: { tokenTypes: ['parameter', 'keyValueSeparator'], tokenModifiers: ['declaration'] }, full: true });
       assert.deepEqual([initialized.capabilities.definitionProvider, initialized.capabilities.referencesProvider, initialized.capabilities.documentHighlightProvider], [true, true, true]);
       assert.deepEqual(initialized.capabilities.completionProvider.triggerCharacters, ['/']);
+      assert.equal(initialized.capabilities.hoverProvider, true);
+      assert.deepEqual(initialized.capabilities.signatureHelpProvider.triggerCharacters, [' ']);
       assert.equal(initialized.serverInfo.name, 'slopersons');
       await connection.sendNotification('initialized', {});
 
@@ -124,6 +128,10 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
         { uri, range: declaration },
         { uri, range: use },
       ]);
+      const hover = await connection.sendRequest<{ contents: { value: string } }>('textDocument/hover', { textDocument: { uri }, position: { line: 2, character: 12 } });
+      assert.match(hover.contents.value, /^```slopersons\nvalue -> io\/print-line\n```\n\nWrites /);
+      const help = await connection.sendRequest<{ signatures: Array<{ label: string }> }>('textDocument/signatureHelp', { textDocument: { uri }, position: { line: 2, character: 4 } });
+      assert.equal(help, null);
       const names = await connection.sendRequest<Array<{ label: string }>>('textDocument/completion', onUse);
       assert.ok(['y', 'io', 'proc'].every((label) => names.some((item) => item.label === label)));
       const members = await connection.sendRequest<Array<{ label: string }>>('textDocument/completion', { textDocument: { uri }, position: { line: 2, character: 10 } });

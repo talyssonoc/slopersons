@@ -1,5 +1,7 @@
+import type { BuiltinDocs } from './builtin-docs.ts';
+import type { BuiltinEntry } from './completion.ts';
 import type { Position } from './errors.ts';
-import { exportedNames, type NameKind } from './names.ts';
+import { exportedNames, type ModuleSource, type NameKind } from './names.ts';
 import { parseRecovering } from './parser.ts';
 
 export type ReadDocument = (uri: string) => string | null;
@@ -9,6 +11,7 @@ export interface ModuleMember {
   kind: NameKind | null;
   uri: string;
   declaration: Position | null;
+  parameters: string[] | null;
 }
 
 const EXTENSION = '.slop';
@@ -37,5 +40,25 @@ export function moduleMembers(uri: string, read: ReadDocument): ModuleMember[] |
     kind: exported.binding?.kind ?? null,
     uri,
     declaration: exported.binding?.declaration ?? null,
+    parameters: exported.binding?.parameters ?? null,
   }));
+}
+
+export interface DocumentContext {
+  uri: string;
+  catalog: BuiltinEntry[];
+  read: ReadDocument;
+  docs: BuiltinDocs;
+}
+
+export type ModulesOf = (module: ModuleSource) => ModuleMember[] | null;
+
+export function modulesOf(context: DocumentContext): ModulesOf {
+  const cache: Record<string, ModuleMember[] | null> = {};
+  return (module) => {
+    const uri = moduleUri(context.uri, module.path);
+    if (uri === null) return null;
+    if (!(uri in cache)) cache[uri] = moduleMembers(uri, context.read);
+    return cache[uri] ?? null;
+  };
 }

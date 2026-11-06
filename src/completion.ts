@@ -37,7 +37,7 @@ const MARGIN = /^(?:\s*\|)*\s*/;
 
 type Mode = 'code' | 'string' | 'interpolation' | 'brace';
 
-function inCode(before: string): boolean {
+export function inCode(before: string): boolean {
   const modes: Mode[] = ['code'];
   for (let i = 0; i < before.length; i++) {
     const character = before[i];
@@ -65,7 +65,7 @@ function replaceLine(lines: string[], index: number, text: string): string {
 // that cannot be in the program and the scope is read where that name is used. If the line still does
 // not parse, the rest of it is dropped, then all but its margin, and last the cursor is moved to the
 // end of the file, where every top-level declaration is visible.
-function visibleBindings(lines: string[], line: number, start: number, character: number): Binding[] {
+export function visibleBindings(lines: string[], line: number, start: number, character: number): Binding[] {
   const text = lines[line] ?? '';
   const margin = MARGIN.exec(text)?.[0] ?? '';
   const attempts = [

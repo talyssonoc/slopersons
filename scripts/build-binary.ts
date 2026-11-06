@@ -8,6 +8,11 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const stdlibDirectory = join(root, 'src', 'stdlib');
 const SOURCE_EXTENSION = '.slop';
 
+function standardDocumentation(): Record<string, string> {
+  const directory = join(root, 'docs', 'stdlib');
+  return Object.fromEntries(readdirSync(directory).map((name) => [name, readFileSync(join(directory, name), 'utf8')]));
+}
+
 function sourceModules(): Record<string, string> {
   const modules: Record<string, string> = {};
   for (const name of readdirSync(stdlibDirectory)) {
@@ -39,7 +44,7 @@ export async function bundle(outputDirectory: string): Promise<string> {
     format: 'esm',
     target: 'node26',
     outfile: mainFile,
-    define: { SLOPERSONS_SOURCE_MODULES: embeddedSources, SLOPERSONS_WORKER_SOURCE: JSON.stringify(workerSource) },
+    define: { SLOPERSONS_SOURCE_MODULES: embeddedSources, SLOPERSONS_WORKER_SOURCE: JSON.stringify(workerSource), SLOPERSONS_STDLIB_DOCS: JSON.stringify(standardDocumentation()) },
     // The language server library is CommonJS and requires Node's modules at run time; an ES module
     // bundle has no `require` for it to call. process.execPath is a valid base inside the executable too.
     banner: { js: "import { createRequire as createRequireForBundle } from 'node:module';\nconst require = createRequireForBundle(process.execPath);" },

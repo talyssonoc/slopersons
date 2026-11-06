@@ -1,5 +1,5 @@
 import { randomFillSync } from 'node:crypto';
-import { readFileSync, writeSync } from 'node:fs';
+import { readFileSync, readdirSync, writeSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MessageChannel, Worker, isMainThread } from 'node:worker_threads';
 import {
@@ -34,6 +34,14 @@ function workerHeapMb(): number {
   const raw = process.env['SLOPERSONS_MAX_HEAP_MB'];
   const parsed = raw === undefined ? Number.NaN : Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_WORKER_HEAP_MB;
+}
+
+declare const SLOPERSONS_STDLIB_DOCS: Record<string, string> | undefined;
+
+function standardDocumentation(): Record<string, string> {
+  if (typeof SLOPERSONS_STDLIB_DOCS === 'object') return SLOPERSONS_STDLIB_DOCS;
+  const directory = new URL('../docs/stdlib/', import.meta.url);
+  return Object.fromEntries(readdirSync(directory).map((name) => [name, readFileSync(new URL(name, directory), 'utf8')]));
 }
 
 export function createInterpreter(io: Io, options: InterpreterOptions = {}): Interpreter {
@@ -153,7 +161,7 @@ export async function main(argv: string[]): Promise<number> {
         return null;
       }
     };
-    return runLanguageServer(VERSION, createInterpreter({ ...io, readInput: () => 0 }), readFile);
+    return runLanguageServer(VERSION, createInterpreter({ ...io, readInput: () => 0 }), readFile, standardDocumentation());
   }
   if (path === undefined) {
     io.writeError(USAGE);

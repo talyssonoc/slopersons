@@ -15,6 +15,7 @@ export interface Binding {
   kind: NameKind;
   declaration: Position;
   module: ModuleSource | null;
+  parameters: string[] | null;
 }
 
 export type OccurrenceRole = 'declaration' | 'read' | 'write';
@@ -73,6 +74,7 @@ interface Declared {
   name: string;
   position: Position;
   module?: ModuleSource;
+  parameters?: string[];
 }
 
 function declaredAll(names: string[], positions: Position[]): Declared[] {
@@ -123,7 +125,7 @@ class Resolver {
       this.occurrences.push({ name: declared.name, members: [], position: declared.position, role: 'write', binding: existing });
       return;
     }
-    const binding: Binding = { name: declared.name, kind, declaration: declared.position, module: declared.module ?? null };
+    const binding: Binding = { name: declared.name, kind, declaration: declared.position, module: declared.module ?? null, parameters: declared.parameters ?? null };
     scope.add(binding);
     this.occurrences.push({ name: declared.name, members: [], position: declared.position, role: 'declaration', binding });
   }
@@ -144,7 +146,7 @@ class Resolver {
   private statement(statement: Statement, scope: Scope): void {
     switch (statement.kind) {
       case 'proc':
-        this.define(scope, { name: statement.name, position: statement.namePosition }, 'procedure');
+        this.define(scope, { name: statement.name, position: statement.namePosition, parameters: statement.parameters }, 'procedure');
         this.nested(scope, declaredAll(statement.parameters, statement.parameterPositions), statement.body);
         return;
       case 'while':
