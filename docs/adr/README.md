@@ -158,18 +158,18 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-10-24 | [Free every socket however a program ends](./202610241736-free-every-socket-however-a-program-ends.md) | Accepted |
 | 2026-10-24 | [Return the REPL to its prompt on Ctrl-C](./202610241749-return-the-repl-to-its-prompt-on-ctrl-c.md) | Accepted |
 | 2026-10-24 | [Serve HTTP from a slopersons module over sockets](./202610241758-serve-http-from-a-slopersons-module-over-sockets.md) | Accepted |
-| 2026-10-26 | [Draw random values from a secure generator, with no seed](./202610261124-draw-random-values-from-a-secure-generator-with-no-seed.md) | Proposed |
-| 2026-10-26 | [Give programs their environment variables as a hashmap](./202610261125-give-programs-their-environment-variables-as-a-hashmap.md) | Proposed |
+| 2026-10-26 | [Draw random values from a secure generator, with no seed](./202610261124-draw-random-values-from-a-secure-generator-with-no-seed.md) | Accepted |
+| 2026-10-26 | [Give programs their environment variables as a hashmap](./202610261125-give-programs-their-environment-variables-as-a-hashmap.md) | Accepted |
 | 2026-10-26 | [Hash passwords with Node's PBKDF2 in a password module](./202610262055-hash-passwords-with-node-pbkdf2-in-a-password-module.md) | Accepted |
-| 2026-10-26 | [Let fail attach details that handlers read with error/details](./202610262058-let-fail-attach-details-that-handlers-read-with-error-details.md) | Proposed |
-| 2026-10-26 | [Default cookies to HttpOnly, SameSite=Lax, for the whole site](./202610262100-default-cookies-to-httponly-samesite-lax-for-the-whole-site.md) | Proposed |
-| 2026-10-26 | [Drop a repeated block margin inside brackets](./202610262105-drop-a-repeated-block-margin-inside-brackets.md) | Proposed |
-| 2026-11-06 | [Ship a TextMate grammar inside the interpreter repository](./202611061056-ship-a-textmate-grammar-inside-the-interpreter-repository.md) | Proposed |
-| 2026-11-06 | [Serve editors from a language server in the slopersons executable](./202611061211-serve-editors-from-a-language-server-in-the-slopersons-executable.md) | Proposed |
-| 2026-11-06 | [Recover from parse errors at top-level statement boundaries](./202611061212-recover-from-parse-errors-at-top-level-statement-boundaries.md) | Proposed |
-| 2026-11-06 | [Mark what the grammar cannot with semantic tokens from the parser](./202611061425-mark-what-the-grammar-cannot-with-semantic-tokens-from-the-parser.md) | Proposed |
-| 2026-11-06 | [Resolve names statically in statement order for editors](./202611061526-resolve-names-statically-in-statement-order-for-editors.md) | Proposed |
-| 2026-11-06 | [Warn about unknown names in the editor without running the program](./202611061548-warn-about-unknown-names-in-the-editor-without-running-the-program.md) | Proposed |
-| 2026-11-06 | [Follow use into module files from the language server](./202611061623-follow-use-into-module-files-from-the-language-server.md) | Proposed |
-| 2026-11-06 | [Show builtin documentation in the editor from docs/stdlib](./202611061652-show-builtin-documentation-in-the-editor-from-docs-stdlib.md) | Proposed |
-| 2026-11-06 | [Rename only when every name keeps its meaning](./202611061710-rename-only-when-every-name-keeps-its-meaning.md) | Proposed |
+| 2026-10-26 | [Let fail attach details that handlers read with error/details](./202610262058-let-fail-attach-details-that-handlers-read-with-error-details.md) | Accepted |
+| 2026-10-26 | [Default cookies to HttpOnly, SameSite=Lax, for the whole site](./202610262100-default-cookies-to-httponly-samesite-lax-for-the-whole-site.md) | Accepted |
+| 2026-10-26 | [Drop a repeated block margin inside brackets](./202610262105-drop-a-repeated-block-margin-inside-brackets.md) | Accepted |
+| 2026-11-06 | [Ship a TextMate grammar inside the interpreter repository](./202611061056-ship-a-textmate-grammar-inside-the-interpreter-repository.md) | Accepted |
+| 2026-11-06 | [Serve editors from a language server in the slopersons executable](./202611061211-serve-editors-from-a-language-server-in-the-slopersons-executable.md) | Accepted |
+| 2026-11-06 | [Recover from parse errors at top-level statement boundaries](./202611061212-recover-from-parse-errors-at-top-level-statement-boundaries.md) | Accepted |
+| 2026-11-06 | [Mark what the grammar cannot with semantic tokens from the parser](./202611061425-mark-what-the-grammar-cannot-with-semantic-tokens-from-the-parser.md) | Accepted |
+| 2026-11-06 | [Resolve names statically in statement order for editors](./202611061526-resolve-names-statically-in-statement-order-for-editors.md) | Accepted |
+| 2026-11-06 | [Warn about unknown names in the editor without running the program](./202611061548-warn-about-unknown-names-in-the-editor-without-running-the-program.md) | Accepted |
+| 2026-11-06 | [Follow use into module files from the language server](./202611061623-follow-use-into-module-files-from-the-language-server.md) | Accepted |
+| 2026-11-06 | [Show builtin documentation in the editor from docs/stdlib](./202611061652-show-builtin-documentation-in-the-editor-from-docs-stdlib.md) | Accepted |
+| 2026-11-06 | [Rename only when every name keeps its meaning](./202611061710-rename-only-when-every-name-keeps-its-meaning.md) | Accepted |
