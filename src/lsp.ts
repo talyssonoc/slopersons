@@ -1,6 +1,8 @@
 import {
   DiagnosticSeverity,
   DocumentHighlightKind,
+  LSPErrorCodes,
+  ResponseError,
   SemanticTokenModifiers,
   SemanticTokenTypes,
   TextDocumentSyncKind,
@@ -22,6 +24,8 @@ import { filePath, moduleUri, modulesOf, type DocumentContext, type ModulesOf, t
 import { contains, memberRange, moduleRange, occurrenceAt, occurrenceRange } from './name-ranges.ts';
 import { resolveNames, type Occurrence } from './names.ts';
 import { hoverAt, signatureAt } from './hover.ts';
+import { documentSymbols } from './outline.ts';
+import { renameAt, renameTargetAt, type RenameWorkspace } from './rename.ts';
 import { parseBuiltinDocs } from './builtin-docs.ts';
 import { parseRecovering } from './parser.ts';
 import { stableSort } from './runtime/sorting.ts';
@@ -297,17 +301,30 @@ function publishDiagnostics(connection: Connection, document: TextDocument, cont
 
 // The library ends the process itself: on the protocol's `exit` notification, when standard input
 // closes, and when the editor that started it is gone. So the returned promise never settles.
-export function runLanguageServer(version: string, interpreter: Interpreter, readFile: (path: string) => string | null, documentation: Record<string, string>): Promise<number> {
+export interface ServerFiles {
+  readFile: (path: string) => string | null;
+  slopFilesUnder: (directoryUri: string) => string[];
+}
+
+export function runLanguageServer(version: string, interpreter: Interpreter, files: ServerFiles, documentation: Record<string, string>): Promise<number> {
   const catalog = builtinCatalog(interpreter);
   const docs = parseBuiltinDocs(documentation);
   const connection = createConnection(process.stdin, process.stdout);
   const documents = new TextDocuments(TextDocument);
   const read: ReadDocument = (uri) => {
     const open = documents.get(uri);
-    return open === undefined ? readFile(filePath(uri)) : open.getText();
+    return open === undefined ? files.readFile(filePath(uri)) : open.getText();
   };
   const contextOf = (uri: string): DocumentContext => ({ uri, catalog, read, docs });
-  connection.onInitialize(() => ({
+  let roots: string[] = [];
+  const workspaceOf = (uri: string): RenameWorkspace => ({
+    uri,
+    read,
+    files: () => [...documents.keys(), ...roots.flatMap((root) => files.slopFilesUnder(root))],
+  });
+  connection.onInitialize(({ workspaceFolders, rootUri }) => {
+    roots = workspaceFolders?.map((folder) => folder.uri) ?? (rootUri === null ? [] : [rootUri]);
+    return {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Full,
       semanticTokensProvider: { legend: SEMANTIC_TOKENS_LEGEND, full: true },
@@ -316,10 +333,13 @@ export function runLanguageServer(version: string, interpreter: Interpreter, rea
       documentHighlightProvider: true,
       completionProvider: { triggerCharacters: ['/'] },
       hoverProvider: true,
+      documentSymbolProvider: true,
+      renameProvider: { prepareProvider: true },
       signatureHelpProvider: { triggerCharacters: [' '], retriggerCharacters: [' '] },
     },
     serverInfo: { name: 'slopersons', version },
-  }));
+    };
+  });
   documents.onDidChangeContent(() => {
     for (const document of documents.all()) publishDiagnostics(connection, document, contextOf(document.uri));
   });
@@ -333,6 +353,19 @@ export function runLanguageServer(version: string, interpreter: Interpreter, rea
   connection.onCompletion(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => completionsAt(source, position.line, position.character, { catalog, modules: modulesOf(contextOf(textDocument.uri)) })));
   connection.onHover(({ textDocument, position }) => answer(connection, documents, textDocument.uri, null, (source) => hoverAt(source, position.line, position.character, contextOf(textDocument.uri))));
   connection.onSignatureHelp(({ textDocument, position }) => answer(connection, documents, textDocument.uri, null, (source) => signatureAt(source, position.line, position.character, contextOf(textDocument.uri))));
+  connection.onDocumentSymbol(({ textDocument }) => answer(connection, documents, textDocument.uri, [], (source) => documentSymbols(source)));
+  connection.onPrepareRename(({ textDocument, position }) =>
+    answer(connection, documents, textDocument.uri, null, (source) => {
+      const target = renameTargetAt(source, position.line, position.character, workspaceOf(textDocument.uri));
+      return 'error' in target ? new ResponseError(LSPErrorCodes.RequestFailed, target.error) : { range: target.range, placeholder: target.home.binding.name };
+    }),
+  );
+  connection.onRenameRequest(({ textDocument, position, newName }) =>
+    answer(connection, documents, textDocument.uri, null, (source) => {
+      const renamed = renameAt(source, position.line, position.character, newName, workspaceOf(textDocument.uri));
+      return 'error' in renamed ? new ResponseError(LSPErrorCodes.RequestFailed, renamed.error) : { changes: renamed.changes };
+    }),
+  );
   connection.onDocumentHighlight(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => highlightsAt(source, position.line, position.character)));
   documents.onDidClose((event) => void connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }));
   documents.listen(connection);

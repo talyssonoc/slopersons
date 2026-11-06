@@ -15,6 +15,8 @@ What it does:
 - completes names in scope at the cursor, builtins and keywords, and after a module and `/` (`io/`, or `geometry/` for a file loaded with `use`) that module's members;
 - follows `"./lib/geometry" -> use => geometry` into the module file: F12 on `geometry/area` opens its declaration, F12 on the path opens the file, and a member the module does not export, or a module file that cannot be read, is a warning;
 - hovering a name shows what it is: a procedure's `proc` line, a parameter, a variable or a module, and for builtins their usage and description from `docs/stdlib`; while you type a call's inputs, signature help shows the usage with the current input highlighted;
+- the outline, breadcrumbs and Cmd+Shift+O list procedures (with the ones declared inside them) and top-level bindings;
+- F2 renames a binding, procedure or parameter and its uses in the file; for an exported name, also `module/name` in every file of the workspace that loads the module, and it works from either side. It refuses, saying why, when the new name would change what another name refers to, or when a statement or a file that does not parse mentions the name;
 - F12 goes to the declaration of a binding, procedure, parameter or `recover` name in the same file; Shift+F12 lists its references; the cursor on a name highlights its other uses;
 - `~` toggles line comments; brackets, quotes and backticks auto-close;
 - double-click selects a whole kebab-case or qualified name (`io/print-line`);
@@ -37,7 +39,7 @@ pnpm typecheck
 pnpm build                      # dist/extension.js
 code --extensionDevelopmentPath="$PWD" ../../docs/examples
 pnpm run package                # slopersons-<version>.vsix
-code --install-extension slopersons-0.8.0.vsix
+code --install-extension slopersons-0.9.0.vsix
 ```
 
 "Developer: Inspect Editor Tokens and Scopes" shows the scope under the cursor. "Output: slopersons" shows the client's log.

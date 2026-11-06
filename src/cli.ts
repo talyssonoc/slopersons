@@ -1,5 +1,5 @@
 import { randomFillSync } from 'node:crypto';
-import { readFileSync, readdirSync, writeSync } from 'node:fs';
+import { readFileSync, readdirSync, writeSync, type Dirent } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { MessageChannel, Worker, isMainThread } from 'node:worker_threads';
 import {
@@ -34,6 +34,23 @@ function workerHeapMb(): number {
   const raw = process.env['SLOPERSONS_MAX_HEAP_MB'];
   const parsed = raw === undefined ? Number.NaN : Number(raw);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_WORKER_HEAP_MB;
+}
+
+// Hidden directories and installed packages hold no program of the workspace.
+export function slopFilesUnder(directoryUri: string): string[] {
+  let entries: Dirent[];
+  try {
+    entries = readdirSync(new URL(directoryUri), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const base = directoryUri.endsWith('/') ? directoryUri : `${directoryUri}/`;
+  return entries.flatMap((entry) => {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules') return [];
+    const uri = new URL(encodeURIComponent(entry.name), base).href;
+    if (entry.isDirectory()) return slopFilesUnder(uri);
+    return entry.isFile() && entry.name.endsWith('.slop') ? [uri] : [];
+  });
 }
 
 declare const SLOPERSONS_STDLIB_DOCS: Record<string, string> | undefined;
@@ -161,7 +178,7 @@ export async function main(argv: string[]): Promise<number> {
         return null;
       }
     };
-    return runLanguageServer(VERSION, createInterpreter({ ...io, readInput: () => 0 }), readFile, standardDocumentation());
+    return runLanguageServer(VERSION, createInterpreter({ ...io, readInput: () => 0 }), { readFile, slopFilesUnder }, standardDocumentation());
   }
   if (path === undefined) {
     io.writeError(USAGE);

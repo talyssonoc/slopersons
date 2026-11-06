@@ -93,6 +93,8 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
           completionProvider: { triggerCharacters: string[] };
           hoverProvider: boolean;
           signatureHelpProvider: { triggerCharacters: string[] };
+          documentSymbolProvider: boolean;
+          renameProvider: { prepareProvider: boolean };
         };
         serverInfo: { name: string };
       }>('initialize', INITIALIZE);
@@ -102,6 +104,8 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
       assert.deepEqual(initialized.capabilities.completionProvider.triggerCharacters, ['/']);
       assert.equal(initialized.capabilities.hoverProvider, true);
       assert.deepEqual(initialized.capabilities.signatureHelpProvider.triggerCharacters, [' ']);
+      assert.equal(initialized.capabilities.documentSymbolProvider, true);
+      assert.deepEqual(initialized.capabilities.renameProvider, { prepareProvider: true });
       assert.equal(initialized.serverInfo.name, 'slopersons');
       await connection.sendNotification('initialized', {});
 
@@ -132,6 +136,15 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
       assert.match(hover.contents.value, /^```slopersons\nvalue -> io\/print-line\n```\n\nWrites /);
       const help = await connection.sendRequest<{ signatures: Array<{ label: string }> }>('textDocument/signatureHelp', { textDocument: { uri }, position: { line: 2, character: 4 } });
       assert.equal(help, null);
+      const symbols = await connection.sendRequest<Array<{ name: string; kind: number }>>('textDocument/documentSymbol', { textDocument: { uri } });
+      assert.deepEqual(symbols.map((symbol) => [symbol.name, symbol.kind]), [['y', 13]]);
+      assert.deepEqual(await connection.sendRequest('textDocument/prepareRename', onUse), { range: use, placeholder: 'y' });
+      assert.deepEqual(await connection.sendRequest('textDocument/rename', { ...onUse, newName: 'z' }), {
+        changes: { [uri]: [{ range: declaration, newText: 'z' }, { range: use, newText: 'z' }] },
+      });
+      await assert.rejects(connection.sendRequest('textDocument/prepareRename', { textDocument: { uri }, position: { line: 2, character: 5 } }), {
+        message: 'only a name declared in a file of the program can be renamed',
+      });
       const names = await connection.sendRequest<Array<{ label: string }>>('textDocument/completion', onUse);
       assert.ok(['y', 'io', 'proc'].every((label) => names.some((item) => item.label === label)));
       const members = await connection.sendRequest<Array<{ label: string }>>('textDocument/completion', { textDocument: { uri }, position: { line: 2, character: 10 } });
@@ -163,7 +176,7 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
 
   test(`${prefix}the language server follows use into a module file on disk, and prefers the editor's copy once it is open`, { timeout: 30_000 }, () =>
     withSession(command(), async ({ connection, nextPublished }) => {
-      await connection.sendRequest('initialize', INITIALIZE);
+      await connection.sendRequest('initialize', { ...INITIALIZE, workspaceFolders: [{ uri: pathToFileURL(examples).href, name: 'examples' }] });
       await connection.sendNotification('initialized', {});
       const shapesPath = join(examples, 'shapes.slop');
       const geometryPath = join(examples, 'lib/geometry.slop');
@@ -180,9 +193,25 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
         range: { start: { line: 3, character: 5 }, end: { line: 3, character: 16 } },
       });
 
+      const renamed = await connection.sendRequest<{ changes: Record<string, Array<{ newText: string }>> }>('textDocument/rename', {
+        textDocument: { uri: shapes },
+        position: { line: 3, character: 17 },
+        newName: 'disc-area',
+      });
+      assert.deepEqual(Object.keys(renamed.changes).sort(), [geometry, shapes].sort());
+      assert.deepEqual(renamed.changes[shapes]?.map((edit) => edit.newText), ['disc-area', 'disc-area']);
+
       const exportingSecret = readFileSync(geometryPath, 'utf8').replace('export pi circle-area square-area describe', 'export pi circle-area square-area describe secret');
       await connection.sendNotification('textDocument/didOpen', { textDocument: { uri: geometry, languageId: 'slopersons', version: 1, text: exportingSecret } });
       assert.deepEqual((await publishedFor(nextPublished, shapes)).diagnostics, []);
+
+      await connection.sendNotification('textDocument/didClose', { textDocument: { uri: shapes } });
+      const fromModule = await connection.sendRequest<{ changes: Record<string, unknown[]> }>('textDocument/rename', {
+        textDocument: { uri: geometry },
+        position: { line: 3, character: 8 },
+        newName: 'disc-area',
+      });
+      assert.deepEqual(Object.keys(fromModule.changes).sort(), [geometry, shapes].sort());
     }),
   );
 

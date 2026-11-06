@@ -172,3 +172,4 @@ Regenerate this table from the files rather than editing it by hand:
 | 2026-11-06 | [Warn about unknown names in the editor without running the program](./202611061548-warn-about-unknown-names-in-the-editor-without-running-the-program.md) | Proposed |
 | 2026-11-06 | [Follow use into module files from the language server](./202611061623-follow-use-into-module-files-from-the-language-server.md) | Proposed |
 | 2026-11-06 | [Show builtin documentation in the editor from docs/stdlib](./202611061652-show-builtin-documentation-in-the-editor-from-docs-stdlib.md) | Proposed |
+| 2026-11-06 | [Rename only when every name keeps its meaning](./202611061710-rename-only-when-every-name-keeps-its-meaning.md) | Proposed |
