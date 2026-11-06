@@ -44,6 +44,21 @@ class Scope {
     }
     return null;
   }
+
+  visible(): Binding[] {
+    const seen = new Set<string>();
+    const bindings: Binding[] = [];
+    let scope: Scope | null = this;
+    while (scope !== null) {
+      for (const binding of scope.bindings.values()) {
+        if (seen.has(binding.name)) continue;
+        seen.add(binding.name);
+        bindings.push(binding);
+      }
+      scope = scope.parent;
+    }
+    return bindings;
+  }
 }
 
 interface Declared {
@@ -66,6 +81,12 @@ function declaredAll(names: string[], positions: Position[]): Declared[] {
 class Resolver {
   readonly occurrences: Occurrence[] = [];
   private pending: Array<() => void> = [];
+  private readonly probe: string | null;
+  visibleAtProbe: Binding[] | null = null;
+
+  constructor(probe: string | null) {
+    this.probe = probe;
+  }
 
   resolveScope(parent: Scope | null, parameters: Declared[], body: Statement[]): void {
     const scope = new Scope(parent);
@@ -90,6 +111,7 @@ class Resolver {
   }
 
   private use(scope: Scope, name: string, position: Position, role: 'read' | 'write'): void {
+    if (name === this.probe && this.visibleAtProbe === null) this.visibleAtProbe = scope.visible();
     this.occurrences.push({ name, position, role, binding: scope.find(name) });
   }
 
@@ -202,7 +224,13 @@ class Resolver {
 }
 
 export function resolveNames(program: Statement[]): Occurrence[] {
-  const resolver = new Resolver();
+  const resolver = new Resolver(null);
   resolver.resolveScope(null, [], program);
   return stableSort(resolver.occurrences, (first, second) => first.position.line - second.position.line || first.position.col - second.position.col);
+}
+
+export function bindingsVisibleAt(program: Statement[], probe: string): Binding[] | null {
+  const resolver = new Resolver(probe);
+  resolver.resolveScope(null, [], program);
+  return resolver.visibleAtProbe;
 }

@@ -14,7 +14,9 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { Expression, Lambda, Statement, Step } from './ast.ts';
+import { builtinCatalog, completionsAt } from './completion.ts';
 import type { Position, SlopersonsError } from './errors.ts';
+import type { Interpreter } from './interpreter.ts';
 import { resolveNames, type Occurrence } from './names.ts';
 import { parseRecovering } from './parser.ts';
 import { stableSort } from './runtime/sorting.ts';
@@ -260,7 +262,9 @@ function publishDiagnostics(connection: Connection, document: TextDocument, buil
 
 // The library ends the process itself: on the protocol's `exit` notification, when standard input
 // closes, and when the editor that started it is gone. So the returned promise never settles.
-export function runLanguageServer(version: string, builtins: readonly string[]): Promise<number> {
+export function runLanguageServer(version: string, interpreter: Interpreter): Promise<number> {
+  const catalog = builtinCatalog(interpreter);
+  const builtins = catalog.map((entry) => entry.name);
   const connection = createConnection(process.stdin, process.stdout);
   const documents = new TextDocuments(TextDocument);
   connection.onInitialize(() => ({
@@ -270,6 +274,7 @@ export function runLanguageServer(version: string, builtins: readonly string[]):
       definitionProvider: true,
       referencesProvider: true,
       documentHighlightProvider: true,
+      completionProvider: { triggerCharacters: ['/'] },
     },
     serverInfo: { name: 'slopersons', version },
   }));
@@ -284,6 +289,7 @@ export function runLanguageServer(version: string, builtins: readonly string[]):
   connection.onReferences(({ textDocument, position, context }) =>
     answer(connection, documents, textDocument.uri, [], (source) => referencesAt(source, position.line, position.character, context.includeDeclaration).map((range) => ({ uri: textDocument.uri, range }))),
   );
+  connection.onCompletion(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => completionsAt(source, position.line, position.character, catalog)));
   connection.onDocumentHighlight(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => highlightsAt(source, position.line, position.character)));
   documents.onDidClose((event) => void connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }));
   documents.listen(connection);

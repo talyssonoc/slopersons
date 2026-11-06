@@ -79,12 +79,14 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
           definitionProvider: boolean;
           referencesProvider: boolean;
           documentHighlightProvider: boolean;
+          completionProvider: { triggerCharacters: string[] };
         };
         serverInfo: { name: string };
       }>('initialize', INITIALIZE);
       assert.equal(initialized.capabilities.textDocumentSync, 1);
       assert.deepEqual(initialized.capabilities.semanticTokensProvider, { legend: { tokenTypes: ['parameter', 'keyValueSeparator'], tokenModifiers: ['declaration'] }, full: true });
       assert.deepEqual([initialized.capabilities.definitionProvider, initialized.capabilities.referencesProvider, initialized.capabilities.documentHighlightProvider], [true, true, true]);
+      assert.deepEqual(initialized.capabilities.completionProvider.triggerCharacters, ['/']);
       assert.equal(initialized.serverInfo.name, 'slopersons');
       await connection.sendNotification('initialized', {});
 
@@ -111,6 +113,11 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
         { uri, range: declaration },
         { uri, range: use },
       ]);
+      const names = await connection.sendRequest<Array<{ label: string }>>('textDocument/completion', onUse);
+      assert.ok(['y', 'io', 'proc'].every((label) => names.some((item) => item.label === label)));
+      const members = await connection.sendRequest<Array<{ label: string }>>('textDocument/completion', { textDocument: { uri }, position: { line: 2, character: 10 } });
+      assert.ok(members.some((item) => item.label === 'print-line'));
+      assert.ok(!members.some((item) => item.label === 'y'));
       assert.deepEqual(await connection.sendRequest('textDocument/documentHighlight', onUse), [
         { range: declaration, kind: 3 },
         { range: use, kind: 2 },
