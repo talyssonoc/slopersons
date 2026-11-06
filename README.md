@@ -10,3 +10,5 @@ pnpm test
 ```
 
 Requires Node 26 (see `.tool-versions`). No build step: the interpreter is TypeScript that Node runs directly.
+
+Editor support: `slopersons --lsp` is a language server, and [editors/vscode](editors/vscode/README.md) is a VS Code extension that uses it.

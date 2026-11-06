@@ -4,7 +4,7 @@ Language support for `.slop` files:
 
 - a TextMate grammar (`syntaxes/slopersons.tmLanguage.json`) for highlighting;
 - a language configuration (`language-configuration.json`) for comments, brackets and margin bars;
-- a language client (`src/extension.ts`) that starts `slopersons --lsp`, for parse errors, semantic tokens, go to definition, references and highlights.
+- a language client (`src/extension.ts`) that starts `slopersons --lsp`, for everything below that needs the parser: errors and warnings, semantic tokens, completion, hover, signature help, navigation, the outline and rename.
 
 What it does:
 
@@ -17,7 +17,7 @@ What it does:
 - hovering a name shows what it is: a procedure's `proc` line, a parameter, a variable or a module, and for builtins their usage and description from `docs/stdlib`; while you type a call's inputs, signature help shows the usage with the current input highlighted;
 - the outline, breadcrumbs and Cmd+Shift+O list procedures (with the ones declared inside them) and top-level bindings;
 - F2 renames a binding, procedure or parameter and its uses in the file; for an exported name, also `module/name` in every file of the workspace that loads the module, and it works from either side. It refuses, saying why, when the new name would change what another name refers to, or when a statement or a file that does not parse mentions the name;
-- F12 goes to the declaration of a binding, procedure, parameter or `recover` name in the same file; Shift+F12 lists its references; the cursor on a name highlights its other uses;
+- F12 goes to the declaration of a binding, procedure, parameter or `recover` name, in the same file or, for `module/name`, in the module's file; Shift+F12 lists its references in the file; the cursor on a name highlights its other uses;
 - `~` toggles line comments; brackets, quotes and backticks auto-close;
 - double-click selects a whole kebab-case or qualified name (`io/print-line`);
 - Enter on a line inside a block (`| | x -> f`) starts the next line with the same bars; Enter on a line that holds only bars leaves the block.
@@ -49,7 +49,8 @@ code --install-extension slopersons-0.9.0.vsix
 In `core/`, `pnpm test` covers what this extension uses:
 
 - `test/vscode-grammar.test.ts` tokenizes with `vscode-textmate` and `vscode-oniguruma`, the engine VS Code uses. Besides targeted cases, it lexes every `.slop` file in the repository with the interpreter's lexer and checks that each token gets a matching scope. It also checks the grammar's keyword, builtin module and bare builtin lists against the lexer and the interpreter.
-- `test/names.test.ts` checks how names resolve to their declarations. `test/lsp.test.ts` checks diagnostic ranges, semantic tokens, definitions, references, highlights, that the custom token type is declared in this `package.json`, and runs a protocol session against `bin/slopersons.mjs --lsp`. `test/build.test.ts` and `pnpm test:binary` run the same session through the bundle and the executable.
+- `test/names.test.ts` checks how names resolve to their declarations. `test/lsp.test.ts` checks diagnostics and warnings, semantic tokens, definitions, references, highlights, that the custom token type is declared in this `package.json`, and runs protocol sessions against `bin/slopersons.mjs --lsp`. `test/build.test.ts` and `pnpm test:binary` run the same sessions through the bundle and the executable.
+- `test/completion.test.ts`, `test/hover.test.ts`, `test/outline.test.ts` and `test/rename.test.ts` check those features; `test/module-files.test.ts` checks how `use` paths are found and what modules export; `test/workspace-files.test.ts` checks which files rename looks through.
 
 `test/vscode-extension.test.ts` typechecks this extension and bundles it with the flags of the `build` script, so a dependency update that breaks it fails `pnpm test` in `core/`; it skips until `pnpm install` has run here. What the client does inside VS Code has no automated test: running it needs a VS Code instance. Check it by hand with the development host above.
 
