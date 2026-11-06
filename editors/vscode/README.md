@@ -12,7 +12,8 @@ What it does:
 - underlines parse errors from the interpreter's own parser, one per broken top-level statement, without saving or running the file;
 - warns about names bound nowhere (`totl` for `total`) and `=>>` with nothing to update, with the message running the program would give;
 - marks, from the parser, what the grammar cannot: parameters of procedures and lambdas wherever they are used, lambda parameters in block form, and the `:` between a hashmap key and its value (as `punctuation.separator.key-value.slop`, not the conditional operator);
-- completes names in scope at the cursor, builtins and keywords, and after a builtin module and `/` (`io/`) that module's members;
+- completes names in scope at the cursor, builtins and keywords, and after a module and `/` (`io/`, or `geometry/` for a file loaded with `use`) that module's members;
+- follows `"./lib/geometry" -> use => geometry` into the module file: F12 on `geometry/area` opens its declaration, F12 on the path opens the file, and a member the module does not export, or a module file that cannot be read, is a warning;
 - F12 goes to the declaration of a binding, procedure, parameter or `recover` name in the same file; Shift+F12 lists its references; the cursor on a name highlights its other uses;
 - `~` toggles line comments; brackets, quotes and backticks auto-close;
 - double-click selects a whole kebab-case or qualified name (`io/print-line`);
@@ -35,7 +36,7 @@ pnpm typecheck
 pnpm build                      # dist/extension.js
 code --extensionDevelopmentPath="$PWD" ../../docs/examples
 pnpm run package                # slopersons-<version>.vsix
-code --install-extension slopersons-0.6.0.vsix
+code --install-extension slopersons-0.7.0.vsix
 ```
 
 "Developer: Inspect Editor Tokens and Scopes" shows the scope under the cursor. "Output: slopersons" shows the client's log.
@@ -56,4 +57,4 @@ A regular-expression grammar sees one line at a time and does not parse:
 - The grammar marks a lambda's parameters only when the bar follows them on the same line (`-> array/each n | ...`, `n | n * 2`), and scopes every `:` as the conditional operator. The language server's semantic tokens correct both, but only while the server runs, under a color theme with semantic highlighting on (VS Code's default themes have it), and only for statements that parse: while you type a lambda, its parameters fall back to the grammar.
 - `-` is always an operator; the interpreter decides whether it is unary from the spacing.
 
-Completion does not know the members of a module loaded with `use`, and offers nothing in a file with an unclosed bracket or string except builtins and keywords. Go to definition stays within one file: a qualified name such as `geometry/area` does not lead into the file `use` loaded, and builtins have no definition. Names resolve in statement order, so a loop that reads a name bound later in its own body is resolved to the outer binding. Unknown names are found in statement order too, so that loop also gets a warning it does not deserve; bind the name before the loop. While a statement does not parse, names that appear in it are not reported. Other runtime errors show up only when the program runs. After a lexer error (an unclosed bracket, an unterminated string), it reports only that error until it is fixed.
+Completion offers nothing in a file with an unclosed bracket or string except builtins and keywords. Modules are followed only when the path is a literal string given to `use` and bound with `=>` right after it, and only one level deep; references and highlights stay within one file; builtins have no definition. Names resolve in statement order, so a loop that reads a name bound later in its own body is resolved to the outer binding. Unknown names are found in statement order too, so that loop also gets a warning it does not deserve; bind the name before the loop. While a statement does not parse, names that appear in it are not reported. Other runtime errors show up only when the program runs. After a lexer error (an unclosed bracket, an unterminated string), it reports only that error until it is fixed.

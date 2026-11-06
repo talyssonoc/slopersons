@@ -3,20 +3,30 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DiagnosticSeverity, DocumentHighlightKind, SemanticTokenTypes, type Range } from 'vscode-languageserver/node';
 import { createInterpreter } from '../src/cli.ts';
-import { SEMANTIC_TOKENS_LEGEND, definitionAt, diagnosticsFor, encodeSemanticTokens, highlightsAt, referencesAt, semanticTokensFor } from '../src/lsp.ts';
+import { builtinCatalog } from '../src/completion.ts';
+import { SEMANTIC_TOKENS_LEGEND, definitionAt, type DocumentContext, diagnosticsFor, encodeSemanticTokens, highlightsAt, referencesAt, semanticTokensFor } from '../src/lsp.ts';
 import { defineLanguageServerTests } from './helpers/language-server.ts';
 import { repositoryPrograms } from './helpers/repository-programs.ts';
 import { fakeIo } from './helpers/run.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const bin = join(root, 'bin/slopersons.mjs');
-const builtins = createInterpreter(fakeIo()).builtinNames();
+const catalog = builtinCatalog(createInterpreter(fakeIo()));
+const context: DocumentContext = { uri: 'file:///work/main.slop', catalog, read: () => null };
+
+function readFromDisk(uri: string): string | null {
+  try {
+    return readFileSync(fileURLToPath(uri), 'utf8');
+  } catch {
+    return null;
+  }
+}
 
 function ranges(source: string): Array<[number, number, number, string]> {
-  return diagnosticsFor(source, builtins).map((diagnostic) => [diagnostic.range.start.line, diagnostic.range.start.character, diagnostic.range.end.character, typeof diagnostic.message === 'string' ? diagnostic.message : diagnostic.message.value]);
+  return diagnosticsFor(source, context).map((diagnostic) => [diagnostic.range.start.line, diagnostic.range.start.character, diagnostic.range.end.character, typeof diagnostic.message === 'string' ? diagnostic.message : diagnostic.message.value]);
 }
 
 test('a diagnostic covers the whole name the error points at', () => {
@@ -40,12 +50,12 @@ test('each broken top-level statement gets its own diagnostic, and a valid file 
       [2, 3, 4, 'expected a procedure name after `->`, found end of line'],
     ],
   );
-  assert.deepEqual(diagnosticsFor('[1 2 3] -> array/each n\n| n -> io/print-line', builtins), []);
-  assert.equal(diagnosticsFor('x ->', builtins)[0]?.source, 'slopersons');
+  assert.deepEqual(diagnosticsFor('[1 2 3] -> array/each n\n| n -> io/print-line', context), []);
+  assert.equal(diagnosticsFor('x ->', context)[0]?.source, 'slopersons');
 });
 
 function warnings(...lines: string[]): string[] {
-  return diagnosticsFor(lines.join('\n'), builtins).map((diagnostic) => {
+  return diagnosticsFor(lines.join('\n'), context).map((diagnostic) => {
     const severity = diagnostic.severity === DiagnosticSeverity.Warning ? 'warning' : 'error';
     const message = typeof diagnostic.message === 'string' ? diagnostic.message : diagnostic.message.value;
     return `${severity} ${diagnostic.range.start.line}:${diagnostic.range.start.character}-${diagnostic.range.end.character} ${message}`;
@@ -77,14 +87,18 @@ test('a name that appears in a statement that does not parse is not reported, ot
   assert.deepEqual(warnings('"{total +}" -> io/print-line', 'total -> io/print-line'), ['error 0:2-7 expected a value, found end of line']);
 });
 
-test('the repository programs get no warnings, except the unknown name a golden program expects', () => {
+// shapes.slop reads a name its module does not export on purpose, inside `attempt`, to show the error.
+const EXPECTED_WARNINGS: Record<string, string[]> = { 'docs/examples/shapes.slop': ['module `geometry` has no exported name `secret`'] };
+
+test('the repository programs get no warnings, except the unknown names golden programs expect and the error an example shows', () => {
   const programs = repositoryPrograms();
   assert.ok(programs.length >= 30);
   for (const program of programs) {
     const errorFile = program.slice(0, -'.slop'.length) + '.err';
     const expected = existsSync(errorFile) ? /unknown name `[^`]+`/.exec(readFileSync(errorFile, 'utf8'))?.[0] : undefined;
-    const messages = diagnosticsFor(readFileSync(program, 'utf8'), builtins).map((diagnostic) => diagnostic.message);
-    assert.deepEqual(messages, expected === undefined ? [] : [expected], program);
+    const programContext = { uri: pathToFileURL(program).href, catalog, read: readFromDisk };
+    const messages = diagnosticsFor(readFileSync(program, 'utf8'), programContext).map((diagnostic) => diagnostic.message);
+    assert.deepEqual(messages, EXPECTED_WARNINGS[program.slice(root.length)] ?? (expected === undefined ? [] : [expected]), program);
   }
 });
 
@@ -148,6 +162,10 @@ test('semantic tokens are encoded relative to the previous token, with the decla
   assert.deepEqual(encodeSemanticTokens(semanticTokensFor('xs -> fold 0 acc n\n| {"a": acc}')), [0, 13, 3, 0, 1, 0, 4, 1, 0, 1, 1, 6, 1, 1, 0, 0, 2, 3, 0, 0]);
 });
 
+function definitionRange(source: string, line: number, character: number): Range | null {
+  return definitionAt(source, line, character, context)?.range ?? null;
+}
+
 const PROGRAM = ['0 => total', 'proc add-all xs', '| xs -> array/each n', '| | total + n =>> total', '| total', '[1 2] -> add-all -> io/print-line'].join('\n');
 
 function at(range: Range | null | undefined): string {
@@ -155,19 +173,19 @@ function at(range: Range | null | undefined): string {
 }
 
 test('go to definition finds the declaration of a binding, a procedure or a parameter, from any character of the name', () => {
-  assert.equal(at(definitionAt(PROGRAM, 3, 4)), '0:5-10');
-  assert.equal(at(definitionAt(PROGRAM, 3, 9)), '0:5-10');
-  assert.equal(at(definitionAt(PROGRAM, 3, 18)), '0:5-10');
-  assert.equal(at(definitionAt(PROGRAM, 5, 10)), '1:5-12');
-  assert.equal(at(definitionAt(PROGRAM, 3, 12)), '2:19-20');
-  assert.equal(at(definitionAt(PROGRAM, 0, 5)), '0:5-10');
+  assert.equal(at(definitionRange(PROGRAM, 3, 4)), '0:5-10');
+  assert.equal(at(definitionRange(PROGRAM, 3, 9)), '0:5-10');
+  assert.equal(at(definitionRange(PROGRAM, 3, 18)), '0:5-10');
+  assert.equal(at(definitionRange(PROGRAM, 5, 10)), '1:5-12');
+  assert.equal(at(definitionRange(PROGRAM, 3, 12)), '2:19-20');
+  assert.equal(at(definitionRange(PROGRAM, 0, 5)), '0:5-10');
 });
 
 test('go to definition finds nothing on a builtin, a literal or between names', () => {
-  assert.equal(at(definitionAt(PROGRAM, 5, 21)), 'nothing');
-  assert.equal(at(definitionAt(PROGRAM, 5, 1)), 'nothing');
-  assert.equal(at(definitionAt(PROGRAM, 3, 10)), 'nothing');
-  assert.equal(at(definitionAt('x ->', 0, 0)), 'nothing');
+  assert.equal(at(definitionRange(PROGRAM, 5, 21)), 'nothing');
+  assert.equal(at(definitionRange(PROGRAM, 5, 1)), 'nothing');
+  assert.equal(at(definitionRange(PROGRAM, 3, 10)), 'nothing');
+  assert.equal(at(definitionRange('x ->', 0, 0)), 'nothing');
 });
 
 test('references list every occurrence of the same binding, with or without its declaration', () => {

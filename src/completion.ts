@@ -1,7 +1,8 @@
 import { CompletionItemKind, type CompletionItem, type Range } from 'vscode-languageserver/node';
 import type { Interpreter } from './interpreter.ts';
 import { KEYWORDS } from './lexer.ts';
-import { bindingsVisibleAt, type Binding } from './names.ts';
+import type { ModuleMember } from './module-files.ts';
+import { bindingsVisibleAt, type Binding, type ModuleSource } from './names.ts';
 import { parseRecovering } from './parser.ts';
 
 export interface BuiltinMember {
@@ -13,6 +14,11 @@ export interface BuiltinEntry {
   name: string;
   module: boolean;
   members: BuiltinMember[];
+}
+
+export interface CompletionContext {
+  catalog: BuiltinEntry[];
+  modules: (module: ModuleSource) => ModuleMember[] | null;
 }
 
 export function builtinCatalog(interpreter: Interpreter): BuiltinEntry[] {
@@ -85,7 +91,12 @@ const BINDING_KINDS: Record<Binding['kind'], CompletionItemKind> = {
   variable: CompletionItemKind.Variable,
 };
 
-export function completionsAt(source: string, line: number, character: number, catalog: BuiltinEntry[]): CompletionItem[] {
+function memberItems(moduleName: string, members: Array<{ name: string; procedure: boolean }>, range: Range): CompletionItem[] {
+  return members.map((member) => item(member.name, member.procedure ? CompletionItemKind.Function : CompletionItemKind.Constant, `${moduleName}/${member.name}`, range, 0));
+}
+
+export function completionsAt(source: string, line: number, character: number, context: CompletionContext): CompletionItem[] {
+  const { catalog } = context;
   const lines = source.split('\n');
   const before = (lines[line] ?? '').slice(0, character);
   if (!inCode(before)) return [];
@@ -94,10 +105,10 @@ export function completionsAt(source: string, line: number, character: number, c
   if (member !== null) {
     const [, moduleName = '', partial = ''] = member;
     const range = { start: { line, character: character - partial.length }, end: { line, character } };
-    const entry = catalog.find((candidate) => candidate.module && candidate.name === moduleName);
-    return (entry?.members ?? []).map((builtin) =>
-      item(builtin.name, builtin.procedure ? CompletionItemKind.Function : CompletionItemKind.Constant, `${moduleName}/${builtin.name}`, range, 0),
-    );
+    const binding = visibleBindings(lines, line, character - partial.length - moduleName.length - 1, character).find((candidate) => candidate.name === moduleName);
+    if (binding === undefined) return memberItems(moduleName, catalog.find((candidate) => candidate.module && candidate.name === moduleName)?.members ?? [], range);
+    const members = binding.module === null ? null : context.modules(binding.module);
+    return memberItems(moduleName, (members ?? []).map((member) => ({ name: member.name, procedure: member.kind === 'procedure' })), range);
   }
   if (before.endsWith('/')) return [];
 

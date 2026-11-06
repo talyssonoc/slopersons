@@ -146,7 +146,14 @@ export async function main(argv: string[]): Promise<number> {
       return EXIT_USAGE;
     }
     const { runLanguageServer } = await import('./lsp.ts');
-    return runLanguageServer(VERSION, createInterpreter({ ...io, readInput: () => 0 }));
+    const readFile = (file: string): string | null => {
+      try {
+        return readFileSync(file, 'utf8');
+      } catch {
+        return null;
+      }
+    };
+    return runLanguageServer(VERSION, createInterpreter({ ...io, readInput: () => 0 }), readFile);
   }
   if (path === undefined) {
     io.writeError(USAGE);

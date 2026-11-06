@@ -1,19 +1,27 @@
-import type { Expression, Statement, Step } from './ast.ts';
+import type { Expression, Flow, Statement, Step } from './ast.ts';
 import type { Position } from './errors.ts';
 import { stableSort } from './runtime/sorting.ts';
 
 export type NameKind = 'procedure' | 'parameter' | 'variable';
 
+export interface ModuleSource {
+  path: string;
+  position: Position;
+  length: number;
+}
+
 export interface Binding {
   name: string;
   kind: NameKind;
   declaration: Position;
+  module: ModuleSource | null;
 }
 
 export type OccurrenceRole = 'declaration' | 'read' | 'write';
 
 export interface Occurrence {
   name: string;
+  members: string[];
   position: Position;
   role: OccurrenceRole;
   binding: Binding | null;
@@ -64,6 +72,7 @@ class Scope {
 interface Declared {
   name: string;
   position: Position;
+  module?: ModuleSource;
 }
 
 function declaredAll(names: string[], positions: Position[]): Declared[] {
@@ -73,6 +82,15 @@ function declaredAll(names: string[], positions: Position[]): Declared[] {
     if (position !== undefined) declared.push({ name, position });
   });
   return declared;
+}
+
+// `"path" -> use => name` with a literal path and the builtin `use` binds the module that file defines,
+// as does each `=>` that directly follows.
+function loadedModule(flow: Flow, scope: Scope): ModuleSource | null {
+  const [call, bind] = flow.steps;
+  if (flow.head.kind !== 'string' || call?.kind !== 'call' || bind?.kind !== 'bind') return null;
+  if (call.callee.kind !== 'name' || call.callee.name !== 'use' || call.arguments.length > 0 || call.body !== null || scope.find('use') !== null) return null;
+  return { path: flow.head.value, position: flow.head.position, length: flow.head.value.length + 2 };
 }
 
 // A binding exists from when its statement runs, so a use sees only the declarations before it in its
@@ -102,17 +120,17 @@ class Resolver {
   private define(scope: Scope, declared: Declared, kind: NameKind): void {
     const existing = scope.own(declared.name);
     if (existing !== undefined) {
-      this.occurrences.push({ name: declared.name, position: declared.position, role: 'write', binding: existing });
+      this.occurrences.push({ name: declared.name, members: [], position: declared.position, role: 'write', binding: existing });
       return;
     }
-    const binding: Binding = { name: declared.name, kind, declaration: declared.position };
+    const binding: Binding = { name: declared.name, kind, declaration: declared.position, module: declared.module ?? null };
     scope.add(binding);
-    this.occurrences.push({ name: declared.name, position: declared.position, role: 'declaration', binding });
+    this.occurrences.push({ name: declared.name, members: [], position: declared.position, role: 'declaration', binding });
   }
 
-  private use(scope: Scope, name: string, position: Position, role: 'read' | 'write'): void {
+  private use(scope: Scope, name: string, position: Position, role: 'read' | 'write', members: string[] = []): void {
     if (name === this.probe && this.visibleAtProbe === null) this.visibleAtProbe = scope.visible();
-    this.occurrences.push({ name, position, role, binding: scope.find(name) });
+    this.occurrences.push({ name, members, position, role, binding: scope.find(name) });
   }
 
   private nested(scope: Scope, parameters: Declared[], body: Statement[]): void {
@@ -150,10 +168,10 @@ class Resolver {
     }
   }
 
-  private step(step: Step, scope: Scope): void {
+  private step(step: Step, scope: Scope, module: ModuleSource | null): void {
     if (step.kind === 'bind') {
       if (step.outer) this.use(scope, step.name, step.namePosition, 'write');
-      else this.define(scope, { name: step.name, position: step.namePosition }, 'variable');
+      else this.define(scope, { name: step.name, position: step.namePosition, ...(module === null ? {} : { module }) }, 'variable');
       return;
     }
     this.expression(step.callee, scope);
@@ -174,7 +192,7 @@ class Resolver {
         this.use(scope, expression.name, expression.position, 'read');
         return;
       case 'qualified':
-        this.use(scope, expression.parts[0] ?? '', expression.position, 'read');
+        this.use(scope, expression.parts[0] ?? '', expression.position, 'read', expression.parts.slice(1));
         return;
       case 'interpolation':
         for (const part of expression.parts) if (typeof part !== 'string') this.expression(part, scope);
@@ -195,10 +213,13 @@ class Resolver {
       case 'unary':
         this.expression(expression.operand, scope);
         return;
-      case 'flow':
+      case 'flow': {
         this.expression(expression.head, scope);
-        for (const step of expression.steps) this.step(step, scope);
+        const module = loadedModule(expression, scope);
+        const bindsModule = (index: number): boolean => index >= 1 && expression.steps.slice(1, index + 1).every((step) => step.kind === 'bind');
+        expression.steps.forEach((step, index) => this.step(step, scope, bindsModule(index) ? module : null));
         return;
+      }
       case 'lambda':
         this.nested(scope, declaredAll(expression.parameters, expression.parameterPositions), expression.body);
         return;
@@ -233,4 +254,21 @@ export function bindingsVisibleAt(program: Statement[], probe: string): Binding[
   const resolver = new Resolver(probe);
   resolver.resolveScope(null, [], program);
   return resolver.visibleAtProbe;
+}
+
+export interface ExportedName {
+  name: string;
+  binding: Binding | null;
+}
+
+export function exportedNames(program: Statement[]): ExportedName[] {
+  const occurrences = resolveNames(program);
+  return program.flatMap((statement) => {
+    if (statement.kind !== 'export') return [];
+    return statement.names.map((name, index) => {
+      const position = statement.namePositions[index];
+      const occurrence = occurrences.find((candidate) => candidate.position === position);
+      return { name, binding: occurrence?.binding ?? null };
+    });
+  });
 }

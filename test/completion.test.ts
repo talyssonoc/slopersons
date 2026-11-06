@@ -10,7 +10,7 @@ const interpreter = createInterpreter(fakeIo());
 const catalog = builtinCatalog(interpreter);
 
 function at(lines: string[], line: number, character = (lines[line] ?? '').length): CompletionItem[] {
-  return completionsAt(lines.join('\n'), line, character, catalog);
+  return completionsAt(lines.join('\n'), line, character, { catalog, modules: () => null });
 }
 
 function bound(items: CompletionItem[]): string[] {

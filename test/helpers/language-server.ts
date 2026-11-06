@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { StreamMessageReader, StreamMessageWriter, createMessageConnection, type MessageConnection } from 'vscode-jsonrpc/node';
 
 interface PublishedDiagnostics {
@@ -68,6 +71,14 @@ async function withSession(command: string[], body: (session: Session) => Promis
 }
 
 const INITIALIZE = { processId: process.pid, rootUri: null, capabilities: {} };
+const examples = join(fileURLToPath(new URL('../..', import.meta.url)), 'docs/examples');
+
+async function publishedFor(nextPublished: () => Promise<PublishedDiagnostics>, uri: string): Promise<PublishedDiagnostics> {
+  while (true) {
+    const published = await nextPublished();
+    if (published.uri === uri) return published;
+  }
+}
 
 export function defineLanguageServerTests(prefix: string, command: () => string[]): void {
   test(`${prefix}the language server publishes diagnostics as a document opens, changes and closes, then exits cleanly`, { timeout: 30_000 }, () =>
@@ -139,6 +150,31 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
       await connection.sendRequest('shutdown');
       await connection.sendNotification('exit');
       assert.equal(await exited, 0);
+    }),
+  );
+
+  test(`${prefix}the language server follows use into a module file on disk, and prefers the editor's copy once it is open`, { timeout: 30_000 }, () =>
+    withSession(command(), async ({ connection, nextPublished }) => {
+      await connection.sendRequest('initialize', INITIALIZE);
+      await connection.sendNotification('initialized', {});
+      const shapesPath = join(examples, 'shapes.slop');
+      const geometryPath = join(examples, 'lib/geometry.slop');
+      const shapes = pathToFileURL(shapesPath).href;
+      const geometry = pathToFileURL(geometryPath).href;
+
+      await connection.sendNotification('textDocument/didOpen', { textDocument: { uri: shapes, languageId: 'slopersons', version: 1, text: readFileSync(shapesPath, 'utf8') } });
+      assert.deepEqual(
+        (await publishedFor(nextPublished, shapes)).diagnostics.map((diagnostic) => diagnostic.message),
+        ['module `geometry` has no exported name `secret`'],
+      );
+      assert.deepEqual(await connection.sendRequest('textDocument/definition', { textDocument: { uri: shapes }, position: { line: 3, character: 17 } }), {
+        uri: geometry,
+        range: { start: { line: 3, character: 5 }, end: { line: 3, character: 16 } },
+      });
+
+      const exportingSecret = readFileSync(geometryPath, 'utf8').replace('export pi circle-area square-area describe', 'export pi circle-area square-area describe secret');
+      await connection.sendNotification('textDocument/didOpen', { textDocument: { uri: geometry, languageId: 'slopersons', version: 1, text: exportingSecret } });
+      assert.deepEqual((await publishedFor(nextPublished, shapes)).diagnostics, []);
     }),
   );
 

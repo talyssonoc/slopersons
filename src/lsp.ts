@@ -9,15 +9,17 @@ import {
   type Connection,
   type Diagnostic,
   type DocumentHighlight,
+  type Location,
   type Range,
   type SemanticTokensLegend,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { Expression, Lambda, Statement, Step } from './ast.ts';
-import { builtinCatalog, completionsAt } from './completion.ts';
+import { builtinCatalog, completionsAt, type BuiltinEntry } from './completion.ts';
 import type { Position, SlopersonsError } from './errors.ts';
 import type { Interpreter } from './interpreter.ts';
-import { resolveNames, type Occurrence } from './names.ts';
+import { filePath, moduleMembers, moduleUri, type ModuleMember, type ReadDocument } from './module-files.ts';
+import { resolveNames, type ModuleSource, type Occurrence } from './names.ts';
 import { parseRecovering } from './parser.ts';
 import { stableSort } from './runtime/sorting.ts';
 
@@ -44,25 +46,81 @@ function unknownNameMessage(occurrence: Occurrence): string {
   return occurrence.role === 'write' ? `\`=>> ${occurrence.name}\` found no existing binding named \`${occurrence.name}\`` : `unknown name \`${occurrence.name}\``;
 }
 
+export interface DocumentContext {
+  uri: string;
+  catalog: BuiltinEntry[];
+  read: ReadDocument;
+}
+
+type ModulesOf = (module: ModuleSource) => ModuleMember[] | null;
+
+function modulesOf(context: DocumentContext): ModulesOf {
+  const cache: Record<string, ModuleMember[] | null> = {};
+  return (module) => {
+    const uri = moduleUri(context.uri, module.path);
+    if (uri === null) return null;
+    if (!(uri in cache)) cache[uri] = moduleMembers(uri, context.read);
+    return cache[uri] ?? null;
+  };
+}
+
+function warning(range: Range, message: string): Diagnostic {
+  return { range, severity: DiagnosticSeverity.Warning, source: 'slopersons', message };
+}
+
+function memberRange(occurrence: Occurrence): Range {
+  const start = { line: occurrence.position.line - 1, character: occurrence.position.col + occurrence.name.length };
+  return { start, end: { line: start.line, character: start.character + (occurrence.members[0]?.length ?? 0) } };
+}
+
+function moduleRange(module: ModuleSource): Range {
+  const start = { line: module.position.line - 1, character: module.position.col - 1 };
+  return { start, end: { line: start.line, character: start.character + module.length } };
+}
+
+function memberWarnings(occurrences: Occurrence[], unparsedNames: Set<string>, catalog: BuiltinEntry[], modules: ModulesOf): Diagnostic[] {
+  return occurrences.flatMap((occurrence) => {
+    const member = occurrence.members[0];
+    if (member === undefined) return [];
+    let members: string[] | null = null;
+    if (occurrence.binding === null && !unparsedNames.has(occurrence.name)) {
+      members = catalog.find((entry) => entry.module && entry.name === occurrence.name)?.members.map((candidate) => candidate.name) ?? null;
+    } else if (occurrence.binding?.module) {
+      members = modules(occurrence.binding.module)?.map((candidate) => candidate.name) ?? null;
+    }
+    if (members === null || members.includes(member)) return [];
+    return [warning(memberRange(occurrence), `module \`${occurrence.name}\` has no exported name \`${member}\``)];
+  });
+}
+
+function unreadableModuleWarnings(occurrences: Occurrence[], context: DocumentContext, modules: ModulesOf): Diagnostic[] {
+  return occurrences.flatMap((occurrence) => {
+    const module = occurrence.role === 'declaration' ? occurrence.binding?.module : null;
+    if (module === null || module === undefined) return [];
+    const uri = moduleUri(context.uri, module.path);
+    if (uri === null || modules(module) !== null) return [];
+    return [warning(moduleRange(module), `cannot read module "${module.path}" (looked for ${filePath(uri)})`)];
+  });
+}
+
 // A name that appears in a statement that does not parse may be declared there, so it is not reported.
 // `=>>` updates only bindings the program made, never a builtin.
-export function diagnosticsFor(source: string, builtins: readonly string[]): Diagnostic[] {
+export function diagnosticsFor(source: string, context: DocumentContext): Diagnostic[] {
+  const builtins = context.catalog.map((entry) => entry.name);
+  const modules = modulesOf(context);
   const lines = source.split('\n');
   const parsed = parseRecovering(source);
+  const occurrences = resolveNames(parsed.statements);
   const errors: Diagnostic[] = parsed.errors.map((error) => ({
     range: rangeOf(error, lines),
     severity: DiagnosticSeverity.Error,
     source: 'slopersons',
     message: error.message,
   }));
-  const warnings: Diagnostic[] = resolveNames(parsed.statements)
+  const unknownNames: Diagnostic[] = occurrences
     .filter((occurrence) => occurrence.binding === null && !parsed.unparsedNames.has(occurrence.name) && (occurrence.role === 'write' || !builtins.includes(occurrence.name)))
-    .map((occurrence) => ({
-      range: occurrenceRange(occurrence.position, occurrence.name),
-      severity: DiagnosticSeverity.Warning,
-      source: 'slopersons',
-      message: unknownNameMessage(occurrence),
-    }));
+    .map((occurrence) => warning(occurrenceRange(occurrence.position, occurrence.name), unknownNameMessage(occurrence)));
+  const warnings = [...unknownNames, ...memberWarnings(occurrences, parsed.unparsedNames, context.catalog, modules), ...unreadableModuleWarnings(occurrences, context, modules)];
   return stableSort([...errors, ...warnings], (first, second) => first.range.start.line - second.range.start.line || first.range.start.character - second.range.start.character);
 }
 
@@ -206,11 +264,12 @@ function occurrenceRange(position: Position, name: string): Range {
   return { start, end: { line: start.line, character: start.character + name.length } };
 }
 
+function contains(range: Range, line: number, character: number): boolean {
+  return range.start.line === line && range.start.character <= character && character <= range.end.character;
+}
+
 function occurrenceAt(occurrences: Occurrence[], line: number, character: number): Occurrence | undefined {
-  return occurrences.find((occurrence) => {
-    const range = occurrenceRange(occurrence.position, occurrence.name);
-    return range.start.line === line && range.start.character <= character && character <= range.end.character;
-  });
+  return occurrences.find((occurrence) => contains(occurrenceRange(occurrence.position, occurrence.name), line, character));
 }
 
 function sameBindingAt(source: string, line: number, character: number): Occurrence[] {
@@ -220,9 +279,23 @@ function sameBindingAt(source: string, line: number, character: number): Occurre
   return occurrences.filter((occurrence) => occurrence.binding === binding);
 }
 
-export function definitionAt(source: string, line: number, character: number): Range | null {
-  const binding = occurrenceAt(resolveNames(parseRecovering(source).statements), line, character)?.binding;
-  return binding === null || binding === undefined ? null : occurrenceRange(binding.declaration, binding.name);
+export function definitionAt(source: string, line: number, character: number, context: DocumentContext): Location | null {
+  const occurrences = resolveNames(parseRecovering(source).statements);
+  const binding = occurrenceAt(occurrences, line, character)?.binding;
+  if (binding !== null && binding !== undefined) return { uri: context.uri, range: occurrenceRange(binding.declaration, binding.name) };
+  const modules = modulesOf(context);
+  const loading = occurrences.find((occurrence) => occurrence.role === 'declaration' && occurrence.binding?.module && contains(moduleRange(occurrence.binding.module), line, character));
+  if (loading?.binding?.module) {
+    const uri = moduleUri(context.uri, loading.binding.module.path);
+    const start = { line: 0, character: 0 };
+    return uri === null || modules(loading.binding.module) === null ? null : { uri, range: { start, end: start } };
+  }
+  const qualified = occurrences.find((occurrence) => occurrence.members.length > 0 && contains(memberRange(occurrence), line, character));
+  const module = qualified?.binding?.module;
+  if (qualified === undefined || module === null || module === undefined) return null;
+  const member = modules(module)?.find((candidate) => candidate.name === qualified.members[0]);
+  if (member === undefined || member.declaration === null) return null;
+  return { uri: member.uri, range: occurrenceRange(member.declaration, member.name) };
 }
 
 export function referencesAt(source: string, line: number, character: number, includeDeclaration: boolean): Range[] {
@@ -249,10 +322,10 @@ function answer<Result>(connection: Connection, documents: TextDocuments<TextDoc
   }
 }
 
-function publishDiagnostics(connection: Connection, document: TextDocument, builtins: readonly string[]): void {
+function publishDiagnostics(connection: Connection, document: TextDocument, context: DocumentContext): void {
   let diagnostics: Diagnostic[];
   try {
-    diagnostics = diagnosticsFor(document.getText(), builtins);
+    diagnostics = diagnosticsFor(document.getText(), context);
   } catch {
     connection.console.error(`internal error while checking ${document.uri}; this is a bug in slopersons, not in your program`);
     diagnostics = [];
@@ -262,11 +335,15 @@ function publishDiagnostics(connection: Connection, document: TextDocument, buil
 
 // The library ends the process itself: on the protocol's `exit` notification, when standard input
 // closes, and when the editor that started it is gone. So the returned promise never settles.
-export function runLanguageServer(version: string, interpreter: Interpreter): Promise<number> {
+export function runLanguageServer(version: string, interpreter: Interpreter, readFile: (path: string) => string | null): Promise<number> {
   const catalog = builtinCatalog(interpreter);
-  const builtins = catalog.map((entry) => entry.name);
   const connection = createConnection(process.stdin, process.stdout);
   const documents = new TextDocuments(TextDocument);
+  const read: ReadDocument = (uri) => {
+    const open = documents.get(uri);
+    return open === undefined ? readFile(filePath(uri)) : open.getText();
+  };
+  const contextOf = (uri: string): DocumentContext => ({ uri, catalog, read });
   connection.onInitialize(() => ({
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Full,
@@ -278,18 +355,17 @@ export function runLanguageServer(version: string, interpreter: Interpreter): Pr
     },
     serverInfo: { name: 'slopersons', version },
   }));
-  documents.onDidChangeContent((change) => publishDiagnostics(connection, change.document, builtins));
+  documents.onDidChangeContent(() => {
+    for (const document of documents.all()) publishDiagnostics(connection, document, contextOf(document.uri));
+  });
   connection.languages.semanticTokens.on(({ textDocument }) => answer(connection, documents, textDocument.uri, { data: [] }, (source) => ({ data: encodeSemanticTokens(semanticTokensFor(source)) })));
   connection.onDefinition(({ textDocument, position }) =>
-    answer(connection, documents, textDocument.uri, null, (source) => {
-      const range = definitionAt(source, position.line, position.character);
-      return range === null ? null : { uri: textDocument.uri, range };
-    }),
+    answer(connection, documents, textDocument.uri, null, (source) => definitionAt(source, position.line, position.character, contextOf(textDocument.uri))),
   );
   connection.onReferences(({ textDocument, position, context }) =>
     answer(connection, documents, textDocument.uri, [], (source) => referencesAt(source, position.line, position.character, context.includeDeclaration).map((range) => ({ uri: textDocument.uri, range }))),
   );
-  connection.onCompletion(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => completionsAt(source, position.line, position.character, catalog)));
+  connection.onCompletion(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => completionsAt(source, position.line, position.character, { catalog, modules: modulesOf(contextOf(textDocument.uri)) })));
   connection.onDocumentHighlight(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => highlightsAt(source, position.line, position.character)));
   documents.onDidClose((event) => void connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }));
   documents.listen(connection);
