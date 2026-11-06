@@ -73,11 +73,18 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
   test(`${prefix}the language server publishes diagnostics as a document opens, changes and closes, then exits cleanly`, { timeout: 30_000 }, () =>
     withSession(command(), async ({ connection, exited, nextPublished }) => {
       const initialized = await connection.sendRequest<{
-        capabilities: { textDocumentSync: number; semanticTokensProvider: { legend: { tokenTypes: string[]; tokenModifiers: string[] }; full: boolean } };
+        capabilities: {
+          textDocumentSync: number;
+          semanticTokensProvider: { legend: { tokenTypes: string[]; tokenModifiers: string[] }; full: boolean };
+          definitionProvider: boolean;
+          referencesProvider: boolean;
+          documentHighlightProvider: boolean;
+        };
         serverInfo: { name: string };
       }>('initialize', INITIALIZE);
       assert.equal(initialized.capabilities.textDocumentSync, 1);
       assert.deepEqual(initialized.capabilities.semanticTokensProvider, { legend: { tokenTypes: ['parameter', 'keyValueSeparator'], tokenModifiers: ['declaration'] }, full: true });
+      assert.deepEqual([initialized.capabilities.definitionProvider, initialized.capabilities.referencesProvider, initialized.capabilities.documentHighlightProvider], [true, true, true]);
       assert.equal(initialized.serverInfo.name, 'slopersons');
       await connection.sendNotification('initialized', {});
 
@@ -93,9 +100,21 @@ export function defineLanguageServerTests(prefix: string, command: () => string[
         ],
       );
 
-      await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: '1 + 2\n{"a": 1} => y' }] });
+      await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 2 }, contentChanges: [{ text: '1 + 2\n{"a": 1} => y\ny -> io/print-line' }] });
       assert.deepEqual((await nextPublished()).diagnostics, []);
       assert.deepEqual(await connection.sendRequest('textDocument/semanticTokens/full', { textDocument: { uri } }), { data: [1, 4, 1, 1, 0] });
+      const declaration = { start: { line: 1, character: 12 }, end: { line: 1, character: 13 } };
+      const use = { start: { line: 2, character: 0 }, end: { line: 2, character: 1 } };
+      const onUse = { textDocument: { uri }, position: { line: 2, character: 0 } };
+      assert.deepEqual(await connection.sendRequest('textDocument/definition', onUse), { uri, range: declaration });
+      assert.deepEqual(await connection.sendRequest('textDocument/references', { ...onUse, context: { includeDeclaration: true } }), [
+        { uri, range: declaration },
+        { uri, range: use },
+      ]);
+      assert.deepEqual(await connection.sendRequest('textDocument/documentHighlight', onUse), [
+        { range: declaration, kind: 3 },
+        { range: use, kind: 2 },
+      ]);
 
       await connection.sendNotification('textDocument/didChange', { textDocument: { uri, version: 3 }, contentChanges: [{ text: 'proc' }] });
       assert.equal((await nextPublished()).diagnostics.length, 1);

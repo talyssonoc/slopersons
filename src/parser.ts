@@ -251,10 +251,18 @@ class Parser {
   private parseProc(cursor: Cursor, children: Line[]): ProcedureDefinition {
     const location = cursor.next().position;
     const name = cursor.expectName('a procedure name after `proc`');
-    const parameters: string[] = [];
-    while (cursor.isName()) parameters.push(cursor.expectName('parameter').name);
+    const parameters: Name[] = [];
+    while (cursor.isName()) parameters.push(cursor.expectName('parameter'));
     const body = this.parseBody(cursor, children, 'procedure');
-    return { kind: 'proc', name: name.name, parameters, body, position: location };
+    return {
+      kind: 'proc',
+      name: name.name,
+      namePosition: name.position,
+      parameters: parameters.map((parameter) => parameter.name),
+      parameterPositions: parameters.map((parameter) => parameter.position),
+      body,
+      position: location,
+    };
   }
 
   private parseWhile(cursor: Cursor, children: Line[]): WhileStatement {
@@ -314,17 +322,17 @@ class Parser {
   private parseExport(cursor: Cursor, children: Line[]): ExportStatement {
     const position = cursor.next().position;
     if (this.depth > 1) throw parseError('`export` is only allowed at the top level of a file', position);
-    const names: string[] = [];
-    while (cursor.isName()) names.push(cursor.expectName('exported name').name);
+    const names: Name[] = [];
+    while (cursor.isName()) names.push(cursor.expectName('exported name'));
     if (names.length === 0) throw parseError('`export` needs at least one name', cursor.position());
     this.requireStop(cursor, EMPTY);
     if (children.length > 0) throw parseError('`export` cannot take a block', position);
-    return { kind: 'export', names, position };
+    return { kind: 'export', names: names.map((name) => name.name), namePositions: names.map((name) => name.position), position };
   }
 
   private parseAttempt(cursor: Cursor, children: Line[]): AttemptStatement {
     const location = cursor.next().position;
-    const attempt: AttemptStatement = { kind: 'attempt', body: [], errorName: null, handler: null, cleanup: null, position: location };
+    const attempt: AttemptStatement = { kind: 'attempt', body: [], errorName: null, errorNamePosition: null, handler: null, cleanup: null, position: location };
     if (cursor.isOp('|')) {
       cursor.next();
       attempt.body = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
@@ -347,7 +355,11 @@ class Parser {
     const location = cursor.next().position;
     if (attempt.cleanup !== null) throw parseError('`recover` must come before `always`', location);
     if (attempt.handler !== null) throw parseError('this `attempt` already has a `recover`', location);
-    if (cursor.isName()) attempt.errorName = cursor.expectName('error name').name;
+    if (cursor.isName()) {
+      const errorName = cursor.expectName('error name');
+      attempt.errorName = errorName.name;
+      attempt.errorNamePosition = errorName.position;
+    }
     if (cursor.isOp('|')) {
       cursor.next();
       attempt.handler = [this.parseStatement(cursor, NO_CHILDREN, EMPTY)];
@@ -451,7 +463,7 @@ class Parser {
       } else if (cursor.isOp('=>') || cursor.isOp('=>>')) {
         const arrow = cursor.next() as OpToken;
         const name = cursor.expectName(`a name after \`${arrow.operator}\``);
-        flow.steps.push({ kind: 'bind', name: name.name, outer: arrow.operator === '=>>', position: arrow.position });
+        flow.steps.push({ kind: 'bind', name: name.name, namePosition: name.position, outer: arrow.operator === '=>>', position: arrow.position });
       } else {
         return;
       }

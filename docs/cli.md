@@ -46,7 +46,9 @@ Line editing comes from Node's readline: the arrow keys move within the line and
 
 The server reports parse errors as diagnostics while a file is edited, from the editor's copy of the file, without saving or running it. Each top-level statement is parsed on its own, so a broken statement does not hide errors in the ones after it. Lines that start with `:`, `recover`, `always`, `->`, `=>` or `=>>` belong to the statement above them. An error the lexer reports, such as an unclosed bracket or an unterminated string, or a block nested deeper than its header allows, stops the check at that error, as running the file would.
 
-It also sends semantic tokens for what a line-at-a-time grammar cannot tell apart: the parameters of every lambda, including one whose body is a block on the following lines, and the `:` between a hashmap key and its value, as the custom type `keyValueSeparator`. A statement that does not parse gets none.
+It also sends semantic tokens for what a line-at-a-time grammar cannot tell apart: the parameters of every procedure and lambda, where they are declared and where they are used, and the `:` between a hashmap key and its value, as the custom type `keyValueSeparator`. A statement that does not parse gets none.
+
+It answers go to definition, find references and document highlights for names within one file: bindings, procedures, parameters and `recover` names. Names resolve the way the program binds them, in statement order, except that procedure and lambda bodies see the whole scope around them. Builtins and the members of qualified names have no definition.
 
 It exits with 0 after the protocol's `shutdown` request and `exit` notification, and with 1 when standard input closes or the editor that started it is gone without a `shutdown`. The VS Code extension in `editors/vscode/` starts it; any other editor with an LSP client can run `slopersons --lsp` for files with the `.slop` extension.
 

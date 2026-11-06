@@ -1,5 +1,6 @@
 import {
   DiagnosticSeverity,
+  DocumentHighlightKind,
   SemanticTokenModifiers,
   SemanticTokenTypes,
   TextDocumentSyncKind,
@@ -7,12 +8,14 @@ import {
   createConnection,
   type Connection,
   type Diagnostic,
+  type DocumentHighlight,
   type Range,
   type SemanticTokensLegend,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { Expression, Lambda, Statement, Step } from './ast.ts';
 import type { Position, SlopersonsError } from './errors.ts';
+import { resolveNames, type Occurrence } from './names.ts';
 import { parseRecovering } from './parser.ts';
 import { stableSort } from './runtime/sorting.ts';
 
@@ -52,21 +55,18 @@ export interface SemanticToken {
   character: number;
   length: number;
   type: SemanticTokenType;
+  declaration: boolean;
 }
 
 const TOKEN_TYPES: SemanticTokenType[] = [SemanticTokenTypes.parameter, 'keyValueSeparator'];
 
 export const SEMANTIC_TOKENS_LEGEND: SemanticTokensLegend = { tokenTypes: TOKEN_TYPES, tokenModifiers: [SemanticTokenModifiers.declaration] };
 
-function tokenAt(position: Position, length: number, type: SemanticTokenType): SemanticToken {
-  return { line: position.line - 1, character: position.col - 1, length, type };
+function tokenAt(position: Position, length: number, type: SemanticTokenType, declaration: boolean): SemanticToken {
+  return { line: position.line - 1, character: position.col - 1, length, type, declaration };
 }
 
 function lambdaTokens(lambda: Lambda, tokens: SemanticToken[]): void {
-  lambda.parameters.forEach((name, index) => {
-    const position = lambda.parameterPositions[index];
-    if (position !== undefined) tokens.push(tokenAt(position, name.length, 'parameter'));
-  });
   statementsTokens(lambda.body, tokens);
 }
 
@@ -125,7 +125,7 @@ function expressionTokens(expression: Expression, tokens: SemanticToken[]): void
     case 'map':
       for (const entry of expression.entries) {
         expressionTokens(entry.key, tokens);
-        tokens.push(tokenAt(entry.colon, 1, 'keyValueSeparator'));
+        tokens.push(tokenAt(entry.colon, 1, 'keyValueSeparator', false));
         expressionTokens(entry.value, tokens);
       }
       return;
@@ -162,7 +162,11 @@ function expressionTokens(expression: Expression, tokens: SemanticToken[]): void
 
 export function semanticTokensFor(source: string): SemanticToken[] {
   const tokens: SemanticToken[] = [];
-  statementsTokens(parseRecovering(source).statements, tokens);
+  const { statements } = parseRecovering(source);
+  statementsTokens(statements, tokens);
+  for (const occurrence of resolveNames(statements)) {
+    if (occurrence.binding?.kind === 'parameter') tokens.push(tokenAt(occurrence.position, occurrence.name.length, 'parameter', occurrence.role === 'declaration'));
+  }
   return stableSort(tokens, (first, second) => first.line - second.line || first.character - second.character);
 }
 
@@ -172,11 +176,59 @@ export function encodeSemanticTokens(tokens: SemanticToken[]): number[] {
   let character = 0;
   for (const token of tokens) {
     const sameLine = token.line === line;
-    data.push(token.line - line, sameLine ? token.character - character : token.character, token.length, TOKEN_TYPES.indexOf(token.type), token.type === 'parameter' ? 1 : 0);
+    data.push(token.line - line, sameLine ? token.character - character : token.character, token.length, TOKEN_TYPES.indexOf(token.type), token.declaration ? 1 : 0);
     line = token.line;
     character = token.character;
   }
   return data;
+}
+
+function occurrenceRange(position: Position, name: string): Range {
+  const start = { line: position.line - 1, character: position.col - 1 };
+  return { start, end: { line: start.line, character: start.character + name.length } };
+}
+
+function occurrenceAt(occurrences: Occurrence[], line: number, character: number): Occurrence | undefined {
+  return occurrences.find((occurrence) => {
+    const range = occurrenceRange(occurrence.position, occurrence.name);
+    return range.start.line === line && range.start.character <= character && character <= range.end.character;
+  });
+}
+
+function sameBindingAt(source: string, line: number, character: number): Occurrence[] {
+  const occurrences = resolveNames(parseRecovering(source).statements);
+  const binding = occurrenceAt(occurrences, line, character)?.binding;
+  if (binding === null || binding === undefined) return [];
+  return occurrences.filter((occurrence) => occurrence.binding === binding);
+}
+
+export function definitionAt(source: string, line: number, character: number): Range | null {
+  const binding = occurrenceAt(resolveNames(parseRecovering(source).statements), line, character)?.binding;
+  return binding === null || binding === undefined ? null : occurrenceRange(binding.declaration, binding.name);
+}
+
+export function referencesAt(source: string, line: number, character: number, includeDeclaration: boolean): Range[] {
+  return sameBindingAt(source, line, character)
+    .filter((occurrence) => includeDeclaration || occurrence.role !== 'declaration')
+    .map((occurrence) => occurrenceRange(occurrence.position, occurrence.name));
+}
+
+export function highlightsAt(source: string, line: number, character: number): DocumentHighlight[] {
+  return sameBindingAt(source, line, character).map((occurrence) => ({
+    range: occurrenceRange(occurrence.position, occurrence.name),
+    kind: occurrence.role === 'read' ? DocumentHighlightKind.Read : DocumentHighlightKind.Write,
+  }));
+}
+
+function answer<Result>(connection: Connection, documents: TextDocuments<TextDocument>, uri: string, fallback: Result, compute: (source: string) => Result): Result {
+  const document = documents.get(uri);
+  if (document === undefined) return fallback;
+  try {
+    return compute(document.getText());
+  } catch {
+    connection.console.error(`internal error while reading ${uri}; this is a bug in slopersons, not in your program`);
+    return fallback;
+  }
 }
 
 function publishDiagnostics(connection: Connection, document: TextDocument): void {
@@ -196,20 +248,27 @@ export function runLanguageServer(version: string): Promise<number> {
   const connection = createConnection(process.stdin, process.stdout);
   const documents = new TextDocuments(TextDocument);
   connection.onInitialize(() => ({
-    capabilities: { textDocumentSync: TextDocumentSyncKind.Full, semanticTokensProvider: { legend: SEMANTIC_TOKENS_LEGEND, full: true } },
+    capabilities: {
+      textDocumentSync: TextDocumentSyncKind.Full,
+      semanticTokensProvider: { legend: SEMANTIC_TOKENS_LEGEND, full: true },
+      definitionProvider: true,
+      referencesProvider: true,
+      documentHighlightProvider: true,
+    },
     serverInfo: { name: 'slopersons', version },
   }));
   documents.onDidChangeContent((change) => publishDiagnostics(connection, change.document));
-  connection.languages.semanticTokens.on((parameters) => {
-    const document = documents.get(parameters.textDocument.uri);
-    if (document === undefined) return { data: [] };
-    try {
-      return { data: encodeSemanticTokens(semanticTokensFor(document.getText())) };
-    } catch {
-      connection.console.error(`internal error while highlighting ${document.uri}; this is a bug in slopersons, not in your program`);
-      return { data: [] };
-    }
-  });
+  connection.languages.semanticTokens.on(({ textDocument }) => answer(connection, documents, textDocument.uri, { data: [] }, (source) => ({ data: encodeSemanticTokens(semanticTokensFor(source)) })));
+  connection.onDefinition(({ textDocument, position }) =>
+    answer(connection, documents, textDocument.uri, null, (source) => {
+      const range = definitionAt(source, position.line, position.character);
+      return range === null ? null : { uri: textDocument.uri, range };
+    }),
+  );
+  connection.onReferences(({ textDocument, position, context }) =>
+    answer(connection, documents, textDocument.uri, [], (source) => referencesAt(source, position.line, position.character, context.includeDeclaration).map((range) => ({ uri: textDocument.uri, range }))),
+  );
+  connection.onDocumentHighlight(({ textDocument, position }) => answer(connection, documents, textDocument.uri, [], (source) => highlightsAt(source, position.line, position.character)));
   documents.onDidClose((event) => void connection.sendDiagnostics({ uri: event.document.uri, diagnostics: [] }));
   documents.listen(connection);
   connection.listen();

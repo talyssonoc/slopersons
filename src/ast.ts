@@ -5,7 +5,9 @@ export type Statement = ProcedureDefinition | WhileStatement | Conditional | Flo
 export interface ProcedureDefinition {
   kind: 'proc';
   name: string;
+  namePosition: Position;
   parameters: string[];
+  parameterPositions: Position[];
   body: Statement[];
   position: Position;
 }
@@ -42,6 +44,7 @@ export interface StopStatement {
 export interface ExportStatement {
   kind: 'export';
   names: string[];
+  namePositions: Position[];
   position: Position;
 }
 
@@ -49,6 +52,7 @@ export interface AttemptStatement {
   kind: 'attempt';
   body: Statement[];
   errorName: string | null;
+  errorNamePosition: Position | null;
   handler: Statement[] | null;
   cleanup: Statement[] | null;
   position: Position;
@@ -67,6 +71,7 @@ export interface CallStep {
 export interface BindStep {
   kind: 'bind';
   name: string;
+  namePosition: Position;
   outer: boolean;
   position: Position;
 }

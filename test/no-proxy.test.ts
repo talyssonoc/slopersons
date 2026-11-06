@@ -23,7 +23,7 @@ interface Rule {
   allowedIn: string[];
 }
 
-const FRONT_END = ['src/lexer.ts', 'src/line-tree.ts', 'src/parser.ts', 'src/ast.ts', 'src/errors.ts'];
+const FRONT_END = ['src/lexer.ts', 'src/line-tree.ts', 'src/parser.ts', 'src/ast.ts', 'src/errors.ts', 'src/names.ts'];
 
 const rules: Rule[] = [
   { pattern: /\bnew (Map|Set|WeakMap|WeakSet)\b/, reason: 'slopersons containers use src/runtime/hashtable.ts; JS Map is only for interpreter bookkeeping', allowedIn: [...FRONT_END, 'src/interpreter.ts', 'src/modules.ts', 'src/bridge.ts'] },

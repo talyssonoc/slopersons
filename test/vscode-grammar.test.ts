@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,7 @@ import oniguruma from 'vscode-oniguruma';
 import { KEYWORDS, lex, type Token } from '../src/lexer.ts';
 import { createInterpreter } from '../src/cli.ts';
 import { fakeIo } from './helpers/run.ts';
+import { repositoryPrograms } from './helpers/repository-programs.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const extensionDirectory = join(root, 'editors/vscode');
@@ -234,14 +235,6 @@ test('chars, numbers and comments', () => {
   assert.equal(innermost('nothing => a', 'nothing'), 'constant.language.nothing.slop');
 });
 
-function slopFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return slopFiles(path);
-    return entry.name.endsWith('.slop') ? [path] : [];
-  });
-}
-
 function lexerTokens(tokens: Token[]): Token[] {
   return tokens.flatMap((token) => (token.kind === 'string' ? [token, ...token.parts.flatMap((part) => (part.kind === 'expr' ? lexerTokens(part.tokens) : []))] : [token]));
 }
@@ -257,7 +250,7 @@ const EXPECTED_SCOPE: Record<Token['kind'], RegExp> = {
   op: /^(keyword\.operator\.|punctuation\.)/,
 };
 
-const sources = ['docs/examples', 'test/programs', 'src/stdlib'].flatMap((directory) => slopFiles(join(root, directory)));
+const sources = repositoryPrograms();
 
 test('every token the lexer reads in the repository gets the matching scope', () => {
   const mismatches: string[] = [];

@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { parse, parseRecovering } from '../src/parser.ts';
 import { SlopersonsError } from '../src/errors.ts';
 import { printProgram } from './helpers/ast-print.ts';
+import { repositoryPrograms } from './helpers/repository-programs.ts';
 
 function printed(source: string): string {
   return printProgram(parse(source));
@@ -279,17 +278,8 @@ test('the first recovered error is the error parse throws', () => {
   }
 });
 
-function slopFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const path = join(directory, entry.name);
-    if (entry.isDirectory()) return slopFiles(path);
-    return entry.name.endsWith('.slop') ? [path] : [];
-  });
-}
-
 test('recovering parse gives the same program as parse for every .slop file in the repository', () => {
-  const root = fileURLToPath(new URL('..', import.meta.url));
-  const files = ['docs/examples', 'test/programs', 'src/stdlib'].flatMap((directory) => slopFiles(join(root, directory)));
+  const files = repositoryPrograms();
   assert.ok(files.length >= 30);
   for (const file of files) {
     const source = readFileSync(file, 'utf8');
