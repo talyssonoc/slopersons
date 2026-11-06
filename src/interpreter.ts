@@ -1,4 +1,4 @@
-import type { Expression, Lambda, Statement, Step } from './ast.ts';
+import type { Expression, FlowStatement, Lambda, Statement, Step } from './ast.ts';
 import { SlopersonsError, runtimeError, type Position } from './errors.ts';
 import {
   NO,
@@ -168,6 +168,13 @@ export class Interpreter {
   private readonly builtins: Map<string, Value>;
   private readonly methods: Map<string, Map<TypeName, MethodImpl>>;
   private depth: number;
+  // `-> out` ending a statement of a procedure body records the return here instead of throwing an
+  // OutSignal, which costs far more; every block stops at it and the call takes the value. Inside an
+  // expression (a conditional or attempt in parentheses) the expression around it must not go on, so
+  // `out` throws there, and a lambda turns a recorded return back into an OutSignal, since `out` leaves
+  // the procedure that made the lambda, through any builtin that called it.
+  private returning: OutSignal | null;
+  private expressionDepth: number;
   private nextActivation: number;
   private topActivation: number;
   currentFile: string | null;
@@ -192,6 +199,8 @@ export class Interpreter {
     this.builtins = new Map();
     this.methods = new Map();
     this.depth = 0;
+    this.returning = null;
+    this.expressionDepth = 0;
     this.nextActivation = 0;
     this.topActivation = -1;
     this.currentFile = null;
@@ -293,9 +302,15 @@ export class Interpreter {
 
   runIn(program: Statement[], environment: Environment): Value {
     try {
-      return this.execBlock(program, environment);
+      const value = this.execBlock(program, environment);
+      const returning = this.returning;
+      if (returning !== null) throw returning;
+      return value;
     } catch (signal) {
       throw this.escapedSignalError(signal);
+    } finally {
+      this.returning = null;
+      this.expressionDepth = 0;
     }
   }
 
@@ -314,13 +329,34 @@ export class Interpreter {
 
   execBlock(statements: Statement[], environment: Environment): Value {
     let result: Value = NOTHING;
-    for (const statement of statements) result = this.execStatement(statement, environment);
+    for (const statement of statements) {
+      result = this.execStatement(statement, environment);
+      if (this.returning !== null) return NOTHING;
+    }
     return result;
+  }
+
+  private returnsDirectly(statement: FlowStatement, environment: Environment): boolean {
+    const flow = statement.expression;
+    if (this.expressionDepth !== 0 || flow.kind !== 'flow') return false;
+    const last = flow.steps[flow.steps.length - 1];
+    if (last === undefined || last.kind !== 'call' || last.callee.kind !== 'name' || last.callee.name !== 'out' || last.arguments.length > 0 || last.body !== null) return false;
+    const callee = environment.lookup('out') ?? this.builtins.get('out');
+    if (callee === undefined || callee.type !== 'builtin' || callee.name !== 'out') return false;
+    let value = this.evaluateExpression(flow.head, environment);
+    for (let index = 0; index < flow.steps.length - 1; index++) {
+      const step = flow.steps[index];
+      if (step !== undefined) value = this.evalStep(step, value, environment);
+    }
+    this.checkInterruption();
+    this.returning = new OutSignal(environment.activation, value, last.position);
+    return true;
   }
 
   execStatement(statement: Statement, environment: Environment): Value {
     switch (statement.kind) {
       case 'flow-statement':
+        if (this.returnsDirectly(statement, environment)) return NOTHING;
         return this.evaluateExpression(statement.expression, environment);
       case 'proc': {
         const procedure: ProcedureValue = {
@@ -344,6 +380,7 @@ export class Interpreter {
             if (signal instanceof StopSignal) break;
             throw signal;
           }
+          if (this.returning !== null) break;
         }
         return NOTHING;
       case 'conditional':
@@ -376,7 +413,12 @@ export class Interpreter {
         outcome = { thrown: error };
       }
     }
-    if (statement.cleanup !== null && cleanupRuns(outcome)) this.execBlock(statement.cleanup, environment);
+    if (statement.cleanup !== null && cleanupRuns(outcome)) {
+      const pending = this.returning;
+      this.returning = null;
+      this.execBlock(statement.cleanup, environment);
+      if (this.returning === null) this.returning = pending;
+    }
     if ('thrown' in outcome) throw outcome.thrown;
     return outcome.value;
   }
@@ -444,9 +486,19 @@ export class Interpreter {
       case 'lambda':
         return this.makeLambda(expression, environment);
       case 'conditional':
-        return this.evalConditional(expression, environment);
+        this.expressionDepth++;
+        try {
+          return this.evalConditional(expression, environment);
+        } finally {
+          this.expressionDepth--;
+        }
       case 'attempt':
-        return this.execAttempt(expression, environment);
+        this.expressionDepth++;
+        try {
+          return this.execAttempt(expression, environment);
+        } finally {
+          this.expressionDepth--;
+        }
     }
   }
 
@@ -518,8 +570,15 @@ export class Interpreter {
       if (name !== undefined && value !== undefined) frame.defineParam(name, value);
     }
     this.depth++;
+    const expressionDepth = this.expressionDepth;
+    this.expressionDepth = 0;
     try {
-      return this.execBlock(callee.body, frame);
+      const result = this.execBlock(callee.body, frame);
+      const returning = this.returning;
+      if (returning === null) return result;
+      this.returning = null;
+      if (callee.isProc && returning.activation === frame.activation) return returning.value;
+      throw returning;
     } catch (signal) {
       if (callee.isProc) {
         if (signal instanceof OutSignal && signal.activation === frame.activation) return signal.value;
@@ -530,6 +589,7 @@ export class Interpreter {
       throw signal;
     } finally {
       this.depth--;
+      this.expressionDepth = expressionDepth;
     }
   }
 

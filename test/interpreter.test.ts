@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { Interpreter } from '../src/interpreter.ts';
 import { NOTHING } from '../src/values.ts';
 import { failure, fakeIo, output, run, runCli } from './helpers/run.ts';
+import { parse } from '../src/parser.ts';
+import { registerStdlib } from '../src/stdlib/registry.ts';
 
 test('print writes without a newline and passes its value on', () => {
   assert.equal(output('"a" -> io/print -> io/print\n1 -> io/print\n"" -> io/print-line\n[1] -> io/print'), 'aa1\n[1]');
@@ -130,6 +132,47 @@ test('out exits the nearest enclosing proc, through lambdas', () => {
   assert.equal(failure('1 -> out').message, '`out` outside of a procedure');
   const escaped = failure('proc maker\n| x | x -> out\nmaker -> do => f\n1 -> f');
   assert.equal(escaped.message, '`out` was reached from a lambda whose procedure has already returned');
+});
+
+test('out ending a statement leaves its procedure from inside conditionals and loops, and skips the rest', () => {
+  const classify = 'proc classify n\n| n mod 15 = 0 ? "FizzBuzz" -> out\n| n mod 3 = 0 ? "Fizz" -> out\n| n\n';
+  assert.equal(output(`${classify}[3 15 7] -> array/each n | n -> classify -> io/print-line`), 'Fizz\nFizzBuzz\n7\n');
+  const loop = 'proc count-to-two\n| 0 => i\n| while i < 5\n| | i + 1 =>> i -> io/print-line\n| | i = 2 ? i -> out\n| "none"\n';
+  assert.equal(output(`${loop}count-to-two -> do -> io/print-line`), '1\n2\n2\n');
+  assert.equal(output('proc f\n| 1 -> io/print-line\n| 2 -> out\n| 3 -> io/print-line\nf -> do -> io/print-line'), '1\n2\n');
+  assert.equal(output('proc outer\n| proc inner | 1 -> out\n| inner -> do => got\n| got + 1\nouter -> do -> io/print-line'), '2\n');
+});
+
+test('out inside a conditional used as a value leaves the procedure before the value is used', () => {
+  const source = 'proc f n\n| (n > 1 ? n -> out : 0) + 100 => x\n| x\n';
+  assert.equal(output(`${source}5 -> f -> io/print-line\n0 -> f -> io/print-line`), '5\n100\n');
+  assert.equal(output('proc g\n| (attempt | 4 -> out always | "cleanup" -> io/print-line) + 1\ng -> do -> io/print-line'), 'cleanup\n4\n');
+});
+
+test('out as the last statement of a lambda leaves the procedure that made it, through the builtin calling it', () => {
+  assert.equal(output('proc f\n| (| 7 -> out) -> do\n| 1\nf -> do -> io/print-line'), '7\n');
+  assert.equal(output('proc g\n| [1 2 3] -> array/map n\n| | n = 2 ? "two" -> out\n| | n\ng -> do -> io/print-line'), 'two\n');
+});
+
+test('an out in an always body replaces the return it interrupted, and recover can return', () => {
+  assert.equal(output('proc f\n| attempt\n| | 1 -> out\n| always\n| | 2 -> out\nf -> do -> io/print-line'), '2\n');
+  assert.equal(output('proc f\n| attempt\n| | 1 -> out\n| always\n| | "ran" -> io/print-line\n| | "also ran" -> io/print-line\n| 3\nf -> do -> io/print-line'), 'ran\nalso ran\n1\n');
+  assert.equal(output('proc f\n| attempt\n| | 1 / 0\n| recover\n| | "recovered" -> out\n| "after"\nf -> do -> io/print-line'), 'recovered\n');
+});
+
+test('a procedure named out is called, not returned from', () => {
+  assert.equal(output('proc out v | v * 2\nproc f\n| 3 -> out => doubled\n| doubled + 1\nf -> do -> io/print-line'), '7\n');
+  assert.equal(output('proc out v | v * 2\nproc f\n| 3 -> out\n| "went on"\nf -> do -> io/print-line'), 'went on\n');
+});
+
+test('after out at the top level fails, the same interpreter runs the next program normally', () => {
+  const io = fakeIo();
+  const interpreter = new Interpreter(io);
+  registerStdlib(interpreter);
+  const environment = interpreter.createTopLevelEnvironment();
+  assert.throws(() => interpreter.runIn(parse('1 -> out\n2 -> io/print-line'), environment), /`out` outside of a procedure/);
+  interpreter.runIn(parse('proc f | 5\nf -> do -> io/print-line\n6 -> io/print-line'), environment);
+  assert.equal(io.out, '5\n6\n');
 });
 
 test('stop exits the innermost loop and cannot leave a proc', () => {
